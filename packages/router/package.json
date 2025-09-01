@@ -1,0 +1,60 @@
+{
+  "name": "@sigmela/router",
+  "version": "0.0.1",
+  "description": "React Native router library with TypeScript support",
+  "source": "./src/index.ts",
+  "main": "./lib/index.js",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "sideEffects": false,
+  "scripts": {
+    "build": "yarn clean && tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf lib .tsbuildinfo",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "TS_NODE_TRANSPILE_ONLY=1 TS_NODE_PROJECT=tsconfig.test.json node -r ts-node/register src/tests/router.slices.ts",
+    "prepublishOnly": "yarn build"
+  },
+  "keywords": [
+    "react-native",
+    "router",
+    "navigation",
+    "typescript"
+  ],
+  "author": "Sigmela",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-native": ">=0.70.0",
+    "react-native-bottom-tabs": ">=0.10.0",
+    "react-native-screens": ">=4.14.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-native": "^0.73.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.19.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "files": [
+    "lib",
+    "README.md",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sigmela/router.git",
+    "directory": "packages/router"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "nanoid": "^5.1.5",
+    "path-to-regexp": "^8.2.0",
+    "query-string": "^9.2.2"
+  }
+}

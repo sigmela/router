@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "removeComments": true,
+    "importsNotUsedAsValues": "remove",
+    "verbatimModuleSyntax": false,
+    "module": "esnext",
+    "target": "esnext",
+    "jsx": "react-jsx",
+    "tsBuildInfoFile": "./.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "lib",
+    "node_modules",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "src/tests/**"
+  ]
+}

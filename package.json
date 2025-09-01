@@ -1,0 +1,33 @@
+{
+  "name": "@sigmela/router-monorepo",
+  "version": "1.0.0",
+  "description": "Monorepo for Sigmela Router library",
+  "packageManager": "yarn@4.9.2",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "yarn workspaces foreach run build",
+    "test": "yarn workspaces foreach run test",
+    "lint": "yarn workspaces foreach run lint",
+    "typecheck": "yarn workspaces foreach run typecheck",
+    "clean": "yarn workspaces foreach run clean",
+    "dev": "yarn workspace example dev",
+    "start": "cd packages/react-native-example && yarn start",
+    "pods": "cd packages/react-native-example && yarn pods"
+  },
+  "devDependencies": {
+    "eslint": "^9.33.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sigmela/router.git"
+  },
+  "author": "Sigmela",
+  "license": "MIT"
+}
