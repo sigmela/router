@@ -1,4 +1,4 @@
-@sigmela/router
+# Router for React Native
 
 Lightweight, predictable navigation for React Native built on top of react-native-screens. It provides:
 - Stack navigation with URL-like paths and typed params
