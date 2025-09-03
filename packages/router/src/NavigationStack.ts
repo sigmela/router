@@ -56,6 +56,17 @@ export class NavigationStack {
     return this;
   }
 
+  public addModal(
+    path: string,
+    screen: React.ComponentType<any>,
+    options?: ScreenOptions,
+  ): NavigationStack {
+    return this.addScreen(path, screen, {
+      ...options,
+      stackPresentation: 'modal',
+    });
+  }
+
   public getRoutes(): BuiltRoute[] {
     return this.routes.slice();
   }

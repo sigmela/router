@@ -170,6 +170,15 @@ function run() {
   router4.goBack();
   assert.equal(router4.getStackHistory(b4Id).length, 1, 'Then popped current tab B');
 
+  // Test addModal convenience method
+  const modalStack = new NavigationStack().addModal('/modal', ScreenAuth, {
+    header: { title: 'Modal Screen' },
+  });
+  const modalRoutes = modalStack.getRoutes();
+  assert.equal(modalRoutes.length, 1, 'Modal stack should have 1 route');
+  assert.equal(modalRoutes[0].options?.stackPresentation, 'modal', 'addModal should set stackPresentation to modal');
+  assert.equal(modalRoutes[0].options?.header?.title, 'Modal Screen', 'addModal should preserve other options');
+
   // eslint-disable-next-line no-console
   console.log('router slices test: OK');
 }

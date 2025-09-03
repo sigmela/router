@@ -10,37 +10,36 @@ import { OrdersScreen } from '../screens/OrdersScreen';
 import { UserScreen, UserDetailsScreen } from '../screens/UserScreen';
 
 export const homeStack = new NavigationStack().addScreen('/', HomeScreen, {
-  headerConfig: { title: 'Home' },
+  header: { title: 'Home' },
 });
 
 export const catalogStack = new NavigationStack()
   .addScreen('/catalog', CatalogScreen, {
-    headerConfig: { title: 'Catalog' },
+    header: { title: 'Catalog' },
   })
   .addScreen('/catalog/products/:productId', ProductScreen, {
-    headerConfig: { title: 'Product' },
+    header: { title: 'Product' },
   });
 
 export const settingsStack = new NavigationStack().addScreen('/settings', SettingsScreen, {
-  headerConfig: { title: 'Settings' },
+  header: { title: 'Settings' },
 });
 
-export const globalStack = new NavigationStack().addScreen('/auth', AuthScreen, {
-  stackPresentation: 'modal',
-  headerConfig: { title: 'Sign in', hidden: false },
+export const globalStack = new NavigationStack().addModal('/auth', AuthScreen, {
+  header: { title: 'Sign in' },
 });
 
 export const ordersStack = new NavigationStack().addScreen(
   '/orders/:year/:month',
   OrdersScreen,
-  { headerConfig: { title: 'Orders' } },
+  { header: { title: 'Orders' } },
 );
 
 export const userStack = new NavigationStack()
-  .addScreen('/users/:userId', UserScreen, { headerConfig: { title: 'User' } })
-  .addScreen('/users/:userId/details', UserDetailsScreen, { headerConfig: { title: 'Details' } });
+  .addScreen('/users/:userId', UserScreen, { header: { title: 'User' } })
+  .addScreen('/users/:userId/details', UserDetailsScreen, { header: { title: 'Details' } });
 
 export const authStack = new NavigationStack().addScreen('/login', AuthRootScreen, {
-  headerConfig: { title: 'Login', hidden: true },
+  header: { title: 'Login', hidden: true },
 });
 

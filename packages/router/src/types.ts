@@ -1,5 +1,5 @@
 import type { ImageSourcePropType } from 'react-native';
-import type { ScreenProps as RNSScreenProps } from 'react-native-screens';
+import type { ScreenProps as RNSScreenProps, ScreenStackHeaderConfigProps } from 'react-native-screens';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 export type IconSource = string | ImageSourcePropType;
@@ -30,8 +30,10 @@ export type NavigationState<Route extends BaseRoute> = {
 // Navigation core types
 export type Scope = 'global' | 'tab' | 'root';
 
-// Map ScreenOptions to native ScreenStackItem props
-export type ScreenOptions = Partial<RNSScreenProps>;
+// Map ScreenOptions to native ScreenStackItem props  
+export type ScreenOptions = Partial<RNSScreenProps> & {
+  header?: ScreenStackHeaderConfigProps;
+};
 
 export type HistoryItem = {
   key: string;

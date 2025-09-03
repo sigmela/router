@@ -36,8 +36,8 @@ function DetailsScreen() {
 }
 
 const rootStack = new NavigationStack()
-  .addScreen('/', HomeScreen, { headerConfig: { title: 'Home' } })
-  .addScreen('/details/:id', DetailsScreen, { headerConfig: { title: 'Details' } });
+  .addScreen('/', HomeScreen, { header: { title: 'Home' } })
+  .addScreen('/details/:id', DetailsScreen, { header: { title: 'Details' } });
 
 const router = new Router({ root: rootStack });
 
@@ -52,18 +52,17 @@ Quick start (tabs + global stack)
 import { NavigationStack, Router, Navigation, TabBar } from '@sigmela/router';
 
 const homeStack = new NavigationStack()
-  .addScreen('/', HomeScreen, { headerConfig: { title: 'Home' } });
+  .addScreen('/', HomeScreen, { header: { title: 'Home' } });
 
 const catalogStack = new NavigationStack()
-  .addScreen('/catalog', CatalogScreen, { headerConfig: { title: 'Catalog' } })
+  .addScreen('/catalog', CatalogScreen, { header: { title: 'Catalog' } })
   .addScreen('/catalog/products/:productId', ProductScreen, { 
-    headerConfig: { title: 'Product' } 
+    header: { title: 'Product' } 
   });
 
 const globalStack = new NavigationStack()
-  .addScreen('/auth', AuthScreen, {
-    stackPresentation: 'modal',
-    headerConfig: { title: 'Sign in', hidden: false },
+  .addModal('/auth', AuthScreen, {
+    header: { title: 'Sign in' },
   });
 
 const tabBar = new TabBar({ labeled: true })
@@ -96,6 +95,8 @@ NavigationStack
     - new NavigationStack(defaultOptions: ScreenOptions)
     - new NavigationStack(id: string, defaultOptions: ScreenOptions)
 - addScreen(path: string, component: React.ComponentType, options?: ScreenOptions): this
+- addModal(path: string, component: React.ComponentType, options?: ScreenOptions): this
+  - Convenience method that automatically sets `stackPresentation: 'modal'`
 - getId(): string
 - getDefaultOptions(): ScreenOptions | undefined
 
@@ -183,11 +184,46 @@ You can update badges and styles at runtime via:
 
 Screen options
 
-ScreenOptions map directly to props of react-native-screens `ScreenStackItem` (e.g., headerConfig, stackPresentation, stackAnimation, gestureEnabled, etc.).
+ScreenOptions map directly to props of react-native-screens `ScreenStackItem` (e.g., header, stackPresentation, stackAnimation, gestureEnabled, etc.).
+- **header**: controls the navigation header. If not specified, the header is hidden by default.
 - Per-screen options come from `addScreen(path, component, options)`
 - Per-stack defaults via `new NavigationStack(defaultOptions)`
 - Global overrides via `new Router({ screenOptions })`
 The effective options are merged in this order: stack defaults → per-screen → router overrides.
+
+Header configuration:
+```tsx
+// Header with title (visible)
+{ header: { title: 'My Screen' } }
+
+// Hidden header (explicit)
+{ header: { hidden: true } }
+
+// No header specified = hidden by default
+{ /* header will be hidden automatically */ }
+
+// Custom header with background color
+{ header: { title: 'Settings', backgroundColor: '#007AFF' } }
+```
+
+Modal screens:
+```tsx
+// Using addModal - automatically sets stackPresentation: 'modal'
+const stack = new NavigationStack()
+  .addModal('/auth', AuthScreen, {
+    header: { title: 'Sign In' }
+  })
+  .addModal('/settings', SettingsScreen, {
+    header: { title: 'Settings' }
+  });
+
+// Equivalent to using addScreen with explicit modal presentation
+const stack = new NavigationStack()
+  .addScreen('/auth', AuthScreen, {
+    stackPresentation: 'modal',
+    header: { title: 'Sign In' }
+  });
+```
 
 Paths, params and query
 

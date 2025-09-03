@@ -31,13 +31,19 @@ export const ScreenStackItem = memo<ScreenStackItemProps>(
       path: item.path,
     };
 
+    const { header, ...screenProps } = item.options || {};
+
+    // Hide header by default if not specified
+    const headerConfig = header || { hidden: true };
+
     return (
       <RNSScreenStackItem
         key={item.key}
         screenId={item.key}
         onDismissed={onDismissed}
         style={StyleSheet.absoluteFill}
-        {...item.options}
+        headerConfig={headerConfig}
+        {...screenProps}
         stackAnimation={stackAnimation ?? item.options?.stackAnimation}
       >
         <RouteLocalContext.Provider value={value}>
