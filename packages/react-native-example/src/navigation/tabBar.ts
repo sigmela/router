@@ -5,6 +5,7 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { homeStack, settingsStack, catalogStack, ordersStack, userStack } from './stacks';
 
 export const tabBar = new TabBar({
+  disablePageAnimations: true, 
   tabBarStyle: {
     backgroundColor: '#ffffff',
   },
