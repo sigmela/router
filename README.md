@@ -1,5 +1,7 @@
 # Router for React Native
 
+[![npm version](https://badge.fury.io/js/%40sigmela%2Frouter.svg)](https://www.npmjs.com/package/@sigmela/router)
+
 Lightweight, predictable navigation for React Native built on top of react-native-screens. It provides:
 - Stack navigation with URL-like paths and typed params
 - Bottom tab navigation via a simple builder API
