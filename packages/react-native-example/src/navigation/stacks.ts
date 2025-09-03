@@ -9,9 +9,10 @@ import { AuthRootScreen } from '../screens/AuthRootScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
 import { UserScreen, UserDetailsScreen } from '../screens/UserScreen';
 
-export const homeStack = new NavigationStack().addScreen('/', HomeScreen, {
-  header: { title: 'Home' },
-});
+export const homeStack = new NavigationStack()
+  .addScreen('/', HomeScreen, {
+    header: { title: 'Home' },
+  });
 
 export const catalogStack = new NavigationStack()
   .addScreen('/catalog', CatalogScreen, {
@@ -21,25 +22,28 @@ export const catalogStack = new NavigationStack()
     header: { title: 'Product' },
   });
 
-export const settingsStack = new NavigationStack().addScreen('/settings', SettingsScreen, {
-  header: { title: 'Settings' },
-});
+export const settingsStack = new NavigationStack()
+  .addScreen('/settings', SettingsScreen, { 
+    header: { title: 'Settings' } 
+  });
 
-export const globalStack = new NavigationStack().addModal('/auth', AuthScreen, {
-  header: { title: 'Sign in' },
-});
+export const globalStack = new NavigationStack()
+  .addModal('/auth', AuthScreen, {
+    header: { title: 'Sign in' },
+  });
 
-export const ordersStack = new NavigationStack().addScreen(
-  '/orders/:year/:month',
-  OrdersScreen,
-  { header: { title: 'Orders' } },
-);
+export const ordersStack = new NavigationStack()
+  .addScreen('/orders/:year/:month', OrdersScreen, { 
+    header: { title: 'Orders' } 
+  });
 
 export const userStack = new NavigationStack()
   .addScreen('/users/:userId', UserScreen, { header: { title: 'User' } })
-  .addScreen('/users/:userId/details', UserDetailsScreen, { header: { title: 'Details' } });
+  .addScreen('/users/:userId/details', UserDetailsScreen, {
+    header: { title: 'Details' },
+  });
 
-export const authStack = new NavigationStack().addScreen('/login', AuthRootScreen, {
-  header: { title: 'Login', hidden: true },
-});
-
+export const authStack = new NavigationStack()
+  .addScreen( '/login', AuthRootScreen,{
+    header: { title: 'Login', hidden: true },
+  });
