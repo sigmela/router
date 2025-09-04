@@ -3,7 +3,7 @@ import { NavigationStack } from '@sigmela/router';
 import { HomeScreen } from '../screens/HomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { CatalogScreen } from '../screens/CatalogScreen';
-import { ProductScreen } from '../screens/ProductScreen';
+import { ProductController, ProductScreen } from '../screens/ProductScreen';
 import { AuthScreen } from '../screens/AuthScreen';
 import { AuthRootScreen } from '../screens/AuthRootScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
@@ -18,9 +18,11 @@ export const catalogStack = new NavigationStack()
   .addScreen('/catalog', CatalogScreen, {
     header: { title: 'Catalog' },
   })
-  .addScreen('/catalog/products/:productId', ProductScreen, {
-    header: { title: 'Product' },
-  });
+  .addScreen(
+    '/catalog/products/:productId', 
+    { controller: ProductController, component: ProductScreen },
+    { header: { title: 'Product' }}
+  );
 
 export const settingsStack = new NavigationStack()
   .addScreen('/settings', SettingsScreen, { 

@@ -91,72 +91,11 @@ export class Router {
 
   // Public API
   public navigate = (path: string): void => {
-    const { pathname, query } = this.parsePath(path);
-    const matched = this.matchRoute(pathname);
-    if (!matched) {
-      return;
-    }
-
-    if (matched.scope === 'tab' && this.tabBar && matched.tabIndex !== undefined) {
-      this.onTabIndexChange(matched.tabIndex);
-    }
-
-    const matchResult = matched.match(pathname);
-    const params = matchResult ? matchResult.params : undefined;
-
-    // Prevent duplicate push when navigating to the same screen already on top of its stack
-    const top = this.getTopForTarget(matched.stackId);
-    if (top && top.routeId === matched.routeId) {
-      const prev = top.params ? JSON.stringify(top.params) : '';
-      const next = params ? JSON.stringify(params) : '';
-      if (prev === next) {
-        return;
-      }
-    }
-
-    const newItem: HistoryItem = {
-      key: this.generateKey(),
-      scope: matched.scope,
-      routeId: matched.routeId,
-      component: matched.component,
-      options: this.mergeOptions(matched.options, matched.stackId),
-      params,
-      query: query as any,
-      tabIndex: matched.tabIndex,
-      stackId: matched.stackId,
-      pattern: matched.path,
-      path: pathname,
-    };
-
-    this.applyHistoryChange('push', newItem);
+    this.performNavigation(path, 'push');
   };
 
   public replace = (path: string): void => {
-    const { pathname, query } = this.parsePath(path);
-    const matched = this.matchRoute(pathname);
-    if (!matched) {
-      return;
-    }
-    if (matched.scope === 'tab' && this.tabBar && matched.tabIndex !== undefined) {
-      this.onTabIndexChange(matched.tabIndex);
-    }
-
-    const matchResult = matched.match(pathname);
-    const newItem: HistoryItem = {
-      key: this.generateKey(),
-      scope: matched.scope,
-      routeId: matched.routeId,
-      component: matched.component,
-      options: this.mergeOptions(matched.options, matched.stackId),
-      params: matchResult ? matchResult.params : undefined,
-      query: query as any,
-      tabIndex: matched.tabIndex,
-      stackId: matched.stackId,
-      pattern: matched.path,
-      path: pathname,
-    };
-
-    this.applyHistoryChange('replace', newItem);
+    this.performNavigation(path, 'replace');
   };
 
   public goBack = (): void => {
@@ -423,7 +362,77 @@ export class Router {
     this.visibleRoute = null;
   }
 
-  
+  // Internal navigation logic
+  private performNavigation(path: string, action: 'push' | 'replace'): void {
+    const { pathname, query } = this.parsePath(path);
+    const matched = this.matchRoute(pathname);
+    if (!matched) {
+      return;
+    }
+
+    if (matched.scope === 'tab' && this.tabBar && matched.tabIndex !== undefined) {
+      this.onTabIndexChange(matched.tabIndex);
+    }
+
+    const matchResult = matched.match(pathname);
+    const params = matchResult ? matchResult.params : undefined;
+
+    // Prevent duplicate push when navigating to the same screen already on top of its stack
+    if (action === 'push') {
+      const top = this.getTopForTarget(matched.stackId);
+      if (top && top.routeId === matched.routeId) {
+        const prev = top.params ? JSON.stringify(top.params) : '';
+        const next = params ? JSON.stringify(params) : '';
+        if (prev === next) {
+          return;
+        }
+      }
+    }
+
+    // If there's a controller, execute it first
+    if (matched.controller) {
+      const controllerInput = { params, query };
+      const present = (passProps?: Record<string, unknown>) => {
+        const newItem = this.createHistoryItem(
+          matched,
+          params,
+          query,
+          pathname,
+          passProps,
+        );
+        this.applyHistoryChange(action, newItem);
+      };
+
+      matched.controller(controllerInput, present);
+      return;
+    }
+
+    const newItem = this.createHistoryItem(matched, params, query, pathname);
+    this.applyHistoryChange(action, newItem);
+  }
+
+  private createHistoryItem(
+    matched: CompiledRoute,
+    params: Record<string, any> | undefined,
+    query: Record<string, unknown>,
+    pathname: string,
+    passProps?: any,
+  ): HistoryItem {
+    return {
+      key: this.generateKey(),
+      scope: matched.scope,
+      routeId: matched.routeId,
+      component: matched.component,
+      options: this.mergeOptions(matched.options, matched.stackId),
+      params,
+      query: query as any,
+      passProps,
+      tabIndex: matched.tabIndex,
+      stackId: matched.stackId,
+      pattern: matched.path,
+      path: pathname,
+    };
+  }
 
   // Internal helpers
   private buildRegistry(): void {
@@ -443,6 +452,7 @@ export class Router {
           path: r.path,
           match: r.match,
           component: r.component,
+          controller: r.controller,
           options: r.options,
           tabIndex: extras.tabIndex,
           stackId,

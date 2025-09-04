@@ -2,6 +2,7 @@ import assert from 'node:assert';
 import { Router } from '../Router';
 import { NavigationStack } from '../NavigationStack';
 import { TabBar } from '../TabBar/TabBar';
+import { createController } from '../createController';
 
 // Dummy components (placeholders)
 const ScreenA: React.ComponentType<any> = () => null;
@@ -186,3 +187,86 @@ function run() {
 run();
 
 
+
+// Test controllers functionality
+function testControllers() {
+  // Create test controller that delays navigation
+  let controllerCallCount = 0;
+  let controllerReceivedParams: any = null;
+  let controllerReceivedQuery: any = null;
+  let presentCallback: any = null;
+
+  const TestController = createController<any>((input, present) => {
+    controllerCallCount++;
+    controllerReceivedParams = input.params;
+    controllerReceivedQuery = input.query;
+    presentCallback = present;
+    // Don't call present immediately - simulate async operation
+  });
+
+  // Create screen component
+  const TestScreen: React.ComponentType<any> = () => null;
+
+  // Create stack with controller
+  const stackWithController = new NavigationStack()
+    .addScreen('/test', TestScreen)
+    .addScreen('/test/:id', { controller: TestController, component: TestScreen });
+
+  const router = new Router({ root: stackWithController });
+  const stackId = stackWithController.getId();
+
+  // Initial state - should have seeded route
+  assert.equal(router.getStackHistory(stackId).length, 1, 'Stack should be seeded');
+
+  // Navigate to route with controller - screen should NOT appear yet
+  router.navigate('/test/123?param=value');
+  
+  // Controller should be called but screen not pushed yet
+  assert.equal(controllerCallCount, 1, 'Controller should be called once');
+  assert.equal(router.getStackHistory(stackId).length, 1, 'Screen should not be pushed until controller calls present');
+  assert.deepEqual(controllerReceivedParams, { id: '123' }, 'Controller should receive correct params');
+  assert.deepEqual(controllerReceivedQuery, { param: 'value' }, 'Controller should receive correct query');
+  
+  // Now controller calls present with props
+  const testProps = { data: 'test-data', loading: false };
+  presentCallback(testProps);
+  
+  // Screen should now be pushed
+  assert.equal(router.getStackHistory(stackId).length, 2, 'Screen should be pushed after controller calls present');
+  
+  // Verify screen receives passProps
+  const currentStack = router.getStackHistory(stackId);
+  const topItem = currentStack[currentStack.length - 1];
+  assert.deepEqual(topItem.passProps, testProps, 'Screen should receive props from controller');
+  assert.equal(topItem.params?.id, '123', 'Screen should have correct params');
+  assert.equal(topItem.query?.param, 'value', 'Screen should have correct query');
+
+  // Test replace with controller
+  controllerCallCount = 0;
+  router.replace('/test/456?param=newvalue');
+  
+  assert.equal(controllerCallCount, 1, 'Controller should be called for replace');
+  assert.equal(router.getStackHistory(stackId).length, 2, 'Stack should still have 2 items before controller calls present');
+  assert.deepEqual(controllerReceivedParams, { id: '456' }, 'Controller should receive new params for replace');
+  
+  // Controller calls present for replace
+  const replaceProps = { data: 'replace-data', loading: true };
+  presentCallback(replaceProps);
+  
+  // Stack should still have 2 items but top item should be replaced
+  assert.equal(router.getStackHistory(stackId).length, 2, 'Stack should have 2 items after replace');
+  const replacedStack = router.getStackHistory(stackId);
+  const replacedTopItem = replacedStack[replacedStack.length - 1];
+  assert.deepEqual(replacedTopItem.passProps, replaceProps, 'Replaced screen should receive new props');
+  assert.equal(replacedTopItem.params?.id, '456', 'Replaced screen should have new params');
+
+  // Test navigation to route without controller (should work normally)
+  router.navigate('/test');
+  assert.equal(router.getStackHistory(stackId).length, 3, 'Route without controller should navigate immediately');
+
+  // eslint-disable-next-line no-console
+  console.log('router controllers test: OK');
+}
+
+// Run controller tests
+testControllers();

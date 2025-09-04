@@ -47,7 +47,7 @@ export const ScreenStackItem = memo<ScreenStackItemProps>(
         stackAnimation={stackAnimation ?? item.options?.stackAnimation}
       >
         <RouteLocalContext.Provider value={value}>
-          <item.component />
+          <item.component {...(item.passProps || {})} />
         </RouteLocalContext.Provider>
       </RNSScreenStackItem>
     );

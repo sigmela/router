@@ -14,7 +14,8 @@
     "clean": "yarn workspaces foreach run clean",
     "dev": "yarn workspace example dev",
     "start": "cd packages/react-native-example && yarn start",
-    "pods": "cd packages/react-native-example && yarn pods"
+    "pods": "cd packages/react-native-example && yarn pods",
+    "copy:readme": "cp -f README.md packages/router/README.md"
   },
   "devDependencies": {
     "eslint": "^9.33.0",

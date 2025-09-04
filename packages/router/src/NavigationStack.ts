@@ -1,12 +1,14 @@
 import type { ScreenOptions } from './types';
 import { nanoid } from 'nanoid/non-secure';
 import { match } from 'path-to-regexp';
+import { ComponentWithController, MixedComponent } from './createController';
 
 type BuiltRoute = {
   routeId: string;
   path: string;
   match: (path: string) => false | { params: Record<string, any> };
   component: React.ComponentType<any>;
+  controller?: ComponentWithController['controller'];
   options?: ScreenOptions; // per-screen options only (no stack defaults merged)
 };
 
@@ -36,9 +38,10 @@ export class NavigationStack {
 
   public addScreen(
     path: string,
-    screen: React.ComponentType<any>,
+    mixedComponent: MixedComponent,
     options?: ScreenOptions,
   ): NavigationStack {
+    const { component, controller } = this.extractComponent(mixedComponent);
     const routeId = `${this.stackId}-route-${this.routes.length}`;
     const matcher = match(path);
 
@@ -49,7 +52,8 @@ export class NavigationStack {
         const result = matcher(p);
         return result ? { params: (result as any).params ?? {} } : false;
       },
-      component: screen,
+      component,
+      controller,
       options,
     });
 
@@ -58,10 +62,10 @@ export class NavigationStack {
 
   public addModal(
     path: string,
-    screen: React.ComponentType<any>,
+    mixedComponent: MixedComponent,
     options?: ScreenOptions,
   ): NavigationStack {
-    return this.addScreen(path, screen, {
+    return this.addScreen(path, mixedComponent, {
       ...options,
       stackPresentation: 'modal',
     });
@@ -77,5 +81,20 @@ export class NavigationStack {
 
   public getDefaultOptions(): ScreenOptions | undefined {
     return this.defaultOptions;
+  }
+
+  private extractComponent(component: MixedComponent) {
+    const componentWithController = component as ComponentWithController;
+    if (componentWithController?.component) {
+      return {
+        controller: componentWithController.controller,
+        component: componentWithController.component,
+      };
+    }
+
+    return {
+      component: component as React.ComponentType<any>,
+      controller: undefined,
+    };
   }
 }

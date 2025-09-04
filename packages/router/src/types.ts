@@ -43,6 +43,7 @@ export type HistoryItem = {
   options?: ScreenOptions;
   params?: Record<string, unknown>;
   query?: Record<string, unknown>;
+  passProps?: any; // Props passed from controller to component
   tabIndex?: number;
   stackId?: string;
   pattern?: string;
@@ -65,6 +66,7 @@ export type CompiledRoute = {
   path: string;
   match: (path: string) => false | { params: Record<string, any> };
   component: React.ComponentType<any>;
+  controller?: import('./createController').Controller<any, any>;
   options?: ScreenOptions;
   tabIndex?: number;
   stackId?: string;
