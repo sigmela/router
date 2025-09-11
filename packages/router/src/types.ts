@@ -1,4 +1,4 @@
-import type { ImageSourcePropType } from 'react-native';
+import type { ImageSourcePropType, ColorValue, StyleProp, ViewStyle } from 'react-native';
 import type { ScreenProps as RNSScreenProps, ScreenStackHeaderConfigProps } from 'react-native-screens';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
@@ -71,3 +71,24 @@ export type CompiledRoute = {
   tabIndex?: number;
   stackId?: string;
 };
+
+export interface NavigationAppearance {
+  tabBar?: {
+    labeled?: boolean;
+    translucent?: boolean;
+    tabBarActiveTintColor?: ColorValue;
+    tabBarInactiveTintColor?: ColorValue;
+    tabBarStyle?: {
+      backgroundColor?: ColorValue;
+    };
+    tabBarItemStyle?: {
+      fontFamily?: string;
+      fontWeight?: string;
+      fontSize?: number;
+    };
+    rippleColor?: ColorValue;
+    activeIndicatorColor?: ColorValue;
+    sceneStyle?: StyleProp<ViewStyle>;
+  };
+  screenStyle?: StyleProp<ViewStyle>;
+}

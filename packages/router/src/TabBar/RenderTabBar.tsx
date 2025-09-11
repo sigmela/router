@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useSyncExternalStore, memo, useEffect } from 'react';
-import type { BaseRoute, NavigationState } from '../types';
+import type { BaseRoute, NavigationState, NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
 import TabView from 'react-native-bottom-tabs';
@@ -8,9 +8,10 @@ import type { TabBar } from './TabBar';
 
 export interface RenderTabBarProps {
   tabBar: TabBar;
+  appearance?: NavigationAppearance['tabBar'];
 }
 
-export const RenderTabBar = memo<RenderTabBarProps>(({ tabBar }) => {
+export const RenderTabBar = memo<RenderTabBarProps>(({ tabBar, appearance }) => {
   const router = useRouter();
   const subscribe = useCallback((cb: () => void) => tabBar.subscribe(cb), [tabBar]);
   const snapshot = useSyncExternalStore(subscribe, tabBar.getState, tabBar.getState);
@@ -45,25 +46,31 @@ export const RenderTabBar = memo<RenderTabBarProps>(({ tabBar }) => {
     [tabBar.screens, tabBar.stacks],
   );
 
+  const getSceneStyle = useCallback(
+    () => appearance?.sceneStyle,
+    [appearance?.sceneStyle],
+  );
+
   return (
     <TabBarContext.Provider value={tabBar}>
       <TabView
         navigationState={navigationState}
         renderScene={renderScene}
         onIndexChange={handleChangeIndex}
-        labeled={config.labeled}
+        getSceneStyle={getSceneStyle}
+        labeled={appearance?.labeled}
         sidebarAdaptable={config.sidebarAdaptable}
         disablePageAnimations={config.disablePageAnimations}
         hapticFeedbackEnabled={config.hapticFeedbackEnabled}
         scrollEdgeAppearance={config.scrollEdgeAppearance}
         minimizeBehavior={config.minimizeBehavior}
-        tabBarActiveTintColor={config.tabBarActiveTintColor}
-        tabBarInactiveTintColor={config.tabBarInactiveTintColor}
-        tabBarStyle={config.tabBarStyle}
-        tabLabelStyle={config.tabBarItemStyle}
-        translucent={config.translucent}
-        rippleColor={config.rippleColor}
-        activeIndicatorColor={config.activeIndicatorColor}
+        tabBarActiveTintColor={appearance?.tabBarActiveTintColor}
+        tabBarInactiveTintColor={appearance?.tabBarInactiveTintColor}
+        tabBarStyle={appearance?.tabBarStyle}
+        tabLabelStyle={appearance?.tabBarItemStyle}
+        translucent={appearance?.translucent}
+        rippleColor={appearance?.rippleColor}
+        activeIndicatorColor={appearance?.activeIndicatorColor}
       />
     </TabBarContext.Provider>
   );

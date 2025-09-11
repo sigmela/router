@@ -78,6 +78,43 @@ export default function App() {
 }
 ```
 
+## Navigation Appearance
+
+You can customize the navigation appearance using the `appearance` prop:
+
+```tsx
+import { Navigation, NavigationAppearance } from '@sigmela/router';
+
+const appearance: NavigationAppearance = {
+  tabBar: {
+    labeled: true,
+    translucent: false,
+    tabBarActiveTintColor: '#007AFF',
+    tabBarInactiveTintColor: '#999999',
+    tabBarStyle: {
+      backgroundColor: '#ffffff',
+    },
+    tabBarItemStyle: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    rippleColor: '#00000020',
+    activeIndicatorColor: '#007AFF',
+    sceneStyle: {
+      backgroundColor: '#f8f8f8',
+      paddingHorizontal: 16,
+    },
+  },
+  screenStyle: {
+    backgroundColor: '#ffffff',
+  },
+};
+
+export default function App() {
+  return <Navigation router={router} appearance={appearance} />;
+}
+```
+
 Core concepts
 
 - Router: central coordinator. Holds slices (histories) per stack, active tab index, and the visible route.
@@ -133,7 +170,7 @@ Router
 
 Components
 
-- Navigation: top-level view that renders the root layer and the global overlay. Usage: `<Navigation router={router} />`.
+- Navigation: top-level view that renders the root layer and the global overlay. Usage: `<Navigation router={router} appearance={appearance} />`.
 - StackRenderer: renders a single `NavigationStack` (advanced use, usually not needed directly).
 
 Hooks
@@ -148,19 +185,11 @@ TabBar builder
 
 ```ts
 new TabBar({
-  labeled?: boolean,
   sidebarAdaptable?: boolean,
   disablePageAnimations?: boolean,
   hapticFeedbackEnabled?: boolean,
   scrollEdgeAppearance?: 'default' | 'opaque' | 'transparent',
   minimizeBehavior?: 'automatic' | 'onScrollDown' | 'onScrollUp' | 'never',
-  tabBarActiveTintColor?: ColorValue,
-  tabBarInactiveTintColor?: ColorValue,
-  tabBarStyle?: { backgroundColor?: ColorValue },
-  tabBarItemStyle?: { fontFamily?: string; fontWeight?: string; fontSize?: number },
-  translucent?: boolean,
-  rippleColor?: ColorValue,
-  activeIndicatorColor?: ColorValue,
 })
   .addTab({
     stack?: NavigationStack,
@@ -178,11 +207,11 @@ new TabBar({
   })
 ```
 
-You can update badges and styles at runtime via:
+You can update badges at runtime via:
 - setBadge(tabIndex, badge: string | null)
-- setTabBarStyle(partial)
-- setTabItemStyle(partial)
 - setTabBarConfig(partial)
+
+For styling, use the `appearance` prop on the Navigation component instead.
 
 Screen options
 
@@ -297,7 +326,7 @@ Behavior highlights (verified by tests)
 TypeScript
 
 Helpful exports:
-- Types: `TabConfig`, `TabBarConfig`, `NavigationProps`, `HistoryItem`
+- Types: `TabConfig`, `TabBarConfig`, `NavigationProps`, `NavigationAppearance`, `HistoryItem`
 - Components: `Navigation`, `StackRenderer`, `TabBar`
 - Hooks: `useRouter`, `useCurrentRoute`, `useParams`, `useQueryParams`
 - Core classes: `Router`, `NavigationStack`

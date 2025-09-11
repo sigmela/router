@@ -5,9 +5,12 @@ import { ScreenStackItem } from './ScreenStackItem';
 import { RouterContext } from './RouterContext';
 import { StyleSheet } from 'react-native';
 import { Router } from './Router';
+import type { NavigationAppearance } from './types';
+
 
 export interface NavigationProps {
   router: Router;
+  appearance?: NavigationAppearance;
 }
 
 const EMPTY_HISTORY: any[] = [];
@@ -24,7 +27,7 @@ function useStackHistory(router: Router, stackId?: string) {
   return useSyncExternalStore(subscribe, get, get);
 }
 
-export const Navigation = memo<NavigationProps>(({ router }) => {
+export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
   const [root, setRoot] = useState(() => ({
     hasTabBar: router.hasTabBar(),
     rootId: router.getRootStackId(),
@@ -52,7 +55,7 @@ export const Navigation = memo<NavigationProps>(({ router }) => {
             style={styles.flex}
             stackAnimation={rootTransition}
           >
-            <RenderTabBar tabBar={router.tabBar!} />
+            <RenderTabBar tabBar={router.tabBar!} appearance={appearance?.tabBar} />
           </RNNScreenStackItem>
         )}
         {rootItems.map((item) => (
@@ -61,10 +64,16 @@ export const Navigation = memo<NavigationProps>(({ router }) => {
             stackId={rootId}
             item={item}
             stackAnimation={rootTransition}
+            screenStyle={appearance?.screenStyle}
           />
         ))}
         {globalItems.map((item) => (
-          <ScreenStackItem key={item.key} stackId={globalId} item={item} />
+          <ScreenStackItem 
+            key={item.key} 
+            stackId={globalId} 
+            item={item} 
+            screenStyle={appearance?.screenStyle}
+          />
         ))}
       </ScreenStack>
     </RouterContext.Provider>

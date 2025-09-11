@@ -1,46 +1,28 @@
 import { StyleSheet, Switch, Text, View } from 'react-native';
-import { useTabBar } from '@sigmela/router';
-import { useState } from 'react';
+import { useAppearance } from '../contexts/AppearanceContext';
 
 export const SettingsScreen = () => {
-  const [darkMode, setDarkMode] = useState(false);
-  const [largeText, setLargeText] = useState(false);
-  const tabBar = useTabBar();
+  const { isDarkMode, isLargeText, toggleDarkMode, toggleLargeText } = useAppearance();
 
   return (
     <View style={styles.screen}>
       <Text style={styles.title}>Settings</Text>
-      <Text style={styles.subtitle}>Dynamic Style Example</Text>
+      <Text style={styles.subtitle}>Dynamic Appearance Example</Text>
 
       <View style={styles.section}>
         <View style={styles.settingRow}>
           <Text>Dark Mode</Text>
           <Switch
-            value={darkMode}
-            onValueChange={value => {
-              setDarkMode(value);
-              tabBar.setTabBarStyle({
-                backgroundColor: value ? '#1c1c1e' : '#ffffff',
-              });
-              tabBar.setTabBarConfig({
-                tabBarActiveTintColor: value ? '#0A84FF' : '#007AFF',
-                tabBarInactiveTintColor: value ? '#8E8E93' : '#999999',
-              });
-            }}
+            value={isDarkMode}
+            onValueChange={toggleDarkMode}
           />
         </View>
 
         <View style={styles.settingRow}>
           <Text>Large Text</Text>
           <Switch
-            value={largeText}
-            onValueChange={value => {
-              setLargeText(value);
-              tabBar.setTabItemStyle({
-                fontSize: value ? 22 : 12,
-                fontWeight: value ? '700' : '600',
-              });
-            }}
+            value={isLargeText}
+            onValueChange={toggleLargeText}
           />
         </View>
       </View>

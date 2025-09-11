@@ -41,25 +41,11 @@ export interface TabConfig {
 }
 
 export interface TabBarConfig {
-  labeled?: boolean;
   sidebarAdaptable?: boolean;
   disablePageAnimations?: boolean;
   hapticFeedbackEnabled?: boolean;
   scrollEdgeAppearance?: "default" | "opaque" | "transparent";
   minimizeBehavior?: "automatic" | "onScrollDown" | "onScrollUp" | "never";
-  tabBarActiveTintColor?: ColorValue;
-  tabBarInactiveTintColor?: ColorValue;
-  tabBarStyle?: {
-    backgroundColor?: ColorValue;
-  };
-  tabBarItemStyle?: {
-    fontFamily?: string;
-    fontWeight?: string;
-    fontSize?: number;
-  };
-  translucent?: boolean;
-  rippleColor?: ColorValue;
-  activeIndicatorColor?: ColorValue;
 }
 
 export class TabBar {
@@ -120,31 +106,6 @@ export class TabBar {
     });
   }
 
-  public setTabBarStyle(style: Partial<TabBarConfig["tabBarStyle"]>): void {
-    this.setState({
-      config: {
-        ...this.state.config,
-        tabBarStyle: {
-          ...this.state.config.tabBarStyle,
-          ...style,
-        },
-      },
-    });
-  }
-
-  public setTabItemStyle(
-    style: Partial<TabBarConfig["tabBarItemStyle"]>,
-  ): void {
-    this.setState({
-      config: {
-        ...this.state.config,
-        tabBarItemStyle: {
-          ...this.state.config.tabBarItemStyle,
-          ...style,
-        },
-      },
-    });
-  }
 
   public setTabBarConfig(config: Partial<TabBarConfig>): void {
     this.setState({

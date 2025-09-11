@@ -5,18 +5,8 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { homeStack, settingsStack, catalogStack, ordersStack, userStack } from './stacks';
 
 export const tabBar = new TabBar({
-  disablePageAnimations: true, 
-  tabBarStyle: {
-    backgroundColor: '#ffffff',
-  },
-  tabBarItemStyle: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  tabBarActiveTintColor: '#007AFF',
-  tabBarInactiveTintColor: '#999999',
+  disablePageAnimations: true,
   hapticFeedbackEnabled: true,
-  labeled: true,
 })
   .addTab({
     stack: homeStack,
