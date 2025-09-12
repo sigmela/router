@@ -26,6 +26,7 @@ export const ScreenStackItem = memo<ScreenStackItemProps>(
     };
 
     const value = {
+      presentation: item.options?.stackPresentation ?? 'push',
       params: item.params,
       query: item.query,
       pattern: item.pattern,

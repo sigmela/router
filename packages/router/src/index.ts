@@ -20,4 +20,4 @@ export { NavigationStack } from './NavigationStack';
 export type { HistoryItem } from './types';
 export { StackRenderer } from './StackRenderer';
 
-export { useRouter, useCurrentRoute, useParams, useQueryParams } from './RouterContext';
+export { useRouter, useCurrentRoute, useParams, useQueryParams, useRoute } from './RouterContext';
