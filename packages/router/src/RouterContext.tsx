@@ -41,17 +41,12 @@ export function useQueryParams<
   return (local?.query ?? {}) as TQuery;
 }
 
-export function useRoute() {
+export function useRoute(): RouteLocalContextValue {
   const local = React.useContext(RouteLocalContext);
-  return {
-    params: local?.params ?? {},
-    query: local?.query ?? {},
-    pattern: local?.pattern,
-    path: local?.path,
-  } as {
-    params: Record<string, any>;
-    query: Record<string, any>;
-    pattern?: string;
-    path?: string;
-  };
+
+  if (!local) {
+    throw new Error('useRoute must be used within RouterLocalContext.Provider');
+  }
+
+  return local;
 }
