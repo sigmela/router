@@ -3,14 +3,15 @@ import React, { createContext, useContext } from 'react';
 import type { Router } from './Router';
 
 export const RouterContext = createContext<Router | null>(null);
+
 type RouteLocalContextValue = {
   presentation: StackPresentationTypes;
   params?: Record<string, unknown>;
   query?: Record<string, unknown>;
   pattern?: string;
   path?: string;
-} | null;
-export const RouteLocalContext = createContext<RouteLocalContextValue>(null);
+};
+export const RouteLocalContext = createContext<RouteLocalContextValue | null>(null);
 
 export const useRouter = (): Router => {
   const ctx = useContext(RouterContext);
