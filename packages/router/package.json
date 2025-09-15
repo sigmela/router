@@ -1,6 +1,6 @@
 {
   "name": "@sigmela/router",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "React Native router library with TypeScript support",
   "source": "./src/index.ts",
   "main": "./lib/index.js",

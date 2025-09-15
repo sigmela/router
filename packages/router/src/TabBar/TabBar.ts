@@ -1,8 +1,22 @@
 import React from 'react';
 import { NavigationStack } from '../NavigationStack';
 import type { TabItem } from '../types';
+import type { ImageSourcePropType } from 'react-native';
 
-type TabBarConfig = Omit<TabItem, 'tabKey' | 'key'> & {
+type IOSIconShape =
+  | { sfSymbolName: string }
+  | { imageSource: ImageSourcePropType }
+  | { templateSource: ImageSourcePropType };
+
+type ExtendedIcon = ImageSourcePropType | IOSIconShape;
+
+// Internal representation used by TabBar to support unified icon source while keeping original android props
+type InternalTabItem = Omit<TabItem, 'icon' | 'selectedIcon'> & {
+  icon?: ExtendedIcon;
+  selectedIcon?: ExtendedIcon;
+};
+
+type TabBarConfig = Omit<InternalTabItem, 'tabKey' | 'key'> & {
   stack?: NavigationStack;
   screen?: React.ComponentType<any>;
 };
@@ -12,7 +26,7 @@ export class TabBar {
   private listeners: Set<() => void> = new Set();
 
   private state: {
-    tabs: TabItem[];
+    tabs: InternalTabItem[];
     config: TabBarConfig;
     index: number;
   };

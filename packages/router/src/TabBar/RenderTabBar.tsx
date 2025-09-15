@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore, memo, useEffect } from 'react';
-import { type NativeSyntheticEvent } from 'react-native';
+import { type NativeSyntheticEvent, Platform } from 'react-native';
 import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
@@ -15,6 +15,31 @@ export interface RenderTabBarProps {
   tabBar: TabBar;
   appearance?: NavigationAppearance['tabBar'];
 }
+
+// Helpers outside render to avoid re-creation
+const isImageSource = (value: any) => {
+  if (value == null) return false;
+  const valueType = typeof value;
+  if (valueType === 'number') return true;
+  if (Array.isArray(value)) return value.length > 0;
+  if (valueType === 'object') {
+    if ('uri' in value || 'width' in value || 'height' in value) return true;
+    if ('sfSymbolName' in value || 'imageSource' in value || 'templateSource' in value)
+      return false;
+  }
+  return false;
+};
+
+const buildIOSIcon = (value: any) => {
+  if (!value) return undefined;
+  if (
+    typeof value === 'object' &&
+    (('sfSymbolName' in value || 'imageSource' in value || 'templateSource' in value) as any)
+  ) {
+    return value;
+  }
+  return { templateSource: value } as any;
+};
 
 export const RenderTabBar = memo<RenderTabBarProps>(({ tabBar, appearance }) => {
   const router = useRouter();
@@ -69,13 +94,32 @@ export const RenderTabBar = memo<RenderTabBarProps>(({ tabBar, appearance }) => 
           const stack = tabBar.stacks[tab.tabKey];
           const Screen = tabBar.screens[tab.tabKey];
 
+          // Map unified icon to platform-specific props expected by RNS BottomTabsScreen
+          const { icon, selectedIcon, ...restTab } = tab as any;
+
+          let mappedTabProps: any = restTab;
+          if (icon || selectedIcon) {
+            if (Platform.OS === 'android') {
+              mappedTabProps = {
+                ...restTab,
+                ...(isImageSource(icon) ? { iconResource: icon } : null),
+              };
+            } else {
+              mappedTabProps = {
+                ...restTab,
+                ...(icon ? { icon: buildIOSIcon(icon) } : null),
+                ...(selectedIcon ? { selectedIcon: buildIOSIcon(selectedIcon) } : null),
+              };
+            }
+          }
+
           return (
             <BottomTabsScreen
               scrollEdgeAppearance={scrollEdgeAppearance}
               standardAppearance={standardAppearance}
               isFocused={isFocused}
               key={tab.tabKey}
-              {...tab}
+              {...mappedTabProps}
             >
               {stack ? <StackRenderer stack={stack} /> : Screen ? <Screen /> : null}
             </BottomTabsScreen>
