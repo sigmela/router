@@ -23,11 +23,6 @@ target 'example' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
-  # Ensure transitive dependencies used by react-native-bottom-tabs expose module maps
-  # so they can be imported from Swift when building as static libraries.
-  pod 'SDWebImage', :modular_headers => true
-  pod 'SDWebImageSVGCoder', :modular_headers => true
-
   post_install do |installer|
     # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
     react_native_post_install(

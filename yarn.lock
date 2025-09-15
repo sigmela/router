@@ -2575,7 +2575,6 @@ __metadata:
   peerDependencies:
     react: ">=18.0.0"
     react-native: ">=0.70.0"
-    react-native-bottom-tabs: ">=0.10.0"
     react-native-screens: ">=4.14.1"
   languageName: unknown
   linkType: soft
@@ -8084,20 +8083,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-bottom-tabs@npm:^0.11.1":
-  version: 0.11.1
-  resolution: "react-native-bottom-tabs@npm:0.11.1"
-  dependencies:
-    react-freeze: "npm:^1.0.0"
-    sf-symbols-typescript: "npm:^2.0.0"
-    use-latest-callback: "npm:^0.2.1"
-  peerDependencies:
-    react: "*"
-    react-native: "*"
-  checksum: 10c0/e2e767e237628e6f866ef94f03cb5c554ace3a14e164a54b11a19338e8a008dfcb0c22fa8f664a47e2ad715b709f3df802cd3868f6cd460611194705130e83d3
-  languageName: node
-  linkType: hard
-
 "react-native-example@workspace:packages/react-native-example":
   version: 0.0.0-use.local
   resolution: "react-native-example@workspace:packages/react-native-example"
@@ -8123,7 +8108,6 @@ __metadata:
     prettier: "npm:2.8.8"
     react: "npm:19.1.0"
     react-native: "npm:0.81.0"
-    react-native-bottom-tabs: "npm:^0.11.1"
     react-native-safe-area-context: "npm:^5.6.1"
     react-native-screens: "npm:^4.16.0"
     react-test-renderer: "npm:19.1.0"
@@ -8655,13 +8639,6 @@ __metadata:
   version: 1.2.0
   resolution: "setprototypeof@npm:1.2.0"
   checksum: 10c0/68733173026766fa0d9ecaeb07f0483f4c2dc70ca376b3b7c40b7cda909f94b0918f6c5ad5ce27a9160bdfb475efaa9d5e705a11d8eaae18f9835d20976028bc
-  languageName: node
-  linkType: hard
-
-"sf-symbols-typescript@npm:^2.0.0":
-  version: 2.1.0
-  resolution: "sf-symbols-typescript@npm:2.1.0"
-  checksum: 10c0/b6e2482c2b3ba785aa00770013e343a2175475b9cb7c8703c30a2ec1da8b41acd982db2d953877afb35af32a3dfba337d0b29e703c399cd2138c3cf68685c9c2
   languageName: node
   linkType: hard
 
@@ -9479,15 +9456,6 @@ __metadata:
   dependencies:
     punycode: "npm:^2.1.0"
   checksum: 10c0/4ef57b45aa820d7ac6496e9208559986c665e49447cb072744c13b66925a362d96dd5a46c4530a6b8e203e5db5fe849369444440cb22ecfc26c679359e5dfa3c
-  languageName: node
-  linkType: hard
-
-"use-latest-callback@npm:^0.2.1":
-  version: 0.2.4
-  resolution: "use-latest-callback@npm:0.2.4"
-  peerDependencies:
-    react: ">=16.8"
-  checksum: 10c0/dcdcb4849225638100f662c82ae44eaa7c635ea3a2419f521b45e7f36ede28a49b77f324fa008dccb840acd41a377c0ca8ab36cf4903ee746e96c41c86a9eeb5
   languageName: node
   linkType: hard
 
