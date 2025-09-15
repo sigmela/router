@@ -114,9 +114,9 @@ export class Router {
     if (this.tabBar) {
       const idx = this.getActiveTabIndex();
       const state = this.tabBar.getState();
-      const route = state.routes[idx];
+      const route = state.tabs[idx];
       if (!route) return;
-      const stack = this.tabBar.stacks[route.key];
+      const stack = this.tabBar.stacks[route.tabKey];
       if (!stack) return;
       const sid = stack.getId();
       const slice = this.getStackHistory(sid);
@@ -155,9 +155,9 @@ export class Router {
   public ensureTabSeed = (index: number): void => {
     if (!this.tabBar) return;
     const state = this.tabBar.getState();
-    const route = state.routes[index];
+    const route = state.tabs[index];
     if (!route) return;
-    const key = route.key;
+    const key = route.tabKey;
     const stack = this.tabBar.stacks[key];
     if (!stack) return;
     const hasAny = this.getStackHistory(stack.getId()).length > 0;
@@ -308,9 +308,9 @@ export class Router {
     if (this.tabBar) {
       const idx = this.getActiveTabIndex();
       const state = this.tabBar.getState();
-      const route = state.routes[idx];
+      const route = state.tabs[idx];
       if (route) {
-        const stack = this.tabBar.stacks[route.key];
+        const stack = this.tabBar.stacks[route.tabKey];
         if (stack) {
           const sid = stack.getId();
           const slice = this.getStackHistory(sid);
@@ -472,9 +472,8 @@ export class Router {
       addFromStack(this.root, 'root', {});
     } else if (this.tabBar) {
       const state = this.tabBar.getState();
-      state.routes.forEach((route, idx) => {
-        const key = route.key;
-        const stack = this.tabBar!.stacks[key];
+      state.tabs.forEach((tab, idx) => {
+        const stack = this.tabBar!.stacks[tab.tabKey];
         if (stack) {
           addFromStack(stack, 'tab', { tabIndex: idx });
         }
@@ -492,10 +491,9 @@ export class Router {
     if (this.tabBar) {
       const state = this.tabBar.getState();
       const activeIdx = state.index ?? 0;
-      const route = state.routes[activeIdx];
+      const route = state.tabs[activeIdx];
       if (!route) return;
-      const key = route.key;
-      const stack = this.tabBar.stacks[key];
+      const stack = this.tabBar.stacks[route.tabKey];
       if (stack) {
         const first = stack.getFirstRoute();
         if (first) {

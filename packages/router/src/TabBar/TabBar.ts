@@ -1,98 +1,44 @@
-import React from "react";
-import type { ColorValue, ImageSourcePropType } from "react-native";
-import type { TabRole, AppleIcon } from "react-native-bottom-tabs";
-import { NavigationStack } from "../NavigationStack";
+import React from 'react';
+import { NavigationStack } from '../NavigationStack';
+import type { TabItem } from '../types';
 
-export type BaseRoute = {
-  key: string;
-  title?: string;
-  badge?: string;
-  lazy?: boolean;
-  focusedIcon?: ImageSourcePropType | AppleIcon;
-  unfocusedIcon?: ImageSourcePropType | AppleIcon;
-  activeTintColor?: string;
-  hidden?: boolean;
-  testID?: string;
-  role?: TabRole;
-  freezeOnBlur?: boolean;
-};
-
-export interface TabConfig {
-  screen?: React.ComponentType<any>;
+type TabBarConfig = Omit<TabItem, 'tabKey' | 'key'> & {
   stack?: NavigationStack;
-  title?: string;
-  badge?: string;
-  icon?:
-    | ImageSourcePropType
-    | AppleIcon
-    | ((props: { focused: boolean }) => ImageSourcePropType | AppleIcon);
-  activeTintColor?: ColorValue;
-  hidden?: boolean;
-  testID?: string;
-  role?: TabRole;
-  freezeOnBlur?: boolean;
-  lazy?: boolean;
-  iconInsets?: {
-    top?: number;
-    bottom?: number;
-    left?: number;
-    right?: number;
-  };
-}
-
-export interface TabBarConfig {
-  sidebarAdaptable?: boolean;
-  disablePageAnimations?: boolean;
-  hapticFeedbackEnabled?: boolean;
-  scrollEdgeAppearance?: "default" | "opaque" | "transparent";
-  minimizeBehavior?: "automatic" | "onScrollDown" | "onScrollUp" | "never";
-}
-
+  screen?: React.ComponentType<any>;
+};
 export class TabBar {
   public screens: Record<string, React.ComponentType<any>> = {};
   public stacks: Record<string, NavigationStack> = {};
   private listeners: Set<() => void> = new Set();
 
   private state: {
-    routes: BaseRoute[];
+    tabs: TabItem[];
     config: TabBarConfig;
     index: number;
   };
 
   constructor(config: TabBarConfig = {}) {
     this.state = {
-      routes: [],
+      tabs: [],
       index: 0,
       config,
     };
   }
 
-  public addTab(tab: TabConfig): TabBar {
-    const nextIndex = this.state.routes.length;
-    const key = `tab-${nextIndex}`;
+  public addTab(tab: Omit<TabBarConfig, 'tabKey'> & { key: string }): TabBar {
+    const { key, ...rest } = tab;
+    const nextIndex = this.state.tabs.length;
+    const tabKey = key ?? `tab-${nextIndex}`;
 
-    const icon =
-      typeof tab.icon === "function" ? tab.icon({ focused: false }) : tab.icon;
-    const focusedIcon =
-      typeof tab.icon === "function" ? tab.icon({ focused: true }) : tab.icon;
-    this.state.routes.push({
-      key,
-      title: tab.title,
-      badge: tab.badge,
-      focusedIcon,
-      unfocusedIcon: icon,
-      activeTintColor: tab.activeTintColor as string | undefined,
-      hidden: tab.hidden,
-      testID: tab.testID,
-      role: tab.role,
-      freezeOnBlur: tab.freezeOnBlur,
-      lazy: tab.lazy,
+    this.state.tabs.push({
+      tabKey,
+      ...rest,
     });
 
     if (tab.stack) {
-      this.stacks[key] = tab.stack;
+      this.stacks[tabKey] = tab.stack;
     } else if (tab.screen) {
-      this.screens[key] = tab.screen;
+      this.screens[tabKey] = tab.screen;
     }
 
     return this;
@@ -100,12 +46,11 @@ export class TabBar {
 
   public setBadge(tabIndex: number, badge: string | null): void {
     this.setState({
-      routes: this.state.routes.map((route, index) =>
-        index === tabIndex ? { ...route, badge: badge ?? undefined } : route,
+      tabs: this.state.tabs.map((route, index) =>
+        index === tabIndex ? { ...route, badgeValue: badge ?? undefined } : route,
       ),
     });
   }
-
 
   public setTabBarConfig(config: Partial<TabBarConfig>): void {
     this.setState({

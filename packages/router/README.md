@@ -11,7 +11,7 @@ Lightweight, predictable navigation for React Native built on top of react-nativ
 Installation
 
 ```bash
-yarn add @sigmela/router react-native-screens react-native-bottom-tabs
+yarn add @sigmela/router react-native-screens
 ```
 
 Make sure react-native-screens is properly installed and configured in your app.
@@ -87,22 +87,27 @@ import { Navigation, NavigationAppearance } from '@sigmela/router';
 
 const appearance: NavigationAppearance = {
   tabBar: {
-    labeled: true,
-    translucent: false,
-    tabBarActiveTintColor: '#007AFF',
-    tabBarInactiveTintColor: '#999999',
-    tabBarStyle: {
-      backgroundColor: '#ffffff',
-    },
+    // Android-specific
+    backgroundColor: '#ffffff',
     tabBarItemStyle: {
-      fontSize: 12,
-      fontWeight: '600',
+      titleFontColor: '#999999',
+      titleFontColorActive: '#007AFF',
+      titleFontSize: 12,
+      titleFontWeight: '600',
+      iconColor: '#999999',
+      iconColorActive: '#007AFF',
+      rippleColor: '#00000020',
+      activeIndicatorColor: '#007AFF',
     },
-    rippleColor: '#00000020',
-    activeIndicatorColor: '#007AFF',
-    sceneStyle: {
-      backgroundColor: '#f8f8f8',
-      paddingHorizontal: 16,
+    // iOS-specific
+    tintColor: '#007AFF',
+    standardAppearance: {
+      tabBarBackgroundColor: '#ffffff',
+      tabBarShadowColor: 'transparent',
+    },
+    scrollEdgeAppearance: {
+      tabBarBackgroundColor: 'rgba(255,255,255,0.9)',
+      tabBarShadowColor: 'transparent',
     },
   },
   screenStyle: {
@@ -335,7 +340,6 @@ Requirements
 
 - React 18+
 - React Native (with react-native-screens)
-- react-native-bottom-tabs
 
 License
 

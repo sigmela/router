@@ -1,10 +1,15 @@
-import { useMemo, useCallback, useSyncExternalStore, memo, useEffect } from 'react';
-import type { BaseRoute, NavigationState, NavigationAppearance } from '../types';
+import { useCallback, useSyncExternalStore, memo, useEffect } from 'react';
+import { type NativeSyntheticEvent } from 'react-native';
+import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
-import TabView from 'react-native-bottom-tabs';
 import { useRouter } from '../RouterContext';
 import type { TabBar } from './TabBar';
+import {
+  type NativeFocusChangeEvent,
+  BottomTabsScreen,
+  BottomTabs,
+} from 'react-native-screens';
 
 export interface RenderTabBarProps {
   tabBar: TabBar;
@@ -15,63 +20,68 @@ export const RenderTabBar = memo<RenderTabBarProps>(({ tabBar, appearance }) => 
   const router = useRouter();
   const subscribe = useCallback((cb: () => void) => tabBar.subscribe(cb), [tabBar]);
   const snapshot = useSyncExternalStore(subscribe, tabBar.getState, tabBar.getState);
-  const { routes, config, index } = snapshot;
+  const { tabs, index } = snapshot;
+
+  const {
+    standardAppearance,
+    scrollEdgeAppearance,
+    tabBarItemStyle,
+    tintColor,
+    backgroundColor,
+  } = appearance ?? {};
 
   useEffect(() => {
     router.ensureTabSeed(index);
   }, [index, router]);
 
-  const navigationState: NavigationState<BaseRoute> = useMemo(
-    () => ({ index, routes }),
-    [index, routes],
-  );
-
-  const handleChangeIndex = useCallback(
-    (index: number) => {
-      // Keep Router in sync with TabBar index to ensure correct visible layer handling
+  const onNativeFocusChange = useCallback(
+    (event: NativeSyntheticEvent<NativeFocusChangeEvent>) => {
+      const tabKey = event.nativeEvent.tabKey;
+      const index = tabs.findIndex((route) => route.tabKey === tabKey);
       router.onTabIndexChange(index);
     },
-    [router],
-  );
-
-  const renderScene = useCallback(
-    ({ route }: { route: BaseRoute; jumpTo: (key: string) => void }) => {
-      const stack = tabBar.stacks[route.key];
-      if (stack) {
-        return <StackRenderer stack={stack} />;
-      }
-      const Screen = tabBar.screens[route.key];
-      return Screen ? <Screen /> : null;
-    },
-    [tabBar.screens, tabBar.stacks],
-  );
-
-  const getSceneStyle = useCallback(
-    () => appearance?.sceneStyle,
-    [appearance?.sceneStyle],
+    [tabs],
   );
 
   return (
     <TabBarContext.Provider value={tabBar}>
-      <TabView
-        navigationState={navigationState}
-        renderScene={renderScene}
-        onIndexChange={handleChangeIndex}
-        getSceneStyle={getSceneStyle}
-        labeled={appearance?.labeled}
-        sidebarAdaptable={config.sidebarAdaptable}
-        disablePageAnimations={config.disablePageAnimations}
-        hapticFeedbackEnabled={config.hapticFeedbackEnabled}
-        scrollEdgeAppearance={config.scrollEdgeAppearance}
-        minimizeBehavior={config.minimizeBehavior}
-        tabBarActiveTintColor={appearance?.tabBarActiveTintColor}
-        tabBarInactiveTintColor={appearance?.tabBarInactiveTintColor}
-        tabBarStyle={appearance?.tabBarStyle}
-        tabLabelStyle={appearance?.tabBarItemStyle}
-        translucent={appearance?.translucent}
-        rippleColor={appearance?.rippleColor}
-        activeIndicatorColor={appearance?.activeIndicatorColor}
-      />
+      <BottomTabs
+        onNativeFocusChange={onNativeFocusChange}
+        tabBarBackgroundColor={backgroundColor}
+        tabBarTintColor={tintColor}
+        tabBarItemTitleFontFamily={tabBarItemStyle?.titleFontFamily}
+        tabBarItemTitleFontSize={tabBarItemStyle?.titleFontSize}
+        tabBarItemTitleFontSizeActive={tabBarItemStyle?.titleFontSizeActive}
+        tabBarItemTitleFontWeight={tabBarItemStyle?.titleFontWeight}
+        tabBarItemTitleFontStyle={tabBarItemStyle?.titleFontStyle}
+        tabBarItemTitleFontColor={tabBarItemStyle?.titleFontColor}
+        tabBarItemTitleFontColorActive={tabBarItemStyle?.titleFontColorActive}
+        tabBarItemIconColor={tabBarItemStyle?.iconColor}
+        tabBarItemIconColorActive={tabBarItemStyle?.iconColorActive}
+        tabBarItemActiveIndicatorColor={tabBarItemStyle?.activeIndicatorColor}
+        tabBarItemActiveIndicatorEnabled={tabBarItemStyle?.activeIndicatorEnabled}
+        tabBarItemRippleColor={tabBarItemStyle?.rippleColor}
+        tabBarItemLabelVisibilityMode={tabBarItemStyle?.labelVisibilityMode}
+        // tabBarMinimizeBehavior={}
+      >
+        {tabs.map((tab) => {
+          const isFocused = tab.tabKey === tabs[index]?.tabKey;
+          const stack = tabBar.stacks[tab.tabKey];
+          const Screen = tabBar.screens[tab.tabKey];
+
+          return (
+            <BottomTabsScreen
+              scrollEdgeAppearance={scrollEdgeAppearance}
+              standardAppearance={standardAppearance}
+              isFocused={isFocused}
+              key={tab.tabKey}
+              {...tab}
+            >
+              {stack ? <StackRenderer stack={stack} /> : Screen ? <Screen /> : null}
+            </BottomTabsScreen>
+          );
+        })}
+      </BottomTabs>
     </TabBarContext.Provider>
   );
 });

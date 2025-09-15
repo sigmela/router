@@ -1,8 +1,3 @@
-export type { TabConfig, TabBarConfig } from './TabBar/TabBar';
-export type {
-  TabConfig as LegacyTabConfig,
-  TabBarConfig as LegacyTabBarConfig,
-} from './TabBar/TabBar';
 export { useTabBar } from './TabBar/useTabBar';
 export { TabBar } from './TabBar/TabBar';
 

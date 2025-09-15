@@ -1,46 +1,28 @@
 import { TabBar } from '@sigmela/router';
+import { homeStack, settingsStack, catalogStack, ordersStack } from './stacks';
 
-import { ChatScreen } from '../screens/ChatScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
-import { homeStack, settingsStack, catalogStack, ordersStack, userStack } from './stacks';
-
-export const tabBar = new TabBar({
-  disablePageAnimations: true,
-  hapticFeedbackEnabled: true,
-})
+export const tabBar = new TabBar({})
   .addTab({
+    key: 'home',
     stack: homeStack,
     title: 'Home',
-    icon: { sfSymbol: 'house' },
+    icon: { sfSymbolName: 'house' },
   })
   .addTab({
+    key: 'settings',
     stack: settingsStack,
     title: 'Settings',
-    icon: { sfSymbol: 'gearshape' },
+    icon: { sfSymbolName: 'gearshape' },
   })
   .addTab({
+    key: 'catalog',
     stack: catalogStack,
     title: 'Catalog',
-    icon: { sfSymbol: 'bag' },
+    icon: { sfSymbolName: 'bag' },
   })
   .addTab({
+    key: 'orders',
     stack: ordersStack,
     title: 'Orders',
-    icon: { sfSymbol: 'calendar' },
-  })
-  .addTab({
-    stack: userStack,
-    title: 'Users',
-    icon: { sfSymbol: 'person.3' },
-  })
-  .addTab({
-    screen: ChatScreen,
-    title: 'Chat',
-    icon: { sfSymbol: 'message' },
-    badge: '5',
-  })
-  .addTab({
-    screen: ProfileScreen,
-    title: 'Profile',
-    icon: { sfSymbol: 'person.circle' },
+    icon: { sfSymbolName: 'list.bullet' },
   });

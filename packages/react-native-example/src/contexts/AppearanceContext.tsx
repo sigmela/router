@@ -22,24 +22,25 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
 
   const getAppearance = (): NavigationAppearance => ({
     tabBar: {
-      labeled: true,
-      translucent: false,
-      tabBarActiveTintColor: isDarkMode ? '#0A84FF' : '#007AFF',
-      tabBarInactiveTintColor: isDarkMode ? '#8E8E93' : '#999999',
-      tabBarStyle: {
-        backgroundColor: isDarkMode ? '#1c1c1e' : '#ffffff',
-      },
+      backgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
+      tintColor: isDarkMode ? '#0A84FF' : '#007AFF',
       tabBarItemStyle: {
-        fontSize: isLargeText ? 22 : 12,
-        fontWeight: isLargeText ? '700' : '600',
+        titleFontColor: isDarkMode ? '#8E8E93' : '#999999',
+        titleFontSize: isLargeText ? 22 : 12,
+        titleFontWeight: isLargeText ? '700' : '600',
       },
-      sceneStyle: {
-        backgroundColor: isDarkMode ? '#1a1a1a' : '#f8f8f8',
-        paddingHorizontal: 16,
+
+      standardAppearance: {
+        tabBarBackgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
+        tabBarShadowColor: 'transparent',
+      },
+      scrollEdgeAppearance: {
+        tabBarBackgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
+        tabBarShadowColor: 'transparent',
       },
     },
     screenStyle: {
-      backgroundColor: isDarkMode ? '#000000' : '#ffffff',
+      backgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
     },
   });
 
@@ -57,7 +58,7 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
   };
 
   const toggleDarkMode = () => {
-    setIsDarkMode(prev => {
+    setIsDarkMode((prev) => {
       const newValue = !prev;
       const newAppearance = getAppearance();
       setAppearance(newAppearance);
@@ -66,7 +67,7 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
   };
 
   const toggleLargeText = () => {
-    setIsLargeText(prev => {
+    setIsLargeText((prev) => {
       const newValue = !prev;
       const newAppearance = getAppearance();
       setAppearance(newAppearance);
@@ -89,9 +90,7 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
   };
 
   return (
-    <AppearanceContext.Provider value={value}>
-      {children}
-    </AppearanceContext.Provider>
+    <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>
   );
 };
 
