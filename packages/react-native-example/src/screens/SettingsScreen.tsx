@@ -1,5 +1,6 @@
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { Switch, Text, View } from 'react-native';
 import { useAppearance } from '../contexts/AppearanceContext';
+import { StyleSheet } from 'react-native-unistyles';
 
 export const SettingsScreen = () => {
   const { isDarkMode, isLargeText, toggleDarkMode, toggleLargeText } = useAppearance();
@@ -11,47 +12,43 @@ export const SettingsScreen = () => {
 
       <View style={styles.section}>
         <View style={styles.settingRow}>
-          <Text>Dark Mode</Text>
-          <Switch
-            value={isDarkMode}
-            onValueChange={toggleDarkMode}
-          />
+          <Text style={styles.text}>Dark Mode</Text>
+          <Switch value={isDarkMode} onValueChange={toggleDarkMode} />
         </View>
 
         <View style={styles.settingRow}>
-          <Text>Large Text</Text>
-          <Switch
-            value={isLargeText}
-            onValueChange={toggleLargeText}
-          />
+          <Text style={styles.text}>Large Text</Text>
+          <Switch value={isLargeText} onValueChange={toggleLargeText} />
         </View>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
   screen: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
+    backgroundColor: theme.colors.background,
+    padding: theme.gap(2.5),
   },
   title: {
+    color: theme.colors.typography,
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 10,
   },
   subtitle: {
+    color: theme.colors.muted,
     fontSize: 16,
-    color: '#666',
     marginBottom: 20,
   },
+  text: { color: theme.colors.typography },
   section: {
     marginTop: 20,
     padding: 20,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.card,
     borderRadius: 10,
     width: '100%',
   },
@@ -66,4 +63,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
   },
-});
+}));

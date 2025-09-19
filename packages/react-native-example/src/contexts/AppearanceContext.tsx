@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { UnistylesRuntime } from 'react-native-unistyles';
+import type { AppThemeName } from '../unistyles';
 import type { NavigationAppearance } from '@sigmela/router';
 
 interface AppearanceContextType {
@@ -20,7 +22,7 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isLargeText, setIsLargeText] = useState(false);
 
-  const getAppearance = (): NavigationAppearance => ({
+  const getAppearance = useCallback((): NavigationAppearance => ({
     tabBar: {
       backgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
       tintColor: isDarkMode ? '#0A84FF' : '#007AFF',
@@ -42,7 +44,7 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
     screenStyle: {
       backgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
     },
-  });
+  }), [isDarkMode, isLargeText]);
 
   const [appearance, setAppearance] = useState<NavigationAppearance>(getAppearance());
 
@@ -58,27 +60,19 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({ children
   };
 
   const toggleDarkMode = () => {
-    setIsDarkMode((prev) => {
-      const newValue = !prev;
-      const newAppearance = getAppearance();
-      setAppearance(newAppearance);
-      return newValue;
-    });
+    setIsDarkMode((prev) => !prev);
   };
 
   const toggleLargeText = () => {
-    setIsLargeText((prev) => {
-      const newValue = !prev;
-      const newAppearance = getAppearance();
-      setAppearance(newAppearance);
-      return newValue;
-    });
+    setIsLargeText((prev) => !prev);
   };
 
   // Update appearance when state changes
   React.useEffect(() => {
     setAppearance(getAppearance());
-  }, [isDarkMode, isLargeText]);
+    // Sync Unistyles theme with our local dark mode flag
+    (UnistylesRuntime as any).setTheme((isDarkMode ? 'dark' : 'light') as AppThemeName);
+  }, [getAppearance, isDarkMode]);
 
   const value: AppearanceContextType = {
     appearance,

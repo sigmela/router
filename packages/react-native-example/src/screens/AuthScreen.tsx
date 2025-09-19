@@ -1,4 +1,5 @@
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { Button, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native-unistyles';
 import { router } from '../navigation/router';
 
 export const AuthScreen = () => {
@@ -12,10 +13,19 @@ export const AuthScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
+const styles = StyleSheet.create((theme) => ({
+  screen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.background,
+    padding: theme.gap(2.5),
+  },
+  title: {
+    color: theme.colors.typography,
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
   buttonRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
-});
-
-
+}));

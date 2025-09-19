@@ -1,7 +1,8 @@
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { Button, Text, View } from 'react-native';
 import { router } from '../navigation/router';
 import { useParams, useQueryParams } from '@sigmela/router';
 import { createController } from '@sigmela/router';
+import { StyleSheet } from 'react-native-unistyles';
 
 type ProductParams = {
   productId: string;
@@ -33,7 +34,7 @@ export const ProductScreen = (props: ProductScreenProps) => {
   return (
     <View style={styles.screen}>
       <Text style={styles.title}>Product {productId ?? '(unknown)'} </Text>
-      <Text>Coupon: {coupon ?? '—'}</Text>
+      <Text style={styles.text}>Coupon: {coupon ?? '—'}</Text>
       <View style={styles.buttonRow}>
         <Button
           title="Replace with #7"
@@ -45,14 +46,20 @@ export const ProductScreen = (props: ProductScreenProps) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
   screen: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
+    backgroundColor: theme.colors.background,
+    padding: theme.gap(2.5),
   },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
+  title: {
+    color: theme.colors.typography,
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  text: { color: theme.colors.typography },
   buttonRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
-});
+}));

@@ -8083,6 +8083,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-edge-to-edge@npm:^1.7.0":
+  version: 1.7.0
+  resolution: "react-native-edge-to-edge@npm:1.7.0"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/809dcf1c68f79cff788963ec7691b37024986e82470be5047bfbe42929fc2c7d45db23eab816321e776f0bb3a8295f7efa526377bce6a559c10681cd409d597d
+  languageName: node
+  linkType: hard
+
 "react-native-example@workspace:packages/react-native-example":
   version: 0.0.0-use.local
   resolution: "react-native-example@workspace:packages/react-native-example"
@@ -8108,8 +8118,11 @@ __metadata:
     prettier: "npm:2.8.8"
     react: "npm:19.1.0"
     react-native: "npm:0.81.0"
+    react-native-edge-to-edge: "npm:^1.7.0"
+    react-native-nitro-modules: "npm:^0.29.6"
     react-native-safe-area-context: "npm:^5.6.1"
     react-native-screens: "npm:^4.16.0"
+    react-native-unistyles: "npm:^3.0.13"
     react-test-renderer: "npm:19.1.0"
     typescript: "npm:^5.8.3"
   languageName: unknown
@@ -8122,6 +8135,16 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/87d20b900aded7d44c90afb946a7aa03c23a94ca3dd547bdddc2303b85357e4aab22567a57b19f1558d6c8be7058e3dcf34faa1e15182d1604f90974266d9a1d
+  languageName: node
+  linkType: hard
+
+"react-native-nitro-modules@npm:^0.29.6":
+  version: 0.29.6
+  resolution: "react-native-nitro-modules@npm:0.29.6"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/6213ced4aae9100e97e6d90d3cb625afb5b6ff9b9007d6e4a44faa13e5895b60569c6d06f0c40de2ddff8f2cdd06610a3c8e488db1d6d38ec9632709c3110421
   languageName: node
   linkType: hard
 
@@ -8146,6 +8169,23 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/8ec459ff52cbd317bfca598843a0010b4ca9070d05664f28d792594d8ceabb398b9d68abb578f40295e41f906308efe7ac7359046fba7aaf318a0d9d65446102
+  languageName: node
+  linkType: hard
+
+"react-native-unistyles@npm:^3.0.13":
+  version: 3.0.13
+  resolution: "react-native-unistyles@npm:3.0.13"
+  peerDependencies:
+    "@react-native/normalize-colors": "*"
+    react: "*"
+    react-native: ">=0.76.0"
+    react-native-edge-to-edge: "*"
+    react-native-nitro-modules: "*"
+    react-native-reanimated: "*"
+  peerDependenciesMeta:
+    react-native-reanimated:
+      optional: true
+  checksum: 10c0/eaddc8fca5a4cb6265dd121dd4d79c6314feb972aada257de6a46be1d352c8c8a5744e42bac29282573d52369d9638b519932bb7d975c7a372432371e43eeec3
   languageName: node
   linkType: hard
 

@@ -1,4 +1,5 @@
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { Button, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native-unistyles';
 import { router } from '../navigation/router';
 import { tabBar } from '../navigation/tabBar';
 
@@ -14,13 +15,18 @@ export const AuthRootScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
   screen: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
+    backgroundColor: theme.colors.background,
+    padding: theme.gap(2.5),
   },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
-});
+  title: {
+    color: theme.colors.typography,
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+}));
