@@ -13,7 +13,7 @@ import {
 
 export interface RenderTabBarProps {
   tabBar: TabBar;
-  appearance?: NavigationAppearance['tabBar'];
+  appearance?: NavigationAppearance;
 }
 
 // Helpers outside render to avoid re-creation
@@ -67,7 +67,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       tabBarItemStyle,
       tintColor,
       backgroundColor,
-    } = appearance ?? {};
+    } = appearance?.tabBar ?? {};
 
     useEffect(() => {
       router.ensureTabSeed(index);
@@ -140,7 +140,10 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                 {...mappedTabProps}
               >
                 {stack ? (
-                  <StackRenderer stack={stack} />
+                  <StackRenderer
+                    stack={stack}
+                    screenStyle={appearance?.screenStyle}
+                  />
                 ) : Screen ? (
                   <Screen />
                 ) : null}

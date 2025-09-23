@@ -67,10 +67,7 @@ export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
             style={styles.flex}
             stackAnimation={rootTransition}
           >
-            <RenderTabBar
-              tabBar={router.tabBar!}
-              appearance={appearance?.tabBar}
-            />
+            <RenderTabBar tabBar={router.tabBar!} appearance={appearance} />
           </RNNScreenStackItem>
         )}
         {rootItems.map((item) => (

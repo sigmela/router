@@ -49,7 +49,7 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({
       },
     },
     screenStyle: {
-      backgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
+      backgroundColor: isDarkMode ? '#10161F' : '#f5f5f5',
     },
   });
 

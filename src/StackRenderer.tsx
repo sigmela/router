@@ -4,37 +4,45 @@ import { NavigationStack } from './NavigationStack';
 import { ScreenStack } from 'react-native-screens';
 import { useRouter } from './RouterContext';
 import type { HistoryItem } from './types';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 export interface StackRendererProps {
   stack: NavigationStack;
+  screenStyle?: StyleProp<ViewStyle>;
 }
 
-export const StackRenderer = memo<StackRendererProps>(({ stack }) => {
-  const router = useRouter();
-  const stackId = stack.getId();
-  const subscribe = useCallback(
-    (cb: () => void) => router.subscribeStack(stackId, cb),
-    [router, stackId]
-  );
-  const get = useCallback(
-    () => router.getStackHistory(stackId),
-    [router, stackId]
-  );
-  const historyForThisStack: HistoryItem[] = useSyncExternalStore(
-    subscribe,
-    get,
-    get
-  );
+export const StackRenderer = memo<StackRendererProps>(
+  ({ stack, screenStyle }) => {
+    const router = useRouter();
+    const stackId = stack.getId();
+    const subscribe = useCallback(
+      (cb: () => void) => router.subscribeStack(stackId, cb),
+      [router, stackId]
+    );
+    const get = useCallback(
+      () => router.getStackHistory(stackId),
+      [router, stackId]
+    );
+    const historyForThisStack: HistoryItem[] = useSyncExternalStore(
+      subscribe,
+      get,
+      get
+    );
 
-  return (
-    <ScreenStack style={styles.flex}>
-      {historyForThisStack.map((item) => (
-        <ScreenStackItem key={item.key} item={item} stackId={stackId} />
-      ))}
-    </ScreenStack>
-  );
-});
+    return (
+      <ScreenStack style={styles.flex}>
+        {historyForThisStack.map((item) => (
+          <ScreenStackItem
+            key={item.key}
+            item={item}
+            stackId={stackId}
+            screenStyle={screenStyle}
+          />
+        ))}
+      </ScreenStack>
+    );
+  }
+);
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
