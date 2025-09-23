@@ -51,6 +51,10 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({
     screenStyle: {
       backgroundColor: isDarkMode ? '#10161F' : '#f5f5f5',
     },
+    header: {
+      backgroundColor: isDarkMode ? '#10161F' : '#f5f5f5',
+      hideShadow: true,
+    },
   });
 
   const [appearance, setAppearance] =

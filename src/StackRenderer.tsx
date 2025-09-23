@@ -1,18 +1,18 @@
+import type { HistoryItem, NavigationAppearance } from './types';
 import { memo, useCallback, useSyncExternalStore } from 'react';
 import { ScreenStackItem } from './ScreenStackItem';
 import { NavigationStack } from './NavigationStack';
 import { ScreenStack } from 'react-native-screens';
 import { useRouter } from './RouterContext';
-import type { HistoryItem } from './types';
-import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 export interface StackRendererProps {
   stack: NavigationStack;
-  screenStyle?: StyleProp<ViewStyle>;
+  appearance?: NavigationAppearance;
 }
 
 export const StackRenderer = memo<StackRendererProps>(
-  ({ stack, screenStyle }) => {
+  ({ stack, appearance }) => {
     const router = useRouter();
     const stackId = stack.getId();
     const subscribe = useCallback(
@@ -30,13 +30,13 @@ export const StackRenderer = memo<StackRendererProps>(
     );
 
     return (
-      <ScreenStack style={styles.flex}>
+      <ScreenStack style={[styles.flex, appearance?.screenStyle]}>
         {historyForThisStack.map((item) => (
           <ScreenStackItem
+            appearance={appearance}
+            stackId={stackId}
             key={item.key}
             item={item}
-            stackId={stackId}
-            screenStyle={screenStyle}
           />
         ))}
       </ScreenStack>

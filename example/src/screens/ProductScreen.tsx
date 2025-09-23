@@ -1,6 +1,5 @@
 import { Button, StyleSheet, Text, View } from 'react-native';
 import { useParams, useQueryParams, useRouter } from '@sigmela/router';
-import { createController } from '@sigmela/router';
 
 type ProductParams = {
   productId: string;
@@ -11,26 +10,10 @@ type ProductQuery = {
   coupon?: string;
 };
 
-export const ProductController = createController<ProductParams>(
-  (input, present) => {
-    console.log('ProductController', input);
-    setTimeout(() => {
-      present();
-    }, 1000);
-  }
-);
-
-interface ProductScreenProps {
-  test: string;
-}
-
-export const ProductScreen = (props: ProductScreenProps) => {
-  const { test } = props;
+export const ProductScreen = () => {
   const { productId } = useParams<ProductParams>();
   const { coupon } = useQueryParams<ProductQuery>();
   const router = useRouter();
-
-  console.log(test);
 
   return (
     <View style={styles.screen}>

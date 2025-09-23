@@ -1,20 +1,20 @@
-import {
-  ScreenStack,
-  ScreenStackItem as RNNScreenStackItem,
-} from 'react-native-screens';
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import type { NavigationAppearance } from './types';
 import { RenderTabBar } from './TabBar/RenderTabBar';
 import { ScreenStackItem } from './ScreenStackItem';
 import { RouterContext } from './RouterContext';
 import { StyleSheet } from 'react-native';
 import { Router } from './Router';
-import type { NavigationAppearance } from './types';
+import {
+  ScreenStackItem as RNNScreenStackItem,
+  ScreenStack,
+} from 'react-native-screens';
+import {
+  useSyncExternalStore,
+  memo,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 
 export interface NavigationProps {
   router: Router;
@@ -76,17 +76,15 @@ export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
             stackId={rootId}
             item={item}
             stackAnimation={rootTransition}
-            screenStyle={appearance?.screenStyle}
-            headerAppearance={appearance?.header}
+            appearance={appearance}
           />
         ))}
         {globalItems.map((item) => (
           <ScreenStackItem
+            appearance={appearance}
             key={item.key}
             stackId={globalId}
             item={item}
-            screenStyle={appearance?.screenStyle}
-            headerAppearance={appearance?.header}
           />
         ))}
       </ScreenStack>

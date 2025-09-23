@@ -140,10 +140,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                 {...mappedTabProps}
               >
                 {stack ? (
-                  <StackRenderer
-                    stack={stack}
-                    screenStyle={appearance?.screenStyle}
-                  />
+                  <StackRenderer appearance={appearance} stack={stack} />
                 ) : Screen ? (
                   <Screen />
                 ) : null}

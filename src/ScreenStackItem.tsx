@@ -1,19 +1,18 @@
+import type { HistoryItem, ScreenOptions, NavigationAppearance } from './types';
 import { ScreenStackItem as RNSScreenStackItem } from 'react-native-screens';
 import { RouteLocalContext, useRouter } from './RouterContext';
-import type { HistoryItem, ScreenOptions, NavigationAppearance } from './types';
-import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { memo } from 'react';
 
 interface ScreenStackItemProps {
   item: HistoryItem;
   stackId?: string;
   stackAnimation?: ScreenOptions['stackAnimation'];
-  screenStyle?: StyleProp<ViewStyle>;
-  headerAppearance?: NavigationAppearance['header'];
+  appearance?: NavigationAppearance;
 }
 
 export const ScreenStackItem = memo<ScreenStackItemProps>(
-  ({ item, stackId, stackAnimation, screenStyle }) => {
+  ({ item, stackId, stackAnimation, appearance }) => {
     const router = useRouter();
 
     const onDismissed = () => {
@@ -35,22 +34,20 @@ export const ScreenStackItem = memo<ScreenStackItemProps>(
     };
 
     const { header, ...screenProps } = item.options || {};
-    // Merge global header appearance with per-screen header options
-    // const mergedHeader = {
-    //   ...(headerAppearance ?? {}),
-    //   ...(header ?? {}),
-    // } as any;
-    // Hide header by default if not specified
-    const headerConfig = header ?? { hidden: true };
 
-    // console.log('headerConfig', headerAppearance, item.key);
+    const headerConfig = {
+      ...header,
+      hidden: !header?.title || header?.hidden,
+      backgroundColor: appearance?.header?.backgroundColor ?? 'transparent',
+    };
+
     return (
       <RNSScreenStackItem
         key={item.key}
         screenId={item.key}
         onDismissed={onDismissed}
         style={StyleSheet.absoluteFill}
-        contentStyle={screenStyle}
+        contentStyle={appearance?.screenStyle}
         headerConfig={headerConfig}
         {...screenProps}
         stackAnimation={stackAnimation ?? item.options?.stackAnimation}
