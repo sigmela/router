@@ -19,8 +19,14 @@ export type NavigationState<Route extends TabItem> = {
 export type Scope = 'global' | 'tab' | 'root';
 
 // Map ScreenOptions to native ScreenStackItem props
+export type TabBarIcon = { sfSymbolName?: string } | string;
+
 export type ScreenOptions = Partial<RNSScreenProps> & {
   header?: ScreenStackHeaderConfigProps;
+  /**
+   * Tab bar icon source for this route (used on web renderer, optional on native).
+   */
+  tabBarIcon?: TabBarIcon;
 };
 
 export type HistoryItem = {

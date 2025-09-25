@@ -1,9 +1,9 @@
-import type { HistoryItem, NavigationAppearance } from './types';
+import type { HistoryItem, NavigationAppearance } from '../types';
 import { memo, useCallback, useSyncExternalStore } from 'react';
-import { ScreenStackItem } from './ScreenStackItem';
-import { NavigationStack } from './NavigationStack';
+import { ScreenStackItem } from '../ScreenStackItem';
+import { NavigationStack } from '../NavigationStack';
 import { ScreenStack } from 'react-native-screens';
-import { useRouter } from './RouterContext';
+import { useRouter } from '../RouterContext';
 import { StyleSheet } from 'react-native';
 
 export interface StackRendererProps {

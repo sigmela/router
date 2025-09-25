@@ -93,61 +93,44 @@ export class Router {
     }
 
     this.buildRegistry();
-    this.seedInitialHistory();
+    if (this.isWebEnv()) {
+      this.setupBrowserHistory();
+      this.parse(this.getCurrentUrl());
+    } else {
+      this.seedInitialHistory();
+    }
     this.recomputeVisibleRoute();
   }
 
   // Public API
   public navigate = (path: string): void => {
+    if (this.isWebEnv()) {
+      this.pushUrl(path);
+      return;
+    }
     this.performNavigation(path, 'push');
   };
 
   public replace = (path: string): void => {
+    if (this.isWebEnv()) {
+      this.replaceUrl(path);
+      return;
+    }
     this.performNavigation(path, 'replace');
   };
 
   public goBack = (): void => {
-    // Global layer wins
-    if (this.global) {
-      const gid = this.global.getId();
-      const gslice = this.getStackHistory(gid);
-      const gtop = gslice.length ? gslice[gslice.length - 1] : undefined;
-      if (gtop) {
-        this.applyHistoryChange('pop', gtop);
-        return;
-      }
-    }
-
-    // Tab layer
-    if (this.tabBar) {
-      const idx = this.getActiveTabIndex();
-      const state = this.tabBar.getState();
-      const route = state.tabs[idx];
-      if (!route) return;
-      const stack = this.tabBar.stacks[route.tabKey];
-      if (!stack) return;
-      const sid = stack.getId();
-      const slice = this.getStackHistory(sid);
-      if (slice.length > 1) {
-        const top = slice[slice.length - 1];
-        if (top) {
-          this.applyHistoryChange('pop', top);
-        }
+    if (this.isWebEnv()) {
+      // Web: only go back within the current active stack.
+      const didPop = this.tryPopActiveStack();
+      if (didPop) {
+        // Keep URL in sync with the new visible route without adding history entries
+        const path = this.getVisibleRoute()?.path;
+        if (path) this.replaceUrl(path);
       }
       return;
     }
-
-    // Root layer
-    if (isNavigationStackLike(this.root)) {
-      const sid = this.root.getId();
-      const slice = this.getStackHistory(sid);
-      if (slice.length > 1) {
-        const top = slice[slice.length - 1];
-        if (top) {
-          this.applyHistoryChange('pop', top);
-        }
-      }
-    }
+    this.popOnce();
   };
 
   public onTabIndexChange = (index: number): void => {
@@ -309,6 +292,7 @@ export class Router {
               routeId: gtop.routeId,
               params: gtop.params,
               query: gtop.query,
+              path: gtop.path,
             }
           : {
               routeId: gtop.routeId,
@@ -340,6 +324,7 @@ export class Router {
                   routeId: top.routeId,
                   params: top.params,
                   query: top.query,
+                  path: top.path,
                 }
               : {
                   routeId: top.routeId,
@@ -375,6 +360,7 @@ export class Router {
               routeId: top.routeId,
               params: top.params,
               query: top.query,
+              path: top.path,
             }
           : {
               routeId: top.routeId,
@@ -680,5 +666,310 @@ export class Router {
 
   private findStackById(stackId: string): NavigationStack | undefined {
     return this.stackById.get(stackId);
+  }
+
+  // ==== Web integration (History API) ====
+  private isWebEnv(): boolean {
+    const g = globalThis as unknown as {
+      addEventListener?: (type: string, cb: (ev: Event) => void) => void;
+      history?: { state: unknown };
+      location?: object;
+    };
+    return !!(g.addEventListener && g.history && g.location);
+  }
+
+  private getCurrentUrl(): string {
+    const g = globalThis as unknown as {
+      location?: { pathname: string; search: string };
+    };
+    return g.location ? `${g.location.pathname}${g.location.search}` : '/';
+  }
+
+  private readIndex(state: unknown): number {
+    if (
+      state &&
+      typeof state === 'object' &&
+      '__srIndex' in (state as Record<string, unknown>)
+    ) {
+      const idx = (state as { __srIndex?: unknown }).__srIndex;
+      if (typeof idx === 'number') return idx;
+    }
+    return 0;
+  }
+
+  private getHistoryIndex(): number {
+    const g = globalThis as unknown as { history?: { state: unknown } };
+    return this.readIndex(g.history?.state);
+  }
+
+  private ensureHistoryIndex(): void {
+    const g = globalThis as unknown as {
+      history?: {
+        state: unknown;
+        replaceState: (data: unknown, unused: string, url?: string) => void;
+      };
+      location?: { href: string };
+    };
+    const st = g.history?.state ?? {};
+    if (
+      this.readIndex(st) === 0 &&
+      !(
+        st &&
+        typeof st === 'object' &&
+        '__srIndex' in (st as Record<string, unknown>)
+      )
+    ) {
+      const next = { ...(st as Record<string, unknown>), __srIndex: 0 };
+      try {
+        g.history?.replaceState(next, '', g.location?.href);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  private pushUrl(to: string): void {
+    const g = globalThis as unknown as {
+      history?: {
+        state: unknown;
+        pushState: (data: unknown, unused: string, url?: string) => void;
+      };
+      Event?: new (type: string) => Event;
+      dispatchEvent?: (ev: Event) => boolean;
+    };
+    const st = g.history?.state ?? {};
+    const prev = this.readIndex(st);
+    const next = { ...(st as Record<string, unknown>), __srIndex: prev + 1 };
+    g.history?.pushState(next, '', to);
+    if (g.Event && g.dispatchEvent) {
+      g.dispatchEvent(new g.Event('pushState'));
+    }
+  }
+
+  private replaceUrl(to: string): void {
+    const g = globalThis as unknown as {
+      history?: {
+        state: unknown;
+        replaceState: (data: unknown, unused: string, url?: string) => void;
+      };
+      Event?: new (type: string) => Event;
+      dispatchEvent?: (ev: Event) => boolean;
+    };
+    const st = g.history?.state ?? {};
+    g.history?.replaceState(st, '', to);
+    if (g.Event && g.dispatchEvent) {
+      g.dispatchEvent(new g.Event('replaceState'));
+    }
+  }
+
+  private patchHistoryOnce(): void {
+    const g = globalThis as unknown as {
+      history?: {
+        pushState?: (data: unknown, unused: string, url?: string) => void;
+        replaceState?: (data: unknown, unused: string, url?: string) => void;
+      };
+      Event?: new (type: string) => Event;
+      dispatchEvent?: (ev: Event) => boolean;
+    } & Record<PropertyKey, unknown>;
+
+    const key = Symbol.for('sigmela_router_history_patch');
+    if (g[key]) return;
+
+    const hist = g.history;
+    if (hist && hist.pushState && hist.replaceState) {
+      const originalPush = hist.pushState.bind(hist);
+      const originalReplace = hist.replaceState.bind(hist);
+      hist.pushState = (data: unknown, unused: string, url?: string) => {
+        const res = originalPush(data, unused, url);
+        if (g.Event && g.dispatchEvent) {
+          g.dispatchEvent(new g.Event('pushState'));
+        }
+        return res;
+      };
+      hist.replaceState = (data: unknown, unused: string, url?: string) => {
+        const res = originalReplace(data, unused, url);
+        if (g.Event && g.dispatchEvent) {
+          g.dispatchEvent(new g.Event('replaceState'));
+        }
+        return res;
+      };
+    }
+    g[key] = true;
+  }
+
+  private lastBrowserIndex: number = 0;
+
+  private setupBrowserHistory(): void {
+    const g = globalThis as unknown as {
+      addEventListener?: (type: string, cb: (ev: Event) => void) => void;
+    };
+    this.patchHistoryOnce();
+    this.ensureHistoryIndex();
+    this.lastBrowserIndex = this.getHistoryIndex();
+
+    const onHistory = (ev: Event): void => {
+      const url = this.getCurrentUrl();
+      if (ev.type === 'pushState') {
+        this.lastBrowserIndex = this.getHistoryIndex();
+        this.performNavigation(url, 'push');
+        return;
+      }
+      if (ev.type === 'replaceState') {
+        this.performNavigation(url, 'replace');
+        this.lastBrowserIndex = this.getHistoryIndex();
+        return;
+      }
+      if (ev.type === 'popstate') {
+        const idx = this.getHistoryIndex();
+        const delta = idx - this.lastBrowserIndex;
+        if (delta < 0) {
+          let steps = -delta;
+          while (steps-- > 0) this.popOnce();
+          const target = this.parsePath(url).pathname;
+          const current = this.getVisibleRoute()?.path;
+          if (current !== target) this.performNavigation(url, 'replace');
+        } else if (delta > 0) {
+          this.performNavigation(url, 'push');
+        } else {
+          this.performNavigation(url, 'replace');
+        }
+        this.lastBrowserIndex = idx;
+      }
+    };
+
+    g.addEventListener?.('pushState', onHistory);
+    g.addEventListener?.('replaceState', onHistory);
+    g.addEventListener?.('popstate', onHistory);
+  }
+
+  private popOnce(): void {
+    if (this.tryPopActiveStack()) return;
+  }
+
+  // Attempts to pop exactly one screen within the active stack only.
+  // Returns true if a pop occurred; false otherwise.
+  private tryPopActiveStack(): boolean {
+    if (this.global) {
+      const gid = this.global.getId();
+      const gslice = this.getStackHistory(gid);
+      const gtop = gslice.length ? gslice[gslice.length - 1] : undefined;
+      if (gtop) {
+        this.applyHistoryChange('pop', gtop);
+        return true;
+      }
+    }
+
+    if (this.tabBar) {
+      const idx = this.getActiveTabIndex();
+      const state = this.tabBar.getState();
+      const route = state.tabs[idx];
+      if (!route) return false;
+      const stack = this.tabBar.stacks[route.tabKey];
+      if (!stack) return false;
+      const sid = stack.getId();
+      const slice = this.getStackHistory(sid);
+      if (slice.length > 1) {
+        const top = slice[slice.length - 1];
+        if (top) {
+          this.applyHistoryChange('pop', top);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    if (isNavigationStackLike(this.root)) {
+      const sid = this.root.getId();
+      const slice = this.getStackHistory(sid);
+      if (slice.length > 1) {
+        const top = slice[slice.length - 1];
+        if (top) {
+          this.applyHistoryChange('pop', top);
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // Expand deep URL into a stack chain on initial load
+  private parse(url: string): void {
+    const { pathname, query } = this.parsePath(url);
+    const deepest = this.matchRoute(pathname);
+    if (!deepest) {
+      this.seedInitialHistory();
+      return;
+    }
+
+    if (
+      deepest.scope === 'tab' &&
+      this.tabBar &&
+      deepest.tabIndex !== undefined
+    ) {
+      this.onTabIndexChange(deepest.tabIndex);
+    }
+
+    const parts = pathname.split('/').filter(Boolean);
+    const prefixes: string[] = new Array(parts.length + 1);
+    let acc = '';
+    prefixes[0] = '/';
+    for (let i = 0; i < parts.length; i++) {
+      acc += `/${parts[i]}`;
+      prefixes[i + 1] = acc;
+    }
+
+    const candidates: {
+      segmentCount: number;
+      route: CompiledRoute;
+      candidateUrl: string;
+      params?: Record<string, unknown>;
+    }[] = [];
+
+    for (const route of this.registry) {
+      if (route.stackId !== deepest.stackId || route.scope !== deepest.scope) {
+        continue;
+      }
+      const segmentsCount = route.path.split('/').filter(Boolean).length;
+      const candidateUrl = prefixes[segmentsCount];
+      if (!candidateUrl) {
+        continue;
+      }
+      const matchResult = route.match(candidateUrl);
+      if (!matchResult) {
+        continue;
+      }
+
+      candidates.push({
+        params: matchResult.params,
+        segmentCount: segmentsCount,
+        candidateUrl,
+        route,
+      });
+    }
+
+    if (!candidates.length) {
+      this.seedInitialHistory();
+      return;
+    }
+
+    candidates.sort((a, b) => a.segmentCount - b.segmentCount);
+
+    const items = candidates.map((c, i) =>
+      this.createHistoryItem(
+        c.route,
+        c.params,
+        i === candidates.length - 1 ? query : {},
+        c.candidateUrl
+      )
+    );
+
+    const first = items[0];
+    const sid = (first?.stackId ?? deepest.stackId) as string | undefined;
+    this.setState({ history: items });
+    if (sid) {
+      this.stackSlices.set(sid, items);
+      this.emit(this.stackListeners.get(sid));
+    }
   }
 }

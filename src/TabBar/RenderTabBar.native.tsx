@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore, memo, useEffect } from 'react';
 import { type NativeSyntheticEvent, Platform } from 'react-native';
 import type { NavigationAppearance } from '../types';
-import { StackRenderer } from '../StackRenderer';
+import { StackRenderer } from '../StackRenderer/StackRenderer';
 import { TabBarContext } from './TabBarContext';
 import { useRouter } from '../RouterContext';
 import type { TabBar } from './TabBar';

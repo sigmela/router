@@ -1,0 +1,1 @@
+export { RenderTabBar } from './RenderTabBar';

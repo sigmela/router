@@ -14,6 +14,7 @@ type ExtendedIcon = ImageSourcePropType | IOSIconShape;
 type InternalTabItem = Omit<TabItem, 'icon' | 'selectedIcon'> & {
   icon?: ExtendedIcon;
   selectedIcon?: ExtendedIcon;
+  badgeValue?: string;
 };
 
 type TabBarConfig = Omit<InternalTabItem, 'tabKey' | 'key'> & {
