@@ -111,12 +111,13 @@ export class Router {
     this.performNavigation(path, 'push');
   };
 
-  public replace = (path: string): void => {
+  public replace = (path: string, dedupe?: boolean): void => {
     if (this.isWebEnv()) {
+      this.pendingReplaceDedupe = !!dedupe;
       this.replaceUrl(path);
       return;
     }
-    this.performNavigation(path, 'replace');
+    this.performNavigation(path, 'replace', { dedupe: !!dedupe });
   };
 
   public goBack = (): void => {
@@ -376,7 +377,11 @@ export class Router {
   }
 
   // Internal navigation logic
-  private performNavigation(path: string, action: 'push' | 'replace'): void {
+  private performNavigation(
+    path: string,
+    action: 'push' | 'replace',
+    opts?: { dedupe?: boolean }
+  ): void {
     const { pathname, query } = this.parsePath(path);
     const matched = this.matchRoute(pathname);
     if (!matched) {
@@ -401,6 +406,21 @@ export class Router {
         const prev = top.params ? JSON.stringify(top.params) : '';
         const next = params ? JSON.stringify(params) : '';
         if (prev === next) {
+          return;
+        }
+      }
+    }
+
+    // Optional dedupe for replace: no-op when nothing changes at the top
+    if (action === 'replace' && opts?.dedupe) {
+      const top = this.getTopForTarget(matched.stackId);
+      if (top && top.routeId === matched.routeId) {
+        const sameParams =
+          JSON.stringify(top.params ?? {}) === JSON.stringify(params ?? {});
+        const sameQuery =
+          JSON.stringify(top.query ?? {}) === JSON.stringify(query ?? {});
+        const samePath = (top.path ?? '') === pathname;
+        if (sameParams && sameQuery && samePath) {
           return;
         }
       }
@@ -812,6 +832,7 @@ export class Router {
   }
 
   private lastBrowserIndex: number = 0;
+  private pendingReplaceDedupe: boolean = false;
 
   private setupBrowserHistory(): void {
     const g = globalThis as unknown as {
@@ -829,8 +850,10 @@ export class Router {
         return;
       }
       if (ev.type === 'replaceState') {
-        this.performNavigation(url, 'replace');
+        const dedupe = this.pendingReplaceDedupe === true;
+        this.performNavigation(url, 'replace', { dedupe });
         this.lastBrowserIndex = this.getHistoryIndex();
+        this.pendingReplaceDedupe = false;
         return;
       }
       if (ev.type === 'popstate') {

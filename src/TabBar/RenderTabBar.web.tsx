@@ -51,8 +51,10 @@ export const RenderTabBar = memo<RenderTabBarProps>(
           const last = history.length ? history[history.length - 1] : undefined;
           const toPath = last?.path ?? targetStack.getFirstRoute()?.path;
           if (toPath) {
+            const currentPath = router.getVisibleRoute()?.path;
+            if (nextIndex === index && toPath === currentPath) return;
             // Use replace to avoid duplicating history entries when switching tabs
-            router.replace(toPath);
+            router.replace(toPath, true);
             return;
           }
         }
@@ -60,7 +62,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         // Fallback: just switch tab index (no history push if there is no path)
         router.onTabIndexChange(nextIndex);
       },
-      [router, tabBar, tabs]
+      [router, tabBar, tabs, index]
     );
 
     const tintColor = appearance?.tabBar?.tintColor as string | undefined;
