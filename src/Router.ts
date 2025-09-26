@@ -585,15 +585,29 @@ export class Router {
       const prevSid = prevTop?.stackId;
       this.setState({ history: [...this.state.history.slice(0, -1), item] });
       if (prevSid && prevSid !== sid) {
-        const prevSlice = this.stackSlices.get(prevSid) ?? EMPTY_ARRAY;
-        const trimmed = prevSlice.slice(0, -1);
-        this.stackSlices.set(prevSid, trimmed);
-        this.emit(this.stackListeners.get(prevSid));
-        const newSlice = this.stackSlices.get(sid) ?? EMPTY_ARRAY;
-        const appended = [...newSlice, item];
-        this.stackSlices.set(sid, appended);
+        // Cross-stack replace: do not modify the source stack.
+        // Update target stack without growing it unnecessarily.
+        const targetSlice = this.stackSlices.get(sid) ?? EMPTY_ARRAY;
+        if (targetSlice.length === 0) {
+          this.stackSlices.set(sid, [item]);
+        } else {
+          const targetTop = targetSlice[targetSlice.length - 1];
+          const sameRoute = targetTop?.routeId === item.routeId;
+          const sameParams =
+            JSON.stringify(targetTop?.params ?? {}) ===
+            JSON.stringify(item.params ?? {});
+          if (sameRoute && sameParams) {
+            // No change needed for target stack
+            this.stackSlices.set(sid, targetSlice);
+          } else {
+            // Replace top of target stack
+            const replaced = [...targetSlice.slice(0, -1), item];
+            this.stackSlices.set(sid, replaced);
+          }
+        }
         this.emit(this.stackListeners.get(sid));
       } else {
+        // Same-stack replace: replace top element
         const prevSlice = this.stackSlices.get(sid) ?? EMPTY_ARRAY;
         const nextSlice = prevSlice.length
           ? [...prevSlice.slice(0, -1), item]

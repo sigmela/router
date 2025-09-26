@@ -250,4 +250,63 @@ describe('Web History integration', () => {
     const after = router.getVisibleRoute()?.path;
     expect(after).toBe(before); // unchanged
   });
+
+  test('cross-stack replace preserves source stack top', () => {
+    const shim = installWebShim('https://example.test/');
+
+    const catalog = new NavigationStack()
+      .addScreen('/catalog', Screen)
+      .addScreen('/catalog/products/:id', Screen);
+
+    const profile = new NavigationStack().addScreen('/profile', Screen);
+
+    const router = new Router({
+      root: new (class MockTabBar {
+        private _tabBar = new (class {
+          stacks: any = {};
+          screens: any = {};
+          state = {
+            tabs: [{ tabKey: 'catalog' }, { tabKey: 'profile' }],
+            index: 0,
+          };
+          subscribe = (_: () => void) => () => {};
+          getState = () => this.state;
+          onIndexChange = (i: number) => {
+            this.state.index = i;
+          };
+        })();
+        constructor() {
+          this._tabBar.stacks.catalog = catalog;
+          this._tabBar.stacks.profile = profile;
+        }
+        // TabBar-like surface
+        getState = () => this._tabBar.getState();
+        subscribe = (cb: () => void) => this._tabBar.subscribe(cb);
+        onIndexChange = (i: number) => this._tabBar.onIndexChange(i);
+        stacks = this._tabBar.stacks;
+        screens = this._tabBar.screens;
+      })() as any,
+    } as any);
+
+    // Seed catalog
+    router.replace('/catalog');
+    // Push deep in catalog
+    router.navigate('/catalog/products/1');
+    const catalogSliceBefore = router.getStackHistory(catalog.getId());
+    expect(catalogSliceBefore.length).toBe(2);
+    expect(catalogSliceBefore.at(-1)?.path).toBe('/catalog/products/1');
+    expect(shim.getLocation()).toEqual({
+      pathname: '/catalog/products/1',
+      search: '',
+    });
+
+    // Switch to profile via replace (cross-stack)
+    router.replace('/profile');
+    expect(router.getVisibleRoute()?.path).toBe('/profile');
+
+    // Ensure source (catalog) stack top is preserved
+    const catalogSliceAfter = router.getStackHistory(catalog.getId());
+    expect(catalogSliceAfter.length).toBe(2);
+    expect(catalogSliceAfter.at(-1)?.path).toBe('/catalog/products/1');
+  });
 });
