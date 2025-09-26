@@ -107,19 +107,14 @@ const TransitionStack = (options: TransitionStackOptions) => {
   } = options;
   const type = t;
 
-  const { callback: animationFunction, animateFirst: _animateFirst } =
-    transitions[type] || {};
+  // Set initial animation type on container; will be overridden per transition based on target's data-presentation
   content.dataset.animation = type;
-
-  if (_animateFirst !== undefined) {
-    animateFirst = _animateFirst;
-  }
 
   const onTransitionEndCallbacks: Map<HTMLElement, () => void> = new Map();
   let from: HTMLElement | null | undefined = null;
 
   if (withAnimationListener) {
-    const listenerName = animationFunction ? 'transitionend' : 'animationend';
+    const listenerName = 'transitionend';
 
     const onEndEvent = (e: TransitionEvent | AnimationEvent) => {
       // @ts-expect-error - e is TransitionEvent | AnimationEvent
@@ -176,7 +171,37 @@ const TransitionStack = (options: TransitionStackOptions) => {
 
     const to = content.children[targetIndex] as HTMLElement | undefined;
 
-    if (prevId === -1 && !animateFirst) {
+    // Determine direction and pick animation source
+    const goingBack = prevId > targetIndex;
+
+    const sourcePresentation = (from?.dataset.presentation || '') as
+      | 'modal'
+      | 'navigation'
+      | 'push'
+      | '';
+    const targetPresentation = (to?.dataset.presentation || '') as
+      | 'modal'
+      | 'navigation'
+      | 'push'
+      | '';
+
+    const chosenPresentation = goingBack
+      ? sourcePresentation
+      : targetPresentation;
+    const effectiveType: TransitionStackType =
+      chosenPresentation === 'modal' ? 'modal' : 'navigation';
+
+    // Update container dataset to drive CSS timing variants
+    content.dataset.animation = effectiveType;
+
+    const transitionSpec = transitions[effectiveType];
+    const animationFunction = transitionSpec?.callback;
+    const animateFirstLocal =
+      (transitionSpec?.animateFirst !== undefined
+        ? transitionSpec?.animateFirst
+        : animateFirst) ?? false;
+
+    if (prevId === -1 && !animateFirstLocal) {
       animate = false;
     }
 

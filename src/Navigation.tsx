@@ -1,13 +1,11 @@
-import type { NavigationAppearance } from '../types';
-import { RenderTabBar } from '../TabBar/RenderTabBar.native';
-import { ScreenStackItem } from '../ScreenStackItem';
-import { RouterContext } from '../RouterContext';
+// import { ScreenStackItem as RNNScreenStackItem } from 'react-native-screens';
+import type { NavigationAppearance } from './types';
+import { RenderTabBar } from './TabBar/RenderTabBar';
+import { ScreenStackItem } from './ScreenStackItem';
+import { RouterContext } from './RouterContext';
+import { ScreenStack } from './ScreenStack';
 import { StyleSheet } from 'react-native';
-import { Router } from '../Router';
-import {
-  ScreenStackItem as RNNScreenStackItem,
-  ScreenStack,
-} from 'react-native-screens';
+import { Router } from './Router';
 import {
   useSyncExternalStore,
   memo,
@@ -61,18 +59,11 @@ export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
     <RouterContext.Provider value={router}>
       <ScreenStack style={styles.flex}>
         {hasTabBar && (
-          <RNNScreenStackItem
-            screenId="root-tabbar"
-            headerConfig={{ hidden: true }}
-            style={styles.flex}
-            stackAnimation={rootTransition}
-          >
-            <RenderTabBar tabBar={router.tabBar!} appearance={appearance} />
-          </RNNScreenStackItem>
+          <RenderTabBar tabBar={router.tabBar!} appearance={appearance} />
         )}
         {rootItems.map((item) => (
           <ScreenStackItem
-            key={item.key}
+            key={`root-${item.key}`}
             stackId={rootId}
             item={item}
             stackAnimation={rootTransition}
@@ -81,8 +72,8 @@ export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
         ))}
         {globalItems.map((item) => (
           <ScreenStackItem
+            key={`global-${item.key}`}
             appearance={appearance}
-            key={item.key}
             stackId={globalId}
             item={item}
           />

@@ -44,7 +44,7 @@ body {
   overflow: hidden;
 }
 
-.screen-stack .screen-stack-item {
+.screen-stack > .screen-stack-item {
   position: absolute;
   inset: 0;
   display: flex;
@@ -53,40 +53,34 @@ body {
   overflow: hidden;
 }
 
-.screen-stack .screen-stack-item.active {
+.screen-stack > .screen-stack-item.active {
   display: flex;
 }
 
 /* navigation animation timing variants */
-.screen-stack[data-animation="navigation"].animating .screen-stack-item {
+.screen-stack[data-animation="navigation"].animating > .screen-stack-item {
   transition: transform var(--transition-standard-in), filter var(--transition-standard-in);
 }
 
-.screen-stack[data-animation="navigation"].animating.backwards .screen-stack-item {
+.screen-stack[data-animation="navigation"].animating.backwards > .screen-stack-item {
   transition: transform var(--transition-standard-out), filter var(--transition-standard-out);
 }
 
-.screen-stack[data-animation="modal"].animating .screen-stack-item {
+.screen-stack[data-animation="modal"].animating > .screen-stack-item {
   transition: transform var(--transition-standard-in), filter var(--transition-standard-in);
 }
 
-.screen-stack[data-animation="modal"].animating.backwards .screen-stack-item {
+.screen-stack[data-animation="modal"].animating.backwards > .screen-stack-item {
   transition: transform var(--transition-standard-out), filter var(--transition-standard-out);
 }
 
 /*  */
 
-.web-tab-bar {
+.tab-stacks-container {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #fff;
-  border-right: 1px solid #e9ecef;
+  flex-direction: row;
+  flex: 1 1 auto;
   min-height: 100vh;
-  width: 200px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
 }
 
 .web-tab-container {
@@ -95,12 +89,24 @@ body {
   gap: 8px;
   padding: 20px 16px;
   width: 100%;
-  overflow: hidden;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.web-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  height: 100vh;
 }
 
 .web-tab-content {
   position: relative;
   overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 100vh;
+  height: 100vh;
 }
 
 /* Keep-alive panels: all mounted, only active is visible */
@@ -114,6 +120,24 @@ body {
 
 .web-tab-panel.active {
   display: flex;
+}
+
+/* Desktop: left sidebar tab bar */
+.web-tab-bar {
+  width: 240px;
+  flex: 0 0 auto;
+  background-color: #fff;
+  border-right: 1px solid #e9ecef;
+  height: 100dvh;
+  order: -1; /* move nav before content in row layout */
+}
+
+/* Content area sizing next to sidebar */
+.tab-stacks-container .screen-stack {
+  min-width: 0;
+  width: auto;
+  flex: 1 1 auto;
+  height: 100dvh;
 }
 
 .web-tab-item {
@@ -201,7 +225,11 @@ body {
   max-width: 100%;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 680px) {
+  .tab-stacks-container {
+    flex-direction: column;
+  }
+
   .web-tab-bar {
     width: 100vw;
     min-width: 100%;
@@ -211,15 +239,25 @@ body {
     border-right: none;
     border-top: 1px solid #e9ecef;
     order: 2;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
+    z-index: 10;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
     overflow-x: hidden;
     box-sizing: border-box;
   }
+  /* .web-tab-bar {
+    width: 100vw;
+    min-width: 100%;
+    max-width: 100%;
+    min-height: auto;
+    height: 72px;
+    border-right: none;
+    border-top: 1px solid #e9ecef;
+    order: 2;
+    z-index: 10;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    overflow-x: hidden;
+    box-sizing: border-box;
+  } */
 
   .web-tab-container {
     flex-direction: row;

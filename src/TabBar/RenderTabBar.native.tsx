@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore, memo, useEffect } from 'react';
-import { type NativeSyntheticEvent, Platform } from 'react-native';
+import { type NativeSyntheticEvent, Platform, StyleSheet } from 'react-native';
 import type { NavigationAppearance } from '../types';
-import { StackRenderer } from '../StackRenderer/StackRenderer';
+import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
 import { useRouter } from '../RouterContext';
 import type { TabBar } from './TabBar';
@@ -9,6 +9,7 @@ import {
   type NativeFocusChangeEvent,
   BottomTabsScreen,
   BottomTabs,
+  ScreenStackItem,
 } from 'react-native-screens';
 
 export interface RenderTabBarProps {
@@ -83,72 +84,83 @@ export const RenderTabBar = memo<RenderTabBarProps>(
     );
 
     return (
-      <TabBarContext.Provider value={tabBar}>
-        <BottomTabs
-          onNativeFocusChange={onNativeFocusChange}
-          tabBarBackgroundColor={backgroundColor}
-          tabBarTintColor={tintColor}
-          tabBarItemTitleFontFamily={tabBarItemStyle?.titleFontFamily}
-          tabBarItemTitleFontSize={tabBarItemStyle?.titleFontSize}
-          tabBarItemTitleFontSizeActive={tabBarItemStyle?.titleFontSizeActive}
-          tabBarItemTitleFontWeight={tabBarItemStyle?.titleFontWeight}
-          tabBarItemTitleFontStyle={tabBarItemStyle?.titleFontStyle}
-          tabBarItemTitleFontColor={tabBarItemStyle?.titleFontColor}
-          tabBarItemTitleFontColorActive={tabBarItemStyle?.titleFontColorActive}
-          tabBarItemIconColor={tabBarItemStyle?.iconColor}
-          tabBarItemIconColorActive={tabBarItemStyle?.iconColorActive}
-          tabBarItemActiveIndicatorColor={tabBarItemStyle?.activeIndicatorColor}
-          tabBarItemActiveIndicatorEnabled={
-            tabBarItemStyle?.activeIndicatorEnabled
-          }
-          tabBarItemRippleColor={tabBarItemStyle?.rippleColor}
-          tabBarItemLabelVisibilityMode={tabBarItemStyle?.labelVisibilityMode}
-          // tabBarMinimizeBehavior={}
-        >
-          {tabs.map((tab) => {
-            const isFocused = tab.tabKey === tabs[index]?.tabKey;
-            const stack = tabBar.stacks[tab.tabKey];
-            const Screen = tabBar.screens[tab.tabKey];
-
-            // Map unified icon to platform-specific props expected by RNS BottomTabsScreen
-            const { icon, selectedIcon, ...restTab } = tab as any;
-
-            let mappedTabProps: any = restTab;
-            if (icon || selectedIcon) {
-              if (Platform.OS === 'android') {
-                mappedTabProps = {
-                  ...restTab,
-                  ...(isImageSource(icon) ? { iconResource: icon } : null),
-                };
-              } else {
-                mappedTabProps = {
-                  ...restTab,
-                  ...(icon ? { icon: buildIOSIcon(icon) } : null),
-                  ...(selectedIcon
-                    ? { selectedIcon: buildIOSIcon(selectedIcon) }
-                    : null),
-                };
-              }
+      <ScreenStackItem
+        screenId="root-tabbar"
+        headerConfig={{ hidden: true }}
+        style={StyleSheet.absoluteFill}
+        stackAnimation="slide_from_right"
+      >
+        <TabBarContext.Provider value={tabBar}>
+          <BottomTabs
+            onNativeFocusChange={onNativeFocusChange}
+            tabBarBackgroundColor={backgroundColor}
+            tabBarTintColor={tintColor}
+            tabBarItemTitleFontFamily={tabBarItemStyle?.titleFontFamily}
+            tabBarItemTitleFontSize={tabBarItemStyle?.titleFontSize}
+            tabBarItemTitleFontSizeActive={tabBarItemStyle?.titleFontSizeActive}
+            tabBarItemTitleFontWeight={tabBarItemStyle?.titleFontWeight}
+            tabBarItemTitleFontStyle={tabBarItemStyle?.titleFontStyle}
+            tabBarItemTitleFontColor={tabBarItemStyle?.titleFontColor}
+            tabBarItemTitleFontColorActive={
+              tabBarItemStyle?.titleFontColorActive
             }
+            tabBarItemIconColor={tabBarItemStyle?.iconColor}
+            tabBarItemIconColorActive={tabBarItemStyle?.iconColorActive}
+            tabBarItemActiveIndicatorColor={
+              tabBarItemStyle?.activeIndicatorColor
+            }
+            tabBarItemActiveIndicatorEnabled={
+              tabBarItemStyle?.activeIndicatorEnabled
+            }
+            tabBarItemRippleColor={tabBarItemStyle?.rippleColor}
+            tabBarItemLabelVisibilityMode={tabBarItemStyle?.labelVisibilityMode}
+            // tabBarMinimizeBehavior={}
+          >
+            {tabs.map((tab) => {
+              const isFocused = tab.tabKey === tabs[index]?.tabKey;
+              const stack = tabBar.stacks[tab.tabKey];
+              const Screen = tabBar.screens[tab.tabKey];
 
-            return (
-              <BottomTabsScreen
-                scrollEdgeAppearance={scrollEdgeAppearance}
-                standardAppearance={standardAppearance}
-                isFocused={isFocused}
-                key={tab.tabKey}
-                {...mappedTabProps}
-              >
-                {stack ? (
-                  <StackRenderer appearance={appearance} stack={stack} />
-                ) : Screen ? (
-                  <Screen />
-                ) : null}
-              </BottomTabsScreen>
-            );
-          })}
-        </BottomTabs>
-      </TabBarContext.Provider>
+              // Map unified icon to platform-specific props expected by RNS BottomTabsScreen
+              const { icon, selectedIcon, ...restTab } = tab as any;
+
+              let mappedTabProps: any = restTab;
+              if (icon || selectedIcon) {
+                if (Platform.OS === 'android') {
+                  mappedTabProps = {
+                    ...restTab,
+                    ...(isImageSource(icon) ? { iconResource: icon } : null),
+                  };
+                } else {
+                  mappedTabProps = {
+                    ...restTab,
+                    ...(icon ? { icon: buildIOSIcon(icon) } : null),
+                    ...(selectedIcon
+                      ? { selectedIcon: buildIOSIcon(selectedIcon) }
+                      : null),
+                  };
+                }
+              }
+
+              return (
+                <BottomTabsScreen
+                  scrollEdgeAppearance={scrollEdgeAppearance}
+                  standardAppearance={standardAppearance}
+                  isFocused={isFocused}
+                  key={tab.tabKey}
+                  {...mappedTabProps}
+                >
+                  {stack ? (
+                    <StackRenderer appearance={appearance} stack={stack} />
+                  ) : Screen ? (
+                    <Screen />
+                  ) : null}
+                </BottomTabsScreen>
+              );
+            })}
+          </BottomTabs>
+        </TabBarContext.Provider>
+      </ScreenStackItem>
     );
   }
 );
