@@ -40,7 +40,7 @@ export const ScreenStackItem = memo<ScreenStackItemProps>(
         screenId={item.key}
         onDismissed={onDismissed}
         style={StyleSheet.absoluteFill}
-        contentStyle={appearance?.screenStyle}
+        contentStyle={appearance?.screen}
         headerConfig={headerConfig}
         {...screenProps}
         stackAnimation={stackAnimation ?? item.options?.stackAnimation}

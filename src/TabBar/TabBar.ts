@@ -11,7 +11,7 @@ type IOSIconShape =
 type ExtendedIcon = ImageSourcePropType | IOSIconShape;
 
 // Internal representation used by TabBar to support unified icon source while keeping original android props
-type InternalTabItem = Omit<TabItem, 'icon' | 'selectedIcon'> & {
+export type InternalTabItem = Omit<TabItem, 'icon' | 'selectedIcon'> & {
   icon?: ExtendedIcon;
   selectedIcon?: ExtendedIcon;
   badgeValue?: string;

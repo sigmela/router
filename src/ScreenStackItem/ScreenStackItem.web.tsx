@@ -20,7 +20,7 @@ export const ScreenStackItem = memo(
         data-phase={phase}
       >
         <RouteLocalContext.Provider value={value}>
-          <View style={[styles.flex, appearance?.screenStyle]}>
+          <View style={[styles.flex, appearance?.screen]}>
             <item.component {...(item.passProps || {})} />
           </View>
         </RouteLocalContext.Provider>

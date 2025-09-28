@@ -32,7 +32,7 @@ export const StackRenderer = memo<StackRendererProps>(
     return (
       <ScreenStack
         key={`stack-${stackId}`}
-        style={[styles.flex, appearance?.screenStyle]}
+        style={[styles.flex, appearance?.screen]}
       >
         {historyForThisStack.map((item) => (
           <ScreenStackItem

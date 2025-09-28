@@ -1,16 +1,22 @@
 import { useCallback, useSyncExternalStore, memo, useEffect } from 'react';
-import { type NativeSyntheticEvent, Platform, StyleSheet } from 'react-native';
 import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
 import { useRouter } from '../RouterContext';
-import type { TabBar } from './TabBar';
+import type { InternalTabItem, TabBar } from './TabBar';
 import {
   type NativeFocusChangeEvent,
+  type Icon as RNSIcon,
   BottomTabsScreen,
   BottomTabs,
   ScreenStackItem,
 } from 'react-native-screens';
+import {
+  type NativeSyntheticEvent,
+  Platform,
+  StyleSheet,
+  type ImageSourcePropType,
+} from 'react-native';
 
 export interface RenderTabBarProps {
   tabBar: TabBar;
@@ -18,38 +24,51 @@ export interface RenderTabBarProps {
 }
 
 // Helpers outside render to avoid re-creation
-const isImageSource = (value: any) => {
+const isImageSource = (value: unknown): value is ImageSourcePropType => {
   if (value == null) return false;
   const valueType = typeof value;
   if (valueType === 'number') return true;
   if (Array.isArray(value)) return value.length > 0;
   if (valueType === 'object') {
-    if ('uri' in value || 'width' in value || 'height' in value) return true;
-    if (
-      'sfSymbolName' in value ||
-      'imageSource' in value ||
-      'templateSource' in value
-    )
+    const v = value as Record<string, unknown>;
+    if ('uri' in v || 'width' in v || 'height' in v) return true;
+    if ('sfSymbolName' in v || 'imageSource' in v || 'templateSource' in v)
       return false;
   }
   return false;
 };
 
-const buildIOSIcon = (value: any) => {
+const isRNSIcon = (value: unknown): value is RNSIcon => {
+  if (value == null || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return 'sfSymbolName' in v || 'imageSource' in v || 'templateSource' in v;
+};
+
+const buildIOSIcon = (value: unknown): RNSIcon | undefined => {
   if (!value) return undefined;
-  if (
-    typeof value === 'object' &&
-    (('sfSymbolName' in value ||
-      'imageSource' in value ||
-      'templateSource' in value) as any)
-  ) {
-    return value;
+  if (isRNSIcon(value)) return value;
+  return { templateSource: value as ImageSourcePropType } as RNSIcon;
+};
+
+// Map unified tab icon props to RNS BottomTabsScreen platform-specific props
+const getTabIcon = (tab: InternalTabItem) => {
+  const { icon, selectedIcon } = tab;
+  if (icon || selectedIcon) {
+    if (Platform.OS === 'android' && isImageSource(icon)) {
+      return { iconResource: icon };
+    }
+
+    return {
+      selectedIcon: buildIOSIcon(selectedIcon),
+      icon: buildIOSIcon(icon),
+    };
   }
-  return { templateSource: value } as any;
+
+  return undefined;
 };
 
 export const RenderTabBar = memo<RenderTabBarProps>(
-  ({ tabBar, appearance }) => {
+  ({ tabBar, appearance = {} }) => {
     const router = useRouter();
     const subscribe = useCallback(
       (cb: () => void) => tabBar.subscribe(cb),
@@ -63,11 +82,15 @@ export const RenderTabBar = memo<RenderTabBarProps>(
     const { tabs, index } = snapshot;
 
     const {
-      standardAppearance,
-      scrollEdgeAppearance,
-      tabBarItemStyle,
-      tintColor,
+      iconColor,
+      iconColorActive,
+      androidActiveIndicatorEnabled,
+      androidActiveIndicatorColor,
+      androidRippleColor,
+      labelVisibilityMode,
+      title,
       backgroundColor,
+      badgeBackgroundColor,
     } = appearance?.tabBar ?? {};
 
     useEffect(() => {
@@ -83,6 +106,44 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       [tabs, router]
     );
 
+    const containerProps = {
+      tabBarBackgroundColor: backgroundColor,
+      tabBarItemTitleFontFamily: title?.fontFamily,
+      tabBarItemTitleFontSize: title?.fontSize,
+      tabBarItemTitleFontWeight: title?.fontWeight,
+      tabBarItemTitleFontStyle: title?.fontStyle,
+      tabBarItemTitleFontColor: title?.color,
+      tabBarItemTitleFontColorActive: title?.color,
+      tabBarItemIconColor: iconColor,
+      tabBarItemIconColorActive: iconColorActive,
+      tabBarItemActiveIndicatorColor: androidActiveIndicatorColor,
+      tabBarItemActiveIndicatorEnabled: androidActiveIndicatorEnabled,
+      tabBarItemRippleColor: androidRippleColor,
+      tabBarItemLabelVisibilityMode: labelVisibilityMode,
+    };
+
+    const iosState = {
+      tabBarItemTitleFontFamily: title?.fontFamily,
+      tabBarItemTitleFontSize: title?.fontSize,
+      tabBarItemTitleFontWeight: title?.fontWeight,
+      tabBarItemTitleFontStyle: title?.fontStyle,
+      tabBarItemTitleFontColor: title?.color,
+      tabBarItemBadgeBackgroundColor: badgeBackgroundColor,
+      tabBarItemTitleFontColorActive: title?.color,
+      tabBarItemIconColorActive: iconColorActive,
+      tabBarItemIconColor: iconColor,
+    };
+
+    const iosAppearance = Platform.select({
+      default: undefined,
+      ios: {
+        tabBarBackgroundColor: backgroundColor,
+        compactInline: { normal: iosState },
+        stacked: { normal: iosState },
+        inline: { normal: iosState },
+      },
+    });
+
     return (
       <ScreenStackItem
         screenId="root-tabbar"
@@ -93,62 +154,27 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         <TabBarContext.Provider value={tabBar}>
           <BottomTabs
             onNativeFocusChange={onNativeFocusChange}
-            tabBarBackgroundColor={backgroundColor}
-            tabBarTintColor={tintColor}
-            tabBarItemTitleFontFamily={tabBarItemStyle?.titleFontFamily}
-            tabBarItemTitleFontSize={tabBarItemStyle?.titleFontSize}
-            tabBarItemTitleFontSizeActive={tabBarItemStyle?.titleFontSizeActive}
-            tabBarItemTitleFontWeight={tabBarItemStyle?.titleFontWeight}
-            tabBarItemTitleFontStyle={tabBarItemStyle?.titleFontStyle}
-            tabBarItemTitleFontColor={tabBarItemStyle?.titleFontColor}
-            tabBarItemTitleFontColorActive={
-              tabBarItemStyle?.titleFontColorActive
-            }
-            tabBarItemIconColor={tabBarItemStyle?.iconColor}
-            tabBarItemIconColorActive={tabBarItemStyle?.iconColorActive}
-            tabBarItemActiveIndicatorColor={
-              tabBarItemStyle?.activeIndicatorColor
-            }
-            tabBarItemActiveIndicatorEnabled={
-              tabBarItemStyle?.activeIndicatorEnabled
-            }
-            tabBarItemRippleColor={tabBarItemStyle?.rippleColor}
-            tabBarItemLabelVisibilityMode={tabBarItemStyle?.labelVisibilityMode}
-            // tabBarMinimizeBehavior={}
+            {...containerProps}
           >
             {tabs.map((tab) => {
               const isFocused = tab.tabKey === tabs[index]?.tabKey;
               const stack = tabBar.stacks[tab.tabKey];
               const Screen = tabBar.screens[tab.tabKey];
-
-              // Map unified icon to platform-specific props expected by RNS BottomTabsScreen
-              const { icon, selectedIcon, ...restTab } = tab as any;
-
-              let mappedTabProps: any = restTab;
-              if (icon || selectedIcon) {
-                if (Platform.OS === 'android') {
-                  mappedTabProps = {
-                    ...restTab,
-                    ...(isImageSource(icon) ? { iconResource: icon } : null),
-                  };
-                } else {
-                  mappedTabProps = {
-                    ...restTab,
-                    ...(icon ? { icon: buildIOSIcon(icon) } : null),
-                    ...(selectedIcon
-                      ? { selectedIcon: buildIOSIcon(selectedIcon) }
-                      : null),
-                  };
-                }
-              }
+              const icon = getTabIcon(tab);
 
               return (
                 <BottomTabsScreen
-                  scrollEdgeAppearance={scrollEdgeAppearance}
-                  standardAppearance={standardAppearance}
+                  scrollEdgeAppearance={iosAppearance}
+                  standardAppearance={iosAppearance}
                   isFocused={isFocused}
+                  tabKey={tab.tabKey}
                   key={tab.tabKey}
-                  {...mappedTabProps}
+                  title={tab.title}
+                  badgeValue={tab.badgeValue}
+                  specialEffects={tab.specialEffects}
+                  selectedIcon={icon?.selectedIcon}
+                  iconResource={icon?.iconResource}
+                  icon={icon?.icon}
                 >
                   {stack ? (
                     <StackRenderer appearance={appearance} stack={stack} />

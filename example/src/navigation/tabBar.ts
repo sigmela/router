@@ -6,23 +6,23 @@ export const tabBar = new TabBar()
     key: 'home',
     stack: homeStack,
     title: 'Home',
-    icon: { sfSymbolName: 'house' },
-  })
-  .addTab({
-    key: 'settings',
-    stack: settingsStack,
-    title: 'Settings',
-    icon: { sfSymbolName: 'gearshape' },
+    icon: require('../../assets/icons/ic-more-h-circle-24.png'),
   })
   .addTab({
     key: 'catalog',
     stack: catalogStack,
     title: 'Catalog',
-    icon: { sfSymbolName: 'bag' },
+    icon: require('../../assets/icons/ic-products-outline-24.png'),
   })
   .addTab({
     key: 'orders',
     stack: ordersStack,
     title: 'Orders',
-    icon: { sfSymbolName: 'list.bullet' },
+    icon: require('../../assets/icons/ic-orders-24.png'),
+  })
+  .addTab({
+    key: 'settings',
+    stack: settingsStack,
+    title: 'Settings',
+    icon: require('../../assets/icons/ic-settings-outline-24.png'),
   });

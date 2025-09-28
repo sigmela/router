@@ -53,14 +53,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   useLayoutEffect(() => {
     setRecords((prev) => {
       const prevKeys = prev.map((r) => r.key);
-      // Bail out early when keys are identical to avoid unnecessary state churn
-      // that could incorrectly mark items as exiting on parent re-renders
-      if (
-        prevKeys.length === nextKeys.length &&
-        prevKeys.every((k, i) => k === nextKeys[i])
-      ) {
-        return prev;
-      }
       if (
         nextKeys.length === prevKeys.length + 1 &&
         prevKeys.every((k, i) => k === nextKeys[i])

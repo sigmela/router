@@ -81,6 +81,7 @@ body {
   flex-direction: row;
   flex: 1 1 auto;
   min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .web-tab-container {

@@ -1,14 +1,15 @@
+import type { NavigationAppearance } from '../types';
+import { StackRenderer } from '../StackRenderer';
+import { TabBarContext } from './TabBarContext';
+import { useRouter } from '../RouterContext';
+import type { TabBar } from './TabBar';
+import { Image, type ImageSourcePropType } from 'react-native';
 import React, {
   useCallback,
   useSyncExternalStore,
   memo,
   useEffect,
 } from 'react';
-import type { NavigationAppearance } from '../types';
-import { StackRenderer } from '../StackRenderer';
-import { TabBarContext } from './TabBarContext';
-import { useRouter } from '../RouterContext';
-import type { TabBar } from './TabBar';
 
 export interface RenderTabBarProps {
   tabBar: TabBar;
@@ -65,15 +66,48 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       [router, tabBar, tabs, index]
     );
 
-    const tintColor = appearance?.tabBar?.tintColor as string | undefined;
-    const itemStyle = appearance?.tabBar?.tabBarItemStyle;
+    const tb = appearance?.tabBar;
+    const title = tb?.title;
 
-    const titleColor = (active: boolean): React.CSSProperties['color'] => {
-      const activeColor =
-        (itemStyle?.titleFontColorActive as string | undefined) ?? tintColor;
-      const idleColor =
-        (itemStyle?.titleFontColor as string | undefined) ?? '#6c757d';
-      return active ? (activeColor ?? '#007bff') : idleColor;
+    const isImageSource = (value: unknown): value is ImageSourcePropType => {
+      if (value == null) return false;
+      const valueType = typeof value;
+      if (valueType === 'number') return true;
+      if (Array.isArray(value)) return value.length > 0;
+      if (valueType === 'object') {
+        const v = value as Record<string, unknown>;
+        if ('uri' in v || 'width' in v || 'height' in v) return true;
+      }
+      return false;
+    };
+
+    const getTitleColor = (active: boolean): React.CSSProperties['color'] => {
+      const configured = title?.color;
+      if (typeof configured === 'string') return configured;
+      return active ? '#007bff' : '#6c757d';
+    };
+
+    const titleFontStyle: React.CSSProperties = {};
+    if (typeof title?.fontFamily === 'string') {
+      titleFontStyle.fontFamily = title.fontFamily;
+    }
+    if (typeof title?.fontSize === 'number') {
+      titleFontStyle.fontSize = title.fontSize;
+    }
+    if (
+      typeof title?.fontWeight === 'string' ||
+      typeof title?.fontWeight === 'number'
+    ) {
+      titleFontStyle.fontWeight =
+        title.fontWeight as React.CSSProperties['fontWeight'];
+    }
+    if (typeof title?.fontStyle === 'string') {
+      titleFontStyle.fontStyle =
+        title.fontStyle as React.CSSProperties['fontStyle'];
+    }
+
+    const rnColorToCss = (value: unknown): string | undefined => {
+      return typeof value === 'string' ? value : undefined;
     };
 
     return (
@@ -90,7 +124,12 @@ export const RenderTabBar = memo<RenderTabBarProps>(
               <Screen />
             ) : null}
 
-            <nav className="web-tab-bar">
+            <nav
+              className="web-tab-bar"
+              style={{
+                backgroundColor: rnColorToCss(tb?.backgroundColor),
+              }}
+            >
               <div className="web-tab-container">
                 {tabs.map((tab, i) => {
                   const isActive = i === index;
@@ -98,13 +137,32 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                     <button
                       key={tab.tabKey}
                       className={`web-tab-item${isActive ? ' active' : ''}`}
-                      style={{ color: titleColor(isActive) }}
+                      style={{
+                        color: getTitleColor(isActive),
+                        ...titleFontStyle,
+                      }}
                       onClick={() => onTabClick(i)}
                     >
                       <span className="web-tab-icon-wrap">
-                        <span className="web-tab-icon">•</span>
+                        <span className="web-tab-icon">
+                          {isImageSource(tab.icon) ? (
+                            <Image
+                              source={tab.icon}
+                              tintColor={
+                                isActive ? tb?.iconColorActive : tb?.iconColor
+                              }
+                            />
+                          ) : null}
+                        </span>
                         {tab.badgeValue ? (
-                          <span className="web-tab-badge">
+                          <span
+                            className="web-tab-badge"
+                            style={{
+                              backgroundColor: rnColorToCss(
+                                tb?.badgeBackgroundColor
+                              ),
+                            }}
+                          >
                             {tab.badgeValue}
                           </span>
                         ) : null}

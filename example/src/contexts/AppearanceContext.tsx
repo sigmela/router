@@ -29,46 +29,101 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isLargeText, setIsLargeText] = useState(false);
 
-  const getAppearance = (): NavigationAppearance => ({
-    tabBar: {
-      backgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
-      tintColor: isDarkMode ? '#0A84FF' : '#007AFF',
-      tabBarItemStyle: {
-        titleFontColor: isDarkMode ? '#8E8E93' : '#999999',
-        titleFontSize: isLargeText ? 22 : 12,
-        titleFontWeight: isLargeText ? '700' : '600',
-      },
+  type ThemeColors = {
+    tabBarBackground: string;
+    iconColor: string;
+    iconColorActive: string;
+    titleColor: string;
+    screenBackground: string;
+    headerBackground: string;
+    androidActiveIndicatorColor: string;
+  };
 
-      standardAppearance: {
-        tabBarBackgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
-        tabBarShadowColor: 'transparent',
+  const LightTheme: ThemeColors = {
+    tabBarBackground: '#FFFFFF',
+    iconColor: '#999999',
+    iconColorActive: '#007AFF',
+    titleColor: '#999999',
+    screenBackground: '#f5f5f5',
+    headerBackground: '#f5f5f5',
+    androidActiveIndicatorColor: '#f5f5f5',
+  };
+
+  const DarkTheme: ThemeColors = {
+    tabBarBackground: '#10161F',
+    iconColor: '#8E8E93',
+    iconColorActive: '#0A84FF',
+    titleColor: '#0A84FF',
+    screenBackground: '#10161F',
+    headerBackground: '#10161F',
+    androidActiveIndicatorColor: '#17171A',
+  };
+
+  const getAppearance = (): NavigationAppearance => {
+    const theme = isDarkMode ? DarkTheme : LightTheme;
+
+    return {
+      tabBar: {
+        labelVisibilityMode: 'labeled',
+        backgroundColor: theme.tabBarBackground,
+        iconColor: theme.iconColor,
+        iconColorActive: theme.iconColorActive,
+        androidActiveIndicatorColor: theme.androidActiveIndicatorColor,
+        title: {
+          color: theme.titleColor,
+          fontSize: isLargeText ? 22 : 12,
+          fontWeight: isLargeText ? '700' : '600',
+        },
       },
-      scrollEdgeAppearance: {
-        tabBarBackgroundColor: isDarkMode ? '#10161F' : '#FFFFFF',
-        tabBarShadowColor: 'transparent',
+      screen: {
+        backgroundColor: theme.screenBackground,
       },
-    },
-    screenStyle: {
-      backgroundColor: isDarkMode ? '#10161F' : '#f5f5f5',
-    },
-    header: {
-      backgroundColor: isDarkMode ? '#10161F' : '#f5f5f5',
-      hideShadow: true,
-    },
-  });
+      header: {
+        backgroundColor: theme.headerBackground,
+      },
+    };
+  };
 
   const [appearance, setAppearance] =
     useState<NavigationAppearance>(getAppearance());
 
   const updateAppearance = (newAppearance: Partial<NavigationAppearance>) => {
-    setAppearance((prev: NavigationAppearance) => ({
-      ...prev,
-      ...newAppearance,
-      tabBar: {
-        ...prev.tabBar,
-        ...newAppearance.tabBar,
-      },
-    }));
+    setAppearance((prev: NavigationAppearance) => {
+      const hasAnyTabBar = Boolean(prev.tabBar || newAppearance.tabBar);
+
+      const mergedTabBar = hasAnyTabBar
+        ? {
+            ...(prev.tabBar ?? {}),
+            ...(newAppearance.tabBar ?? {}),
+            title: {
+              color:
+                newAppearance.tabBar?.title?.color ??
+                prev.tabBar?.title?.color ??
+                (isDarkMode ? DarkTheme.titleColor : LightTheme.titleColor),
+              fontFamily:
+                newAppearance.tabBar?.title?.fontFamily ??
+                prev.tabBar?.title?.fontFamily,
+              fontSize:
+                newAppearance.tabBar?.title?.fontSize ??
+                prev.tabBar?.title?.fontSize,
+              fontWeight:
+                newAppearance.tabBar?.title?.fontWeight ??
+                prev.tabBar?.title?.fontWeight,
+              fontStyle:
+                newAppearance.tabBar?.title?.fontStyle ??
+                prev.tabBar?.title?.fontStyle,
+            },
+          }
+        : undefined;
+
+      const next: NavigationAppearance = {
+        ...prev,
+        ...newAppearance,
+        tabBar: mergedTabBar,
+      } as NavigationAppearance;
+
+      return next;
+    });
   };
 
   const toggleDarkMode = () => {
