@@ -113,7 +113,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       tabBarItemTitleFontWeight: title?.fontWeight,
       tabBarItemTitleFontStyle: title?.fontStyle,
       tabBarItemTitleFontColor: title?.color,
-      tabBarItemTitleFontColorActive: title?.color,
+      tabBarItemTitleFontColorActive: title?.activeColor,
       tabBarItemIconColor: iconColor,
       tabBarItemIconColorActive: iconColorActive,
       tabBarItemActiveIndicatorColor: androidActiveIndicatorColor,

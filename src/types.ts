@@ -108,7 +108,8 @@ export interface NavigationAppearance {
       fontSize?: TextStyle['fontSize'];
       fontWeight?: TextStyle['fontWeight'];
       fontStyle?: TextStyle['fontStyle'];
-      color: TextStyle['color'];
+      color?: TextStyle['color'];
+      activeColor?: TextStyle['color'];
     };
   };
   screen?: StyleProp<ViewStyle>;

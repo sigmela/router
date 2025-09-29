@@ -12,7 +12,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
   color: #212529;
-  background-color: #f8f9fa;
+  background-color: #FFF;
 }
 
 :root {
@@ -74,260 +74,89 @@ body {
   transition: transform var(--transition-standard-out), filter var(--transition-standard-out);
 }
 
-/*  */
 
 .tab-stacks-container {
   display: flex;
-  flex-direction: row;
-  flex: 1 1 auto;
-  min-height: 100vh;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.web-tab-container {
-  display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 20px 16px;
-  width: 100%;
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.web-layout {
-  display: flex;
-  width: 100%;
-  min-height: 100vh;
-  height: 100vh;
-}
-
-.web-tab-content {
-  position: relative;
-  overflow: hidden;
   flex: 1 1 auto;
-  min-height: 100vh;
-  height: 100vh;
-}
-
-/* Keep-alive panels: all mounted, only active is visible */
-.web-tab-panel {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: none;
-}
-
-.web-tab-panel.active {
-  display: flex;
-}
-
-/* Desktop: left sidebar tab bar */
-.web-tab-bar {
-  width: 240px;
-  flex: 0 0 auto;
-  background-color: #fff;
-  border-right: 1px solid #e9ecef;
-  height: 100dvh;
-  order: -1; /* move nav before content in row layout */
-}
-
-/* Content area sizing next to sidebar */
-.tab-stacks-container .screen-stack {
-  min-width: 0;
-  width: auto;
-  flex: 1 1 auto;
-  height: 100dvh;
-}
-
-.web-tab-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 12px 16px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  text-decoration: none;
-  color: #6c757d;
-  font-size: 12px;
-  font-weight: 500;
-  gap: 4px;
-  min-height: 64px;
-  width: 100%;
-  outline: none;
-}
-
-.web-tab-item:hover {
-  background-color: rgba(0, 123, 255, 0.05);
-  color: #007bff;
-}
-
-.web-tab-item:hover .web-tab-icon {
-  color: #007bff;
-}
-
-.web-tab-item.active {
-  background-color: rgba(0, 123, 255, 0.1);
-  color: #007bff;
-  font-weight: 600;
-}
-
-.web-tab-item.active .web-tab-icon {
-  color: #007bff;
-}
-
-.web-tab-icon {
-  font-size: 24px;
-  color: inherit;
-  transition: color 0.2s ease;
-  display: block;
-  line-height: 1;
-}
-
-.web-tab-icon-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.web-tab-badge {
-  position: absolute;
-  top: -4px;
-  right: -6px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background-color: #ff3b30;
-  color: #fff;
-  font-size: 10px;
-  line-height: 16px;
-  font-weight: 600;
-  text-align: center;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
-
-.web-tab-label {
-  font-size: inherit;
-  font-weight: inherit;
-  color: inherit;
-  text-align: center;
-  line-height: 1.2;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-@media (max-width: 680px) {
-  .tab-stacks-container {
-    flex-direction: column;
-  }
-
-  .web-tab-bar {
-    width: 100vw;
-    min-width: 100%;
-    max-width: 100%;
-    min-height: auto;
-    height: 72px;
-    border-right: none;
-    border-top: 1px solid #e9ecef;
-    order: 2;
-    z-index: 10;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-    overflow-x: hidden;
-    box-sizing: border-box;
-  }
-  /* .web-tab-bar {
-    width: 100vw;
-    min-width: 100%;
-    max-width: 100%;
-    min-height: auto;
-    height: 72px;
-    border-right: none;
-    border-top: 1px solid #e9ecef;
-    order: 2;
-    z-index: 10;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-    overflow-x: hidden;
-    box-sizing: border-box;
-  } */
-
-  .web-tab-container {
-    flex-direction: row;
-    padding: 8px 16px;
-    justify-content: space-around;
-    gap: 0;
-    height: 100%;
-    width: 100%;
-    min-width: 100%;
-    box-sizing: border-box;
-  }
-
-  .web-tab-item {
-    flex: 1;
-    min-height: 56px;
-    max-width: none;
-    padding: 6px 8px;
-    gap: 2px;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    box-sizing: border-box;
-  }
-
-  .web-tab-item:active {
-    transform: scale(0.95);
-    background-color: rgba(0, 123, 255, 0.2);
-  }
-
-  .web-tab-icon {
-    font-size: 20px;
-  }
-
-  .web-tab-label {
-    font-size: 10px;
-    font-weight: 500;
-  }
+  min-height: 100vhd;
 }
 
 .tab-bar {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  background-color: #fff;
-  border-right: 1px solid #e9ecef;
-  min-height: 100vh;
-  width: 200px;
   flex-shrink: 0;
   position: relative;
-  /* transition: all 0.3s ease; */
+  height: 49px;
 }
 
-
 .tab-item {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  margin: 0;
+  padding: 4px 0 2px;
+  height: 100%;
+  color: inherit;
   display: flex;
+  flex: 1 1 0%;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12px 16px;
-  background: none;
-  border: none;
+  position: relative;
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  text-decoration: none;
-  color: #6c757d;
-  font-size: 12px;
-  font-weight: 500;
-  gap: 4px;
-  min-height: 64px;
-  width: 100%;
+}
+
+.tab-item:focus {
   outline: none;
 }
+
+.tab-item-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-item-icon > * {
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: contain;
+}
+
+.tab-item-label {
+  font-size: 11px;
+  line-height: 12px;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  margin-top: 2px;
+}
+
+.tab-item-label-badge {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(10px);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background-color: #dc3545;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 1px #fff;
+}
+
+
+/* @media (max-width: 680px) {
+
+} */

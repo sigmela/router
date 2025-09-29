@@ -70,7 +70,8 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({
         iconColorActive: theme.iconColorActive,
         androidActiveIndicatorColor: theme.androidActiveIndicatorColor,
         title: {
-          color: theme.titleColor,
+          color: theme.iconColor,
+          activeColor: theme.iconColorActive,
           fontSize: isLargeText ? 22 : 12,
           fontWeight: isLargeText ? '700' : '600',
         },
