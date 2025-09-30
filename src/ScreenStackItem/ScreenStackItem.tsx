@@ -1,15 +1,8 @@
-import type { HistoryItem, ScreenOptions, NavigationAppearance } from './types';
 import { ScreenStackItem as RNSScreenStackItem } from 'react-native-screens';
-import { RouteLocalContext, useRouter } from './RouterContext';
+import type { ScreenStackItemProps } from './ScreenStackItem.types';
+import { RouteLocalContext, useRouter } from '../RouterContext';
 import { StyleSheet } from 'react-native';
 import { memo } from 'react';
-
-interface ScreenStackItemProps {
-  item: HistoryItem;
-  stackId?: string;
-  stackAnimation?: ScreenOptions['stackAnimation'];
-  appearance?: NavigationAppearance;
-}
 
 export const ScreenStackItem = memo<ScreenStackItemProps>(
   ({ item, stackId, stackAnimation, appearance }) => {
@@ -47,7 +40,7 @@ export const ScreenStackItem = memo<ScreenStackItemProps>(
         screenId={item.key}
         onDismissed={onDismissed}
         style={StyleSheet.absoluteFill}
-        contentStyle={appearance?.screenStyle}
+        contentStyle={appearance?.screen}
         headerConfig={headerConfig}
         {...screenProps}
         stackAnimation={stackAnimation ?? item.options?.stackAnimation}

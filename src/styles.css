@@ -1,0 +1,139 @@
+
+
+:root {
+  --tabs-transition: .2s ease-in-out;
+  --transition-standard-easing: cubic-bezier(.4, .0, .2, 1);
+  --transition-standard-in-time: .3s;
+  --transition-standard-out-time: .25s;
+
+  --transition-standard-in: var(--transition-standard-in-time) var(--transition-standard-easing);
+  --transition-standard-out: var(--transition-standard-out-time) var(--transition-standard-easing);
+
+  --background-color-true: #181818;
+
+  --background-color: var(--background-color-true);
+}
+
+
+body {
+  margin: 0;
+  padding: 0;
+ }
+
+.screen-stack {
+  min-width: 100%;
+  width: 100%;
+  display: flex;
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.screen-stack > .screen-stack-item {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  font-size: 24px;
+  display: none;
+  overflow: hidden;
+}
+
+.screen-stack > .screen-stack-item.active {
+  display: flex;
+}
+
+.screen-stack[data-animation="navigation"].animating > .screen-stack-item {
+  transition: transform var(--transition-standard-in), filter var(--transition-standard-in);
+}
+
+.screen-stack[data-animation="navigation"].animating.backwards > .screen-stack-item {
+  transition: transform var(--transition-standard-out), filter var(--transition-standard-out);
+}
+
+.screen-stack[data-animation="modal"].animating > .screen-stack-item {
+  transition: transform var(--transition-standard-in), filter var(--transition-standard-in);
+}
+
+.screen-stack[data-animation="modal"].animating.backwards > .screen-stack-item {
+  transition: transform var(--transition-standard-out), filter var(--transition-standard-out);
+}
+
+.tab-stacks-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 100vhd;
+}
+
+.tab-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  height: 49px;
+}
+
+.tab-item {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  margin: 0;
+  padding: 4px 0 2px;
+  height: 100%;
+  color: inherit;
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.tab-item:focus {
+  outline: none;
+}
+
+.tab-item-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-item-icon > * {
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: contain;
+}
+
+.tab-item-label {
+  font-size: 11px;
+  line-height: 12px;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  margin-top: 2px;
+}
+
+.tab-item-label-badge {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(10px);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background-color: #dc3545;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
