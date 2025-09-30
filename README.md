@@ -1,4 +1,4 @@
-@sigmela/router
+# React Native Router 
 
 Modern, predictable navigation for React Native and Web built on top of react-native-screens. Simple class-based stacks, optional bottom tabs, global modals, typed URL params, and first-class web History API support.
 
