@@ -1,7 +1,8 @@
-import React from 'react';
-import { NavigationStack } from '../NavigationStack';
-import type { TabItem } from '../types';
 import type { ImageSourcePropType } from 'react-native';
+import { NavigationStack } from '../NavigationStack';
+import type { ComponentType } from 'react';
+import type { TabItem } from '../types';
+import React from 'react';
 
 type IOSIconShape =
   | { sfSymbolName: string }
@@ -17,9 +18,16 @@ export type InternalTabItem = Omit<TabItem, 'icon' | 'selectedIcon'> & {
   badgeValue?: string;
 };
 
+export type TabBarProps = {
+  onTabPress: (index: number) => void;
+  tabs: InternalTabItem[];
+  activeIndex: number;
+};
+
 type TabBarConfig = Omit<InternalTabItem, 'tabKey' | 'key'> & {
   stack?: NavigationStack;
   screen?: React.ComponentType<any>;
+  component?: ComponentType<TabBarProps>;
 };
 export class TabBar {
   public screens: Record<string, React.ComponentType<any>> = {};

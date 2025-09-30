@@ -3,7 +3,9 @@ import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
 import { useRouter } from '../RouterContext';
+import type { TabBarProps } from './TabBar';
 import type { TabBar } from './TabBar';
+import { TabIcon } from './TabIcon';
 import {
   useCallback,
   useSyncExternalStore,
@@ -11,8 +13,8 @@ import {
   useEffect,
   useMemo,
   type CSSProperties,
+  type ComponentType,
 } from 'react';
-import { TabIcon } from './TabIcon';
 
 export interface RenderTabBarProps {
   tabBar: TabBar;
@@ -49,7 +51,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       tabBar.getState,
       tabBar.getState
     );
-    const { tabs, index } = snapshot;
+    const { tabs, index, config } = snapshot;
 
     useEffect(() => {
       router.ensureTabSeed(index);
@@ -106,6 +108,11 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       ]
     );
 
+    // If a custom component is provided, render it instead of the default web tab bar
+    const CustomTabBar = config.component as
+      | ComponentType<TabBarProps>
+      | undefined;
+
     return (
       <div
         className="screen-stack-item"
@@ -120,48 +127,56 @@ export const RenderTabBar = memo<RenderTabBarProps>(
               <Screen />
             ) : null}
 
-            <div className="tab-bar" style={tabBarStyle}>
-              {tabs.map((tab, i) => {
-                const isActive = i === index;
-                const iconTint = toColorString(
-                  isActive
-                    ? appearance?.tabBar?.iconColorActive
-                    : appearance?.tabBar?.iconColor
-                );
-                const title = appearance?.tabBar?.title;
-                const labelColor = isActive
-                  ? (toColorString(title?.activeColor) ??
-                    toColorString(title?.color))
-                  : toColorString(title?.color);
-                const labelStyle: CSSProperties = {
-                  ...titleBaseStyle,
-                  color: labelColor,
-                };
-                return (
-                  <button
-                    key={tab.tabKey}
-                    data-index={i}
-                    className={`tab-item${isActive ? ' active' : ''}`}
-                    onClick={() => onTabClick(i)}
-                  >
-                    <div className="tab-item-icon">
-                      {isImageSource(tab.icon) ? (
-                        <TabIcon source={tab.icon} tintColor={iconTint} />
+            {CustomTabBar ? (
+              <CustomTabBar
+                onTabPress={onTabClick}
+                activeIndex={index}
+                tabs={tabs}
+              />
+            ) : (
+              <div className="tab-bar" style={tabBarStyle}>
+                {tabs.map((tab, i) => {
+                  const isActive = i === index;
+                  const iconTint = toColorString(
+                    isActive
+                      ? appearance?.tabBar?.iconColorActive
+                      : appearance?.tabBar?.iconColor
+                  );
+                  const title = appearance?.tabBar?.title;
+                  const labelColor = isActive
+                    ? (toColorString(title?.activeColor) ??
+                      toColorString(title?.color))
+                    : toColorString(title?.color);
+                  const labelStyle: CSSProperties = {
+                    ...titleBaseStyle,
+                    color: labelColor,
+                  };
+                  return (
+                    <button
+                      key={tab.tabKey}
+                      data-index={i}
+                      className={`tab-item${isActive ? ' active' : ''}`}
+                      onClick={() => onTabClick(i)}
+                    >
+                      <div className="tab-item-icon">
+                        {isImageSource(tab.icon) ? (
+                          <TabIcon source={tab.icon} tintColor={iconTint} />
+                        ) : null}
+                      </div>
+                      {tab.badgeValue ? (
+                        <span className="tab-item-label-badge">
+                          {tab.badgeValue}
+                        </span>
                       ) : null}
-                    </div>
-                    {tab.badgeValue ? (
-                      <span className="tab-item-label-badge">
-                        {tab.badgeValue}
-                      </span>
-                    ) : null}
 
-                    <div className="tab-item-label" style={labelStyle}>
-                      {tab.title}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                      <div className="tab-item-label" style={labelStyle}>
+                        {tab.title}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </TabBarContext.Provider>
       </div>

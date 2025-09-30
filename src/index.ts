@@ -1,5 +1,6 @@
 export { useTabBar } from './TabBar/useTabBar';
 export { TabBar } from './TabBar/TabBar';
+export type { TabBarProps } from './TabBar/TabBar';
 
 export type { NavigationAppearance } from './types';
 

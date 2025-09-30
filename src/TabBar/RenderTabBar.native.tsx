@@ -1,9 +1,9 @@
-import { useCallback, useSyncExternalStore, memo, useEffect } from 'react';
+import type { InternalTabItem, TabBar } from './TabBar';
 import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
 import { useRouter } from '../RouterContext';
-import type { InternalTabItem, TabBar } from './TabBar';
+import type { TabBarProps } from './TabBar';
 import {
   type NativeFocusChangeEvent,
   type Icon as RNSIcon,
@@ -17,6 +17,13 @@ import {
   StyleSheet,
   type ImageSourcePropType,
 } from 'react-native';
+import {
+  useCallback,
+  useSyncExternalStore,
+  memo,
+  useEffect,
+  type ComponentType,
+} from 'react';
 
 export interface RenderTabBarProps {
   tabBar: TabBar;
@@ -79,7 +86,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       tabBar.getState,
       tabBar.getState
     );
-    const { tabs, index } = snapshot;
+    const { tabs, index, config } = snapshot;
 
     const {
       iconColor,
@@ -104,6 +111,13 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         router.onTabIndexChange(tabIndex);
       },
       [tabs, router]
+    );
+
+    const onTabPress = useCallback(
+      (index: number) => {
+        router.onTabIndexChange(index);
+      },
+      [router]
     );
 
     const containerProps = {
@@ -143,6 +157,40 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         inline: { normal: iosState },
       },
     });
+
+    // If a custom component is provided, render it instead of default native BottomTabs
+    const CustomTabBar = config.component as
+      | ComponentType<TabBarProps>
+      | undefined;
+
+    if (CustomTabBar) {
+      const focusedTab = tabs[index];
+      const stack = focusedTab ? tabBar.stacks[focusedTab.tabKey] : undefined;
+      const Screen = focusedTab ? tabBar.screens[focusedTab.tabKey] : undefined;
+
+      return (
+        <ScreenStackItem
+          screenId="root-tabbar"
+          headerConfig={{ hidden: true }}
+          style={StyleSheet.absoluteFill}
+          stackAnimation="slide_from_right"
+        >
+          <TabBarContext.Provider value={tabBar}>
+            {stack ? (
+              <StackRenderer appearance={appearance} stack={stack} />
+            ) : Screen ? (
+              <Screen />
+            ) : null}
+
+            <CustomTabBar
+              onTabPress={onTabPress}
+              activeIndex={index}
+              tabs={tabs}
+            />
+          </TabBarContext.Provider>
+        </ScreenStackItem>
+      );
+    }
 
     return (
       <ScreenStackItem

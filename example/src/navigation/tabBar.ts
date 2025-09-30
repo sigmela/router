@@ -1,7 +1,8 @@
 import { TabBar } from '@sigmela/router';
+import { CustomIosTabBar } from '../components/CustomIosTabBar';
 import { homeStack, settingsStack, catalogStack, ordersStack } from './stacks';
 
-export const tabBar = new TabBar()
+export const tabBar = new TabBar({ component: CustomIosTabBar })
   .addTab({
     key: 'home',
     stack: homeStack,

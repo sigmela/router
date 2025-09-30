@@ -5,6 +5,10 @@ import {
   AppearanceProvider,
   useAppearance,
 } from './contexts/AppearanceContext';
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+} from 'react-native-safe-area-context';
 
 const AppContent = () => {
   const { appearance } = useAppearance();
@@ -13,8 +17,10 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <AppearanceProvider>
-      <AppContent />
-    </AppearanceProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <AppearanceProvider>
+        <AppContent />
+      </AppearanceProvider>
+    </SafeAreaProvider>
   );
 }
