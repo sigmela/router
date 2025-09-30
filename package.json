@@ -11,7 +11,10 @@
       "default": "./lib/module/index.js"
     },
     "./package.json": "./package.json",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": {
+      "source": "./src/styles.css",
+      "default": "./lib/module/styles.css"
+    }
   },
   "files": [
     "lib",
