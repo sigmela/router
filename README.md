@@ -1,25 +1,42 @@
-# Router for React Native
+@sigmela/router
 
-[![npm version](https://badge.fury.io/js/%40sigmela%2Frouter.svg)](https://www.npmjs.com/package/@sigmela/router)
+Modern, predictable navigation for React Native and Web built on top of react-native-screens. Simple class-based stacks, optional bottom tabs, global modals, typed URL params, and first-class web History API support.
 
-Lightweight, predictable navigation for React Native built on top of react-native-screens. It provides:
-- Stack navigation with URL-like paths and typed params
-- Bottom tab navigation via a simple builder API
-- A global overlay stack (e.g., auth modal) rendered above tabs/root
-- An imperative API with idempotent navigation and O(1) per-stack updates
+Features
+- Simple, chainable API: `new NavigationStack().addScreen('/users/:id', User)`
+- Bottom tab bar with native and web renderers; supports custom tab bars
+- Global stack for modals/overlays on top of root/tabs
+- URL-first navigation: navigate using path strings; typed `useParams` and `useQueryParams`
+- Works on web: integrates with pushState/replaceState/popstate and supports deep links
+- Appearance control for headers, screens, and tab bar
 
 Installation
-
 ```bash
 yarn add @sigmela/router react-native-screens
+# or
+npm i @sigmela/router react-native-screens
 ```
 
-Make sure react-native-screens is properly installed and configured in your app.
+Peer requirements
+- react-native-screens >= 4.16.0
+- react and react-native (versions matching your app)
+
+Web CSS
+- Import the bundled stylesheet once in your web entry to enable transitions and default tab styles:
+```ts
+import '@sigmela/router/styles.css';
+```
 
 Quick start (single stack)
-
 ```tsx
-import { NavigationStack, Router, Navigation, useRouter, useParams, useQueryParams } from '@sigmela/router';
+import {
+  NavigationStack,
+  Router,
+  Navigation,
+  useRouter,
+  useParams,
+  useQueryParams,
+} from '@sigmela/router';
 
 function HomeScreen() {
   const router = useRouter();
@@ -49,27 +66,37 @@ export default function App() {
 ```
 
 Quick start (tabs + global stack)
-
 ```tsx
 import { NavigationStack, Router, Navigation, TabBar } from '@sigmela/router';
 
-const homeStack = new NavigationStack()
-  .addScreen('/', HomeScreen, { header: { title: 'Home' } });
+const homeStack = new NavigationStack().addScreen('/', HomeScreen, {
+  header: { title: 'Home' },
+});
 
 const catalogStack = new NavigationStack()
   .addScreen('/catalog', CatalogScreen, { header: { title: 'Catalog' } })
-  .addScreen('/catalog/products/:productId', ProductScreen, { 
-    header: { title: 'Product' } 
+  .addScreen('/catalog/products/:productId', ProductScreen, {
+    header: { title: 'Product' },
   });
 
-const globalStack = new NavigationStack()
-  .addModal('/auth', AuthScreen, {
-    header: { title: 'Sign in' },
-  });
+const globalStack = new NavigationStack().addModal('/auth', AuthScreen, {
+  header: { title: 'Sign in' },
+});
 
-const tabBar = new TabBar({ labeled: true })
-  .addTab({ stack: homeStack, title: 'Home', icon: { sfSymbol: 'house' } })
-  .addTab({ stack: catalogStack, title: 'Catalog', icon: { sfSymbol: 'bag' } });
+const tabBar = new TabBar()
+  .addTab({
+    key: 'home',
+    stack: homeStack,
+    title: 'Home',
+    // iOS: SF Symbols, Android/Web: image source
+    icon: { sfSymbolName: 'house' },
+  })
+  .addTab({
+    key: 'catalog',
+    stack: catalogStack,
+    title: 'Catalog',
+    icon: { sfSymbolName: 'bag' },
+  });
 
 const router = new Router({ root: tabBar, global: globalStack });
 
@@ -78,40 +105,43 @@ export default function App() {
 }
 ```
 
-## Navigation Appearance
-
-You can customize the navigation appearance using the `appearance` prop:
-
+Custom tab bar (optional)
 ```tsx
-import { Navigation, NavigationAppearance } from '@sigmela/router';
+import { TabBar, type TabBarProps } from '@sigmela/router';
+
+function MyTabBar({ tabs, activeIndex, onTabPress }: TabBarProps) {
+  return (
+    <div className="my-tabs">
+      {tabs.map((t, i) => (
+        <button key={t.tabKey} onClick={() => onTabPress(i)} aria-pressed={i === activeIndex}>
+          {t.title}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const tabBar = new TabBar({ component: MyTabBar })
+  .addTab({ key: 'home', stack: homeStack, title: 'Home' })
+  .addTab({ key: 'catalog', stack: catalogStack, title: 'Catalog' });
+```
+
+Appearance
+Pass `appearance` to `Navigation` to style headers, screens, and the tab bar.
+```tsx
+import type { NavigationAppearance } from '@sigmela/router';
 
 const appearance: NavigationAppearance = {
   tabBar: {
-    // Android-specific
-    backgroundColor: '#ffffff',
-    tabBarItemStyle: {
-      titleFontColor: '#999999',
-      titleFontColorActive: '#007AFF',
-      titleFontSize: 12,
-      titleFontWeight: '600',
-      iconColor: '#999999',
-      iconColorActive: '#007AFF',
-      rippleColor: '#00000020',
-      activeIndicatorColor: '#007AFF',
-    },
-    // iOS-specific
-    tintColor: '#007AFF',
-    standardAppearance: {
-      tabBarBackgroundColor: '#ffffff',
-      tabBarShadowColor: 'transparent',
-    },
-    scrollEdgeAppearance: {
-      tabBarBackgroundColor: 'rgba(255,255,255,0.9)',
-      tabBarShadowColor: 'transparent',
-    },
+    backgroundColor: '#fff',
+    iconColor: '#8e8e93',
+    iconColorActive: '#000',
+    title: { fontSize: 11, color: '#555', activeColor: '#000' },
+    // Android-only options:
+    androidRippleColor: 'rgba(0,0,0,0.1)',
   },
-  screenStyle: {
-    backgroundColor: '#ffffff',
+  header: {
+    backgroundColor: '#fff',
   },
 };
 
@@ -120,227 +150,98 @@ export default function App() {
 }
 ```
 
-Core concepts
+API Reference
+- Classes
+  - NavigationStack
+    - `constructor(idOrOptions?: string | ScreenOptions, defaults?: ScreenOptions)`
+    - `addScreen(path: string, component: Component | { component, controller? }, options?: ScreenOptions)`
+    - `addModal(path: string, component: Component | { component, controller? }, options?: ScreenOptions)`
+  - TabBar
+    - `constructor(config?: { component?: ComponentType<TabBarProps> })`
+    - `addTab({ key: string, stack?: NavigationStack, screen?: Component, title?: string, icon?: ImageSource | { sfSymbolName | imageSource | templateSource } })`
+    - `setBadge(index: number, badge: string | null)`
+  - Router
+    - `constructor({ root: TabBar | NavigationStack, global?: NavigationStack, screenOptions?: ScreenOptions })`
+    - `navigate(path: string)` — push a route (e.g. `/catalog/products/42?ref=home`)
+    - `replace(path: string, dedupe?: boolean)` — replace top route; `dedupe` avoids no-op replaces on web
+    - `goBack()` — pop a single screen within the active stack (or global)
+    - `setRoot(nextRoot: TabBar | NavigationStack, options?: { transition?: ScreenOptions['stackAnimation'] })`
+    - `getVisibleRoute()` — returns `{ scope, path, params, query, ... } | null`
 
-- Router: central coordinator. Holds slices (histories) per stack, active tab index, and the visible route.
-- NavigationStack: define stack routes with path patterns using path-to-regexp.
-- TabBar: builder for bottom tabs; each tab may reference a stack or a single screen.
-- Global stack: a separate stack rendered above tabs/root, ideal for modals like auth.
-- Navigation component: renders current root layer (tabs or root stack) and the global overlay.
+- Components
+  - `Navigation` — the renderer. Props: `{ router: Router; appearance?: NavigationAppearance }`
 
-API reference
+- Hooks
+  - `useRouter()` — access the router instance
+  - `useCurrentRoute()` — subscribe to the currently visible route
+  - `useParams<T>()` — typed path params
+  - `useQueryParams<T>()` — typed query params
+  - `useRoute()` — raw route context `{ presentation, params, query, pattern, path }`
+  - `useTabBar()` — access the current `TabBar` (inside a tab screen)
 
-NavigationStack
+- Utilities
+  - `createController<TParams, TQuery>(controller)` — build controllers for guarded navigation
 
-- constructor(idOrOptions?, maybeOptions?)
-  - Overloads:
-    - new NavigationStack()
-    - new NavigationStack(id: string)
-    - new NavigationStack(defaultOptions: ScreenOptions)
-    - new NavigationStack(id: string, defaultOptions: ScreenOptions)
-- addScreen(path: string, component: React.ComponentType, options?: ScreenOptions): this
-- addModal(path: string, component: React.ComponentType, options?: ScreenOptions): this
-  - Convenience method that automatically sets `stackPresentation: 'modal'`
-- getId(): string
-- getDefaultOptions(): ScreenOptions | undefined
-
-Router
-
-- constructor({ root, global?, screenOptions? })
-  - root: TabBar | NavigationStack
-  - global: optional NavigationStack rendered on top (modal layer)
-  - screenOptions: global ScreenOptions overrides merged into each screen
-- navigate(path: string): void
-  - Matches a route by pathname, switches tab if needed, pushes a new history item
-  - Duplicate navigate to the same top screen with the same params is ignored
-- replace(path: string): void
-  - Replaces the top history item. If the top stack changes, both stack slices are updated incrementally to avoid stale entries [[memory:6631860]].
-- goBack(): void
-  - Pops from the highest priority layer that can pop: global → current tab → root
-  - “Seed” screens (the very first screen of a stack) are protected from popping
-- setRoot(nextRoot: TabBar | NavigationStack, options?: { transition?: ScreenOptions['stackAnimation'] }): void
-  - Switch between auth flow and main app, etc.; reseeds the new root
-  - transition is applied to the root layer when changing
-- onTabIndexChange(index: number): void and setActiveTabIndex(index: number): void
-- ensureTabSeed(index: number): void
-  - Ensures the first screen of a tab stack is seeded when the tab becomes active
-- getVisibleRoute(): {
-  routeId: string; stackId?: string; tabIndex?: number; scope: 'global' | 'tab' | 'root'; params?; query?; path?; pattern?
-} | null
-- subscribe(listener): unsubscribe
-- subscribeStack(stackId, listener): unsubscribe
-- subscribeActiveTab(listener): unsubscribe
-- getStackHistory(stackId): HistoryItem[] (useful for debugging/analytics)
-- hasTabBar(): boolean, getRootStackId(): string | undefined, getGlobalStackId(): string | undefined, getRootTransition(): ScreenOptions['stackAnimation'] | undefined
-
-Components
-
-- Navigation: top-level view that renders the root layer and the global overlay. Usage: `<Navigation router={router} appearance={appearance} />`.
-- StackRenderer: renders a single `NavigationStack` (advanced use, usually not needed directly).
-
-Hooks
-
-- useRouter(): Router
-- useCurrentRoute(): VisibleRoute
-- useParams<TParams>(): TParams
-- useQueryParams<TQuery>(): TQuery
-- useRoute(): { params, query, pattern?, path? }
-
-TabBar builder
-
-```ts
-new TabBar({
-  sidebarAdaptable?: boolean,
-  disablePageAnimations?: boolean,
-  hapticFeedbackEnabled?: boolean,
-  scrollEdgeAppearance?: 'default' | 'opaque' | 'transparent',
-  minimizeBehavior?: 'automatic' | 'onScrollDown' | 'onScrollUp' | 'never',
-})
-  .addTab({
-    stack?: NavigationStack,
-    screen?: React.ComponentType,
-    title?: string,
-    badge?: string,
-    icon?: ImageSource | AppleIcon | (({ focused }: { focused: boolean }) => ImageSource | AppleIcon),
-    activeTintColor?: ColorValue,
-    hidden?: boolean,
-    testID?: string,
-    role?: 'search',
-    freezeOnBlur?: boolean,
-    lazy?: boolean,
-    iconInsets?: { top?: number; bottom?: number; left?: number; right?: number },
-  })
-```
-
-You can update badges at runtime via:
-- setBadge(tabIndex, badge: string | null)
-- setTabBarConfig(partial)
-
-For styling, use the `appearance` prop on the Navigation component instead.
+- Types
+  - `ScreenOptions` — subset of `react-native-screens` Screen props plus `{ header?, tabBarIcon? }`
+  - `NavigationAppearance` — `{ tabBar?, screen?, header? }`
+  - `TabBarProps` — props passed to a custom tab bar component
 
 Screen options
+- `header`: `ScreenStackHeaderConfigProps` (from react-native-screens). If `title` is falsy, the header is hidden.
+- `stackPresentation`: `'push' | 'modal' | ...'` (react-native-screens)
+- `stackAnimation`: `'slide_from_right' | 'fade' | ...'` (react-native-screens)
+- `tabBarIcon` (web helper): string or `{ sfSymbolName?: string }` for default web icon rendering
 
-ScreenOptions map directly to props of react-native-screens `ScreenStackItem` (e.g., header, stackPresentation, stackAnimation, gestureEnabled, etc.).
-- **header**: controls the navigation header. If not specified, the header is hidden by default.
-- Per-screen options come from `addScreen(path, component, options)`
-- Per-stack defaults via `new NavigationStack(defaultOptions)`
-- Global overrides via `new Router({ screenOptions })`
-The effective options are merged in this order: stack defaults → per-screen → router overrides.
-
-Header configuration:
+Controllers (guarded/async navigation)
+Controllers run before a screen is presented. Call `present(passProps?)` when you're ready to show the screen. Useful for auth checks, data prefetch, or conditional redirects.
 ```tsx
-// Header with title (visible)
-{ header: { title: 'My Screen' } }
-
-// Hidden header (explicit)
-{ header: { hidden: true } }
-
-// No header specified = hidden by default
-{ /* header will be hidden automatically */ }
-
-// Custom header with background color
-{ header: { title: 'Settings', backgroundColor: '#007AFF' } }
-```
-
-Modal screens:
-```tsx
-// Using addModal - automatically sets stackPresentation: 'modal'
-const stack = new NavigationStack()
-  .addModal('/auth', AuthScreen, {
-    header: { title: 'Sign In' }
-  })
-  .addModal('/settings', SettingsScreen, {
-    header: { title: 'Settings' }
-  });
-
-// Equivalent to using addScreen with explicit modal presentation
-const stack = new NavigationStack()
-  .addScreen('/auth', AuthScreen, {
-    stackPresentation: 'modal',
-    header: { title: 'Sign In' }
-  });
-```
-
-Paths, params and query
-
-- Paths use path-to-regexp under the hood. Examples:
-  - `/users/:userId`
-  - `/orders/:year/:month`
-- Params are exposed via `useParams()`; query params via `useQueryParams()` and are parsed with query-string.
-- When you call `router.navigate('/users/123?tab=posts')`, your screen receives `{ userId: '123' }` as params and `{ tab: 'posts' }` as query.
-
-### Controllers: delay screen presentation and pass props
-
-You can attach a controller to a route to perform checks or async work before the screen is shown. If a controller is present, the screen is NOT pushed until the controller calls `present(passProps)`.
-
-Definition:
-
-```ts
 import { createController } from '@sigmela/router';
 
-type ProductParams = { productId: string };
-type ProductQuery = { coupon?: string };
+const Details = {
+  component: DetailsScreen,
+  controller: createController<{ id: string }, { from?: string }>(async ({ params }, present) => {
+    const isSignedIn = await auth.check();
+    if (!isSignedIn) {
+      router.navigate('/auth');
+      return;
+    }
+    present({ fetched: await api.load(params.id) });
+  }),
+};
 
-export const ProductController = createController<ProductParams, ProductQuery>((input, present) => {
-  // input.params and input.query are typed
-  // Do any sync/async work here (auth, data prefetch, A/B logic, etc.)
-  setTimeout(() => {
-    present({ preloadedTitle: 'From controller' }); // props passed to the screen
-  }, 300);
-});
+new NavigationStack().addScreen('/details/:id', Details);
 ```
 
-Attach to a route:
+Web behavior
+- On web, the router listens to `pushState`, `replaceState`, and `popstate`. You can navigate by calling `router.navigate('/path')` or by updating `window.history` yourself; the router will stay in sync.
+- Initial load deep links are expanded into a stack chain: `/a/b/c` seeds the stack with `/a` → `/a/b` → `/a/b/c` if those routes exist in the same stack.
+- `goBack()` pops within the active stack (or global). The router avoids creating duplicate entries when switching tabs by using `replace` under the hood in the web tab bar.
 
-```ts
-new NavigationStack()
-  .addScreen('/catalog/products/:productId', {
-    controller: ProductController,
-    component: ProductScreen,
-  }, {
-    header: { title: 'Product' },
-  });
-```
-
-In your screen you can receive `passProps` from the controller alongside route params/query:
-
+Root switching (auth flows)
+Switch between a login stack and the main tab bar at runtime. Optionally pass a transition for the change.
 ```tsx
-type ProductScreenProps = { preloadedTitle?: string };
-
-function ProductScreen(props: ProductScreenProps) {
-  const { productId } = useParams<ProductParams>();
-  const { coupon } = useQueryParams<ProductQuery>();
-  return <Text>{props.preloadedTitle} #{productId} coupon={coupon ?? '—'}</Text>;
-}
+router.setRoot(loggedIn ? mainTabs : authStack, { transition: 'fade' });
 ```
 
-Notes:
-- `navigate()` and `replace()` both respect controllers.
-- If the controller never calls `present()`, the screen will not be shown (useful for redirects).
-- Props passed to `present()` are injected into the route component as regular props.
+Badges and programmatic tab control
+```ts
+// Show a badge on the second tab
+tabBar.setBadge(1, '3');
 
-Behavior highlights (verified by tests)
+// Switch active tab (e.g., from a screen)
+useRouter().onTabIndexChange(2);
+```
 
-- Initial seeding: the first screen of the active tab (or root stack) is pushed automatically.
-- Duplicate navigate to the same top screen with the same params is ignored.
-- goBack pops from the global stack first (if any), then from the current tab’s stack, then from the root stack; seed screens are protected.
-- Navigating to a route inside a tab switches the active tab and seeds it if needed.
-- setRoot switches between TabBar and NavigationStack, applies an optional transition, rebuilds the registry, and reseeds the new root; subscribers to `subscribeRoot` are notified.
-- replace updates old/new stack slices atomically to avoid stale entries and keeps per-stack updates O(1) [[memory:6631860]].
+Example app
+- This repo contains an `example` app demonstrating tabs, stacks, and appearance.
 
-TypeScript
-
-Helpful exports:
-- Types: `TabConfig`, `TabBarConfig`, `NavigationProps`, `NavigationAppearance`, `HistoryItem`
-- Components: `Navigation`, `StackRenderer`, `TabBar`
-- Hooks: `useRouter`, `useCurrentRoute`, `useParams`, `useQueryParams`
-- Core classes: `Router`, `NavigationStack`
-
-Requirements
-
-- React 18+
-- React Native (with react-native-screens)
+Tips
+- Prefer path-based navigation throughout your app: it keeps web and native in sync.
+- Type your params and query with `useParams<T>()` and `useQueryParams<T>()` to get end-to-end type safety.
+- On the web, remember to import `@sigmela/router/styles.css` once.
 
 License
-
 MIT
+
+
