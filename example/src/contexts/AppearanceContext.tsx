@@ -69,6 +69,7 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({
         iconColor: theme.iconColor,
         iconColorActive: theme.iconColorActive,
         androidActiveIndicatorColor: theme.androidActiveIndicatorColor,
+        iOSShadowColor: 'transparent',
         title: {
           color: theme.iconColor,
           activeColor: theme.iconColorActive,

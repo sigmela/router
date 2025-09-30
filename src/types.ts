@@ -103,6 +103,7 @@ export interface NavigationAppearance {
     androidActiveIndicatorColor?: ColorValue;
     androidRippleColor?: ColorValue;
     labelVisibilityMode?: TabBarItemLabelVisibilityMode;
+    iOSShadowColor?: ColorValue;
     title: {
       fontFamily?: TextStyle['fontFamily'];
       fontSize?: TextStyle['fontSize'];

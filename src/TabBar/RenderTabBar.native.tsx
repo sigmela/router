@@ -100,6 +100,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       title,
       backgroundColor,
       badgeBackgroundColor,
+      iOSShadowColor,
     } = appearance?.tabBar ?? {};
 
     useEffect(() => {
@@ -154,6 +155,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       default: undefined,
       ios: {
         tabBarBackgroundColor: backgroundColor,
+        tabBarShadowColor: iOSShadowColor,
         compactInline: { normal: iosState },
         stacked: { normal: iosState },
         inline: { normal: iosState },
