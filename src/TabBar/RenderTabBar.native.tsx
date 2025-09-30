@@ -15,6 +15,7 @@ import {
   type NativeSyntheticEvent,
   Platform,
   StyleSheet,
+  View,
   type ImageSourcePropType,
 } from 'react-native';
 import {
@@ -22,6 +23,7 @@ import {
   useSyncExternalStore,
   memo,
   useEffect,
+  useState,
   type ComponentType,
 } from 'react';
 
@@ -114,8 +116,8 @@ export const RenderTabBar = memo<RenderTabBarProps>(
     );
 
     const onTabPress = useCallback(
-      (index: number) => {
-        router.onTabIndexChange(index);
+      (nextIndex: number) => {
+        router.onTabIndexChange(nextIndex);
       },
       [router]
     );
@@ -163,11 +165,17 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       | ComponentType<TabBarProps>
       | undefined;
 
-    if (CustomTabBar) {
-      const focusedTab = tabs[index];
-      const stack = focusedTab ? tabBar.stacks[focusedTab.tabKey] : undefined;
-      const Screen = focusedTab ? tabBar.screens[focusedTab.tabKey] : undefined;
+    // Track visited tabs to lazily mount on first visit and keep mounted afterwards
+    const [visited, setVisited] = useState<Record<string, true>>({});
 
+    useEffect(() => {
+      const key = tabs[index]?.tabKey;
+      if (key) {
+        setVisited((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+      }
+    }, [tabs, index]);
+
+    if (CustomTabBar) {
       return (
         <ScreenStackItem
           screenId="root-tabbar"
@@ -176,11 +184,30 @@ export const RenderTabBar = memo<RenderTabBarProps>(
           stackAnimation="slide_from_right"
         >
           <TabBarContext.Provider value={tabBar}>
-            {stack ? (
-              <StackRenderer appearance={appearance} stack={stack} />
-            ) : Screen ? (
-              <Screen />
-            ) : null}
+            <View style={styles.flex}>
+              {tabs
+                .filter((t) => visited[t.tabKey])
+                .map((tab) => {
+                  const isActive = tab.tabKey === tabs[index]?.tabKey;
+                  const stackForTab = tabBar.stacks[tab.tabKey];
+                  const ScreenForTab = tabBar.screens[tab.tabKey];
+                  return (
+                    <View
+                      key={`tab-content-${tab.tabKey}`}
+                      style={[styles.flex, !isActive && styles.hidden]}
+                    >
+                      {stackForTab ? (
+                        <StackRenderer
+                          appearance={appearance}
+                          stack={stackForTab}
+                        />
+                      ) : ScreenForTab ? (
+                        <ScreenForTab />
+                      ) : null}
+                    </View>
+                  );
+                })}
+            </View>
 
             <CustomTabBar
               onTabPress={onTabPress}
@@ -238,3 +265,8 @@ export const RenderTabBar = memo<RenderTabBarProps>(
     );
   }
 );
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  hidden: { display: 'none' },
+});
