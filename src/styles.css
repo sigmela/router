@@ -1,25 +1,3 @@
-
-
-:root {
-  --tabs-transition: .2s ease-in-out;
-  --transition-standard-easing: cubic-bezier(.4, .0, .2, 1);
-  --transition-standard-in-time: .3s;
-  --transition-standard-out-time: .25s;
-
-  --transition-standard-in: var(--transition-standard-in-time) var(--transition-standard-easing);
-  --transition-standard-out: var(--transition-standard-out-time) var(--transition-standard-easing);
-
-  --background-color-true: #181818;
-
-  --background-color: var(--background-color-true);
-}
-
-
-body {
-  margin: 0;
-  padding: 0;
- }
-
 .screen-stack {
   min-width: 100%;
   width: 100%;
@@ -43,19 +21,19 @@ body {
 }
 
 .screen-stack[data-animation="navigation"].animating > .screen-stack-item {
-  transition: transform var(--transition-standard-in), filter var(--transition-standard-in);
+  transition: transform .3s cubic-bezier(.4, .0, .2, 1), filter .3s cubic-bezier(.4, .0, .2, 1)
 }
 
 .screen-stack[data-animation="navigation"].animating.backwards > .screen-stack-item {
-  transition: transform var(--transition-standard-out), filter var(--transition-standard-out);
+  transition: transform .25s cubic-bezier(.4, .0, .2, 1), filter .25s cubic-bezier(.4, .0, .2, 1);
 }
 
 .screen-stack[data-animation="modal"].animating > .screen-stack-item {
-  transition: transform var(--transition-standard-in), filter var(--transition-standard-in);
+  transition: transform .3s cubic-bezier(.4, .0, .2, 1), filter .3s cubic-bezier(.4, .0, .2, 1)
 }
 
 .screen-stack[data-animation="modal"].animating.backwards > .screen-stack-item {
-  transition: transform var(--transition-standard-out), filter var(--transition-standard-out);
+  transition: transform .25s cubic-bezier(.4, .0, .2, 1), filter .25s cubic-bezier(.4, .0, .2, 1);
 }
 
 .tab-stacks-container {
