@@ -30,6 +30,7 @@ const slideModal = makeTransitionFunction({
     elements[1].style.transform = makeTranslate(0, height);
 
     tabContent.classList.add('active');
+    // eslint-disable-next-line no-void
     void tabContent.offsetHeight; // reflow
 
     tabContent.style.transform = '';
@@ -52,6 +53,7 @@ const slideNavigation = makeTransitionFunction({
     elements[1].style.transform = makeTranslate(width, 0);
 
     tabContent.classList.add('active');
+    // eslint-disable-next-line no-void
     void tabContent.offsetWidth; // reflow
 
     tabContent.style.transform = '';
