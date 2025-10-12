@@ -4,12 +4,17 @@ import { useRouter } from '@sigmela/router';
 export const AuthScreen = () => {
   const router = useRouter();
   return (
-    <View style={styles.screen} testID="sheet-content">
-      <Text style={styles.title}>Sign in</Text>
-      <View style={styles.buttonRow}>
-        <Button title="Close" onPress={() => router.goBack()} />
+    <>
+      <View testID="sheet-header" style={styles.header}>
+        <Text>Header</Text>
       </View>
-    </View>
+      <View testID="sheet-content" style={styles.screen}>
+        <Text style={styles.title}>Sign in</Text>
+        <View style={styles.buttonRow}>
+          <Button title="Close" onPress={() => router.goBack()} />
+        </View>
+      </View>
+    </>
   );
 };
 
@@ -18,6 +23,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    height: 400,
+  },
+  header: {
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
   buttonRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
