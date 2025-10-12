@@ -7,6 +7,17 @@ import type {
   TabBarMinimizeBehavior,
 } from 'react-native-screens';
 
+export type StackPresentationTypes =
+  | 'push'
+  | 'modal'
+  | 'transparentModal'
+  | 'containedModal'
+  | 'containedTransparentModal'
+  | 'fullScreenModal'
+  | 'formSheet'
+  | 'pageSheet'
+  | 'sheet';
+
 export type TabItem = Omit<BottomTabsScreenProps, 'isFocused' | 'children'>;
 
 export type NavigationState<Route extends TabItem> = {
@@ -20,8 +31,11 @@ export type Scope = 'global' | 'tab' | 'root';
 // Map ScreenOptions to native ScreenStackItem props
 export type TabBarIcon = { sfSymbolName?: string } | string;
 
-export type ScreenOptions = Partial<RNSScreenProps> & {
+export type ScreenOptions = Partial<
+  Omit<RNSScreenProps, 'stackPresentation'>
+> & {
   header?: ScreenStackHeaderConfigProps;
+  stackPresentation?: StackPresentationTypes;
   /**
    * Tab bar icon source for this route (used on web renderer, optional on native).
    */
@@ -92,7 +106,12 @@ export type TabBarConfig = {
   // #endregion iOS-only appearance
 };
 
-// BottomTabsScreenAppearance
+export type SheetAppearance = {
+  androidFullScreenTopInset?: number;
+  backgroundColor?: ColorValue;
+  cornerRadius?: number;
+};
+
 export interface NavigationAppearance {
   tabBar?: {
     backgroundColor?: ColorValue;
@@ -115,4 +134,5 @@ export interface NavigationAppearance {
   };
   screen?: StyleProp<ViewStyle>;
   header?: ScreenStackHeaderConfigProps;
+  sheet?: SheetAppearance;
 }

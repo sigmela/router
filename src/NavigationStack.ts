@@ -77,6 +77,17 @@ export class NavigationStack {
     });
   }
 
+  public addSheet(
+    path: string,
+    mixedComponent: MixedComponent,
+    options?: ScreenOptions
+  ): NavigationStack {
+    return this.addScreen(path, mixedComponent, {
+      ...options,
+      stackPresentation: 'sheet',
+    });
+  }
+
   public getRoutes(): BuiltRoute[] {
     return this.routes.slice();
   }

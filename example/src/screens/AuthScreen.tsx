@@ -4,7 +4,7 @@ import { useRouter } from '@sigmela/router';
 export const AuthScreen = () => {
   const router = useRouter();
   return (
-    <View style={styles.screen}>
+    <View style={styles.screen} testID="sheet-content">
       <Text style={styles.title}>Sign in</Text>
       <View style={styles.buttonRow}>
         <Button title="Close" onPress={() => router.goBack()} />
@@ -15,10 +15,8 @@ export const AuthScreen = () => {
 
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'white',
     padding: 20,
   },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },

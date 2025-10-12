@@ -83,6 +83,10 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({
       header: {
         backgroundColor: theme.headerBackground,
       },
+      sheet: {
+        backgroundColor: theme.screenBackground,
+        cornerRadius: 18,
+      },
     };
   };
 
