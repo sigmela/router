@@ -1,6 +1,7 @@
 import { NavigationStack } from './NavigationStack';
 import { nanoid } from 'nanoid/non-secure';
 import { TabBar } from './TabBar/TabBar';
+import { Platform } from 'react-native';
 import qs from 'query-string';
 import type {
   CompiledRoute,
@@ -704,6 +705,14 @@ export class Router {
       ...(routeOptions ?? {}),
       ...(routerDefaults ?? {}),
     };
+
+    if (
+      merged.stackPresentation === 'modal' &&
+      merged.convertModalToSheetForAndroid &&
+      Platform.OS === 'android'
+    ) {
+      merged.stackPresentation = 'sheet';
+    }
 
     return merged;
   }

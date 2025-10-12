@@ -15,6 +15,7 @@ interface ScreenStackSheetItemProps {
 
 export const ScreenStackSheetItem = memo<ScreenStackSheetItemProps>((props) => {
   const { item, onDismissed, route, appearance } = props;
+  const { convertModalToSheetForAndroid } = item.options || {};
   const headerConfig = { hidden: true };
 
   const ref = useRef<React.ComponentRef<typeof NativeSheetView>>(null);
@@ -49,12 +50,16 @@ export const ScreenStackSheetItem = memo<ScreenStackSheetItemProps>((props) => {
       onDismissed={onDismissed}
     >
       <NativeSheetView
-        fullscreenTopInset={appearance?.androidFullScreenTopInset}
         containerBackgroundColor={appearance?.backgroundColor}
         cornerRadius={appearance?.cornerRadius ?? 18}
         onDismissed={handleSheetDismissed}
         style={styles.flex}
         ref={ref}
+        fullscreenTopInset={
+          convertModalToSheetForAndroid
+            ? (appearance?.androidFullScreenTopInset ?? 40)
+            : undefined
+        }
       >
         <RouteLocalContext.Provider value={route}>
           <item.component {...item.passProps} />
