@@ -90,7 +90,8 @@
   "peerDependencies": {
     "react": "*",
     "react-native": "*",
-    "react-native-screens": ">=4.16.0"
+    "react-native-screens": ">=4.16.0",
+    "@sigmela/native-sheet": ">=0.0.1"
   },
   "workspaces": [
     "example"
