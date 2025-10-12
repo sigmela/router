@@ -44,9 +44,13 @@
     "release": "release-it --only-version"
   },
   "keywords": [
-    "react-native",
-    "ios",
-    "android"
+    "React Native Router",
+    "react-native-navigation",
+    "react-native-router",
+    "react-native-navigation",
+    "react-native-screens",
+    "react-native-bottom-tabs",
+    "react-native-bottom-sheet"
   ],
   "repository": {
     "type": "git",
