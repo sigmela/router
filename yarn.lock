@@ -3513,11 +3513,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sigmela/native-sheet@npm:^0.0.1":
+  version: 0.0.1
+  resolution: "@sigmela/native-sheet@npm:0.0.1"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: e27794006a6c87cd9a1520e3573f81932106a81a09e83e75691527ad45ec4bee215b86430bcfa0d963c609d969770db4d7ab4671fb07d82813916ee2de53c53b
+  languageName: node
+  linkType: hard
+
 "@sigmela/router-example@workspace:example":
   version: 0.0.0-use.local
   resolution: "@sigmela/router-example@workspace:example"
   dependencies:
     "@expo/metro-runtime": ~6.1.2
+    "@sigmela/native-sheet": ^0.0.1
     expo: ~54.0.10
     expo-status-bar: ~3.0.8
     react: 19.1.0
@@ -3543,6 +3554,7 @@ __metadata:
     "@react-native/babel-preset": 0.81.1
     "@react-native/eslint-config": ^0.81.1
     "@release-it/conventional-changelog": ^10.0.1
+    "@sigmela/native-sheet": ^0.0.1
     "@types/jest": ^29.5.14
     "@types/react": ^19.1.12
     commitlint: ^19.8.1
