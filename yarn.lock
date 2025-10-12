@@ -3554,7 +3554,6 @@ __metadata:
     "@react-native/babel-preset": 0.81.1
     "@react-native/eslint-config": ^0.81.1
     "@release-it/conventional-changelog": ^10.0.1
-    "@sigmela/native-sheet": ^0.0.1
     "@types/jest": ^29.5.14
     "@types/react": ^19.1.12
     commitlint: ^19.8.1
@@ -3574,6 +3573,7 @@ __metadata:
     release-it: ^19.0.4
     typescript: ^5.9.2
   peerDependencies:
+    "@sigmela/native-sheet": ">=0.0.1"
     react: "*"
     react-native: "*"
     react-native-screens: ">=4.16.0"

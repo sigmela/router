@@ -92,10 +92,10 @@
     "typescript": "^5.9.2"
   },
   "peerDependencies": {
+    "@sigmela/native-sheet": ">=0.0.1",
     "react": "*",
     "react-native": "*",
-    "react-native-screens": ">=4.16.0",
-    "@sigmela/native-sheet": ">=0.0.1"
+    "react-native-screens": ">=4.16.0"
   },
   "workspaces": [
     "example"
