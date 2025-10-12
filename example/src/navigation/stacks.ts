@@ -29,7 +29,7 @@ export const settingsStack = new NavigationStack().addScreen(
   }
 );
 
-export const globalStack = new NavigationStack().addModal('/auth', AuthScreen, {
+export const globalStack = new NavigationStack().addSheet('/auth', AuthScreen, {
   header: { title: 'Sign in' },
 });
 

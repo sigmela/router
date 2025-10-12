@@ -1,10 +1,10 @@
-import type { StackPresentationTypes } from 'react-native-screens';
 import React, { createContext, useContext } from 'react';
+import type { StackPresentationTypes } from './types';
 import type { Router } from './Router';
 
 export const RouterContext = createContext<Router | null>(null);
 
-type RouteLocalContextValue = {
+export type RouteLocalContextValue = {
   presentation: StackPresentationTypes;
   params?: Record<string, unknown>;
   query?: Record<string, unknown>;

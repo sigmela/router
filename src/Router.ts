@@ -1,6 +1,7 @@
 import { NavigationStack } from './NavigationStack';
 import { nanoid } from 'nanoid/non-secure';
 import { TabBar } from './TabBar/TabBar';
+import { Platform } from 'react-native';
 import qs from 'query-string';
 import type {
   CompiledRoute,
@@ -58,6 +59,7 @@ export class Router {
   };
 
   private readonly routerScreenOptions: ScreenOptions | undefined;
+  private sheetDismissers = new Map<string, () => void>();
 
   // per-stack slices and listeners
   private stackSlices = new Map<string, HistoryItem[]>();
@@ -120,12 +122,21 @@ export class Router {
     this.performNavigation(path, 'replace', { dedupe: !!dedupe });
   };
 
+  public registerSheetDismisser = (
+    key: string,
+    dismisser: () => void
+  ): void => {
+    this.sheetDismissers.set(key, dismisser);
+  };
+
+  public unregisterSheetDismisser = (key: string): void => {
+    this.sheetDismissers.delete(key);
+  };
+
   public goBack = (): void => {
     if (this.isWebEnv()) {
-      // Web: only go back within the current active stack.
       const didPop = this.tryPopActiveStack();
       if (didPop) {
-        // Keep URL in sync with the new visible route without adding history entries
         const path = this.getVisibleRoute()?.path;
         if (path) this.replaceUrl(path);
       }
@@ -695,6 +706,14 @@ export class Router {
       ...(routerDefaults ?? {}),
     };
 
+    if (
+      merged.stackPresentation === 'modal' &&
+      merged.convertModalToSheetForAndroid &&
+      Platform.OS === 'android'
+    ) {
+      merged.stackPresentation = 'sheet';
+    }
+
     return merged;
   }
 
@@ -886,13 +905,26 @@ export class Router {
   // Attempts to pop exactly one screen within the active stack only.
   // Returns true if a pop occurred; false otherwise.
   private tryPopActiveStack(): boolean {
+    const handlePop = (item: HistoryItem): boolean => {
+      if ((item.options?.stackPresentation as any) === 'sheet') {
+        const dismisser = this.sheetDismissers.get(item.key);
+        if (dismisser) {
+          this.unregisterSheetDismisser(item.key);
+          dismisser();
+          return true;
+        }
+      }
+
+      this.applyHistoryChange('pop', item);
+      return true;
+    };
+
     if (this.global) {
       const gid = this.global.getId();
       const gslice = this.getStackHistory(gid);
       const gtop = gslice.length ? gslice[gslice.length - 1] : undefined;
       if (gtop) {
-        this.applyHistoryChange('pop', gtop);
-        return true;
+        return handlePop(gtop);
       }
     }
 
@@ -908,8 +940,7 @@ export class Router {
       if (slice.length > 1) {
         const top = slice[slice.length - 1];
         if (top) {
-          this.applyHistoryChange('pop', top);
-          return true;
+          return handlePop(top);
         }
       }
       return false;
@@ -921,8 +952,7 @@ export class Router {
       if (slice.length > 1) {
         const top = slice[slice.length - 1];
         if (top) {
-          this.applyHistoryChange('pop', top);
-          return true;
+          return handlePop(top);
         }
       }
     }
