@@ -396,6 +396,9 @@ export class Router {
     const { pathname, query } = this.parsePath(path);
     const matched = this.matchRoute(pathname);
     if (!matched) {
+      if (__DEV__) {
+        throw new Error(`Route not found: "${pathname}"`);
+      }
       return;
     }
 
@@ -965,6 +968,9 @@ export class Router {
     const { pathname, query } = this.parsePath(url);
     const deepest = this.matchRoute(pathname);
     if (!deepest) {
+      if (__DEV__) {
+        throw new Error(`Route not found: "${pathname}"`);
+      }
       this.seedInitialHistory();
       return;
     }

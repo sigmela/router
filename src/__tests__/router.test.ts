@@ -220,3 +220,51 @@ describe('Router controllers', () => {
     expect(router.getStackHistory(stackId).length).toBe(3);
   });
 });
+
+describe('Router development mode errors', () => {
+  test('should throw error in __DEV__ when route not found', () => {
+    // Mock __DEV__ to true
+    const originalDev = (globalThis as any).__DEV__;
+    (globalThis as any).__DEV__ = true;
+
+    const TestScreen: ComponentType<any> = () => null;
+    const stack = new NavigationStack().addScreen('/test', TestScreen);
+    const router = new Router({ root: stack });
+
+    // Should throw error when navigating to non-existent route
+    expect(() => {
+      router.navigate('/non-existent-route');
+    }).toThrow('Route not found: "/non-existent-route"');
+
+    // Should throw error when replacing with non-existent route
+    expect(() => {
+      router.replace('/another-non-existent-route');
+    }).toThrow('Route not found: "/another-non-existent-route"');
+
+    // Restore original __DEV__ value
+    (globalThis as any).__DEV__ = originalDev;
+  });
+
+  test('should not throw error in production when route not found', () => {
+    // Mock __DEV__ to false
+    const originalDev = (globalThis as any).__DEV__;
+    (globalThis as any).__DEV__ = false;
+
+    const TestScreen: ComponentType<any> = () => null;
+    const stack = new NavigationStack().addScreen('/test', TestScreen);
+    const router = new Router({ root: stack });
+
+    // Should not throw error when navigating to non-existent route in production
+    expect(() => {
+      router.navigate('/non-existent-route');
+    }).not.toThrow();
+
+    // Should not throw error when replacing with non-existent route in production
+    expect(() => {
+      router.replace('/another-non-existent-route');
+    }).not.toThrow();
+
+    // Restore original __DEV__ value
+    (globalThis as any).__DEV__ = originalDev;
+  });
+});
