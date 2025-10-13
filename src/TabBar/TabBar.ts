@@ -29,6 +29,13 @@ type TabBarConfig = Omit<InternalTabItem, 'tabKey' | 'key'> & {
   screen?: React.ComponentType<any>;
   component?: ComponentType<TabBarProps>;
 };
+
+type TabBarOptions = {
+  component?: ComponentType<TabBarProps>;
+  config?: TabBarConfig;
+  initialIndex?: number;
+};
+
 export class TabBar {
   public screens: Record<string, React.ComponentType<any>> = {};
   public stacks: Record<string, NavigationStack> = {};
@@ -40,11 +47,11 @@ export class TabBar {
     index: number;
   };
 
-  constructor(config: TabBarConfig = {}) {
+  constructor(options: TabBarOptions = {}) {
     this.state = {
       tabs: [],
-      index: 0,
-      config,
+      index: options.initialIndex ?? 0,
+      config: { component: options.component },
     };
   }
 
