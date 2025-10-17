@@ -181,7 +181,7 @@ describe('Web History integration', () => {
   });
 
   test('tab switch does not duplicate history; goBack shows only one /catalog', () => {
-    const shim = installWebShim('https://example.test/');
+    const shim = installWebShim('https://example.test/catalog');
 
     const catalog = new NavigationStack()
       .addScreen('/catalog', Screen)
@@ -252,7 +252,7 @@ describe('Web History integration', () => {
   });
 
   test('cross-stack replace preserves source stack top', () => {
-    const shim = installWebShim('https://example.test/');
+    const shim = installWebShim('https://example.test/catalog');
 
     const catalog = new NavigationStack()
       .addScreen('/catalog', Screen)
