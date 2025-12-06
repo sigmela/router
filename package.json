@@ -170,6 +170,7 @@
   "dependencies": {
     "nanoid": "^5.1.6",
     "path-to-regexp": "^8.3.0",
-    "query-string": "^9.3.1"
+    "query-string": "^9.3.1",
+    "react-transition-state": "^2.3.1"
   }
 }

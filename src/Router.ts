@@ -75,7 +75,12 @@ export class Router {
   private rootListeners: Set<Listener> = new Set();
   private rootTransition?: RootTransition = undefined;
 
+  // Web history bridging
+  private lastBrowserIndex: number = 0;
+  private pendingReplaceDedupe: boolean = false;
+
   constructor(config: RouterConfig) {
+    console.log('test');
     this.routerScreenOptions = config.screenOptions;
 
     if (isTabBarLike(config.root)) {
@@ -95,16 +100,26 @@ export class Router {
     }
 
     this.buildRegistry();
+
     if (this.isWebEnv()) {
       this.setupBrowserHistory();
       this.parse(this.getCurrentUrl());
     } else {
       this.seedInitialHistory();
     }
+
     this.recomputeVisibleRoute();
   }
 
+  // =====================
   // Public API
+  // =====================
+
+  /**
+   * navigate(path):
+   * - mobile: локальный push в стек
+   * - web: pushState + sync через History API
+   */
   public navigate = (path: string): void => {
     if (this.isWebEnv()) {
       this.pushUrl(path);
@@ -113,6 +128,13 @@ export class Router {
     this.performNavigation(path, 'push');
   };
 
+  /**
+   * replace(path):
+   * - всегда: замена верхнего элемента активного стека
+   *   Примеры:
+   *   ['a'] → replace(b) → ['b']
+   *   ['a', 'b', 'c'] → replace(d) → ['a', 'b', 'd']
+   */
   public replace = (path: string, dedupe?: boolean): void => {
     if (this.isWebEnv()) {
       this.pendingReplaceDedupe = !!dedupe;
@@ -133,13 +155,17 @@ export class Router {
     this.sheetDismissers.delete(key);
   };
 
+  /**
+   * goBack():
+   * - mobile: чистый pop верхнего экрана активного стека
+   * - web: history.back() → popstate → sync
+   */
   public goBack = (): void => {
     if (this.isWebEnv()) {
-      const didPop = this.tryPopActiveStack();
-      if (didPop) {
-        const path = this.getVisibleRoute()?.path;
-        if (path) this.replaceUrl(path);
-      }
+      const g = globalThis as unknown as {
+        history?: { back: () => void };
+      };
+      g.history?.back();
       return;
     }
     this.popOnce();
@@ -248,36 +274,34 @@ export class Router {
     return this.rootTransition;
   }
 
+  /**
+   * setRoot:
+   * - полностью сбрасывает историю и реестры
+   * - пересобирает registry из нового root
+   */
   public setRoot(
     nextRoot: TabBar | NavigationStack,
     options?: { transition?: RootTransition }
   ): void {
-    // Update root/tabBar references
     this.tabBar = isTabBarLike(nextRoot) ? (nextRoot as TabBar) : null;
     this.root = nextRoot;
 
-    // Save requested transition (stackAnimation string)
     this.rootTransition = options?.transition ?? undefined;
 
-    // If switching to TabBar, reset selected tab to the first one to avoid
-    // leaking previously selected tab across auth flow changes.
     if (this.tabBar) {
       this.tabBar.onIndexChange(0);
     }
 
-    // Reset core structures (keep global reference as-is)
     this.registry.length = 0;
     this.stackSlices.clear();
     this.stackById.clear();
     this.routeById.clear();
 
-    // Reset state (activeTabIndex from tabBar if present)
     this.state = {
       history: [],
       activeTabIndex: this.tabBar ? this.tabBar.getState().index : undefined,
     };
 
-    // Rebuild registry and seed new root
     this.buildRegistry();
     this.seedInitialHistory();
     this.recomputeVisibleRoute();
@@ -387,12 +411,16 @@ export class Router {
     this.visibleRoute = null;
   }
 
+  // =====================
   // Internal navigation logic
+  // =====================
+
   private performNavigation(
     path: string,
     action: 'push' | 'replace',
     opts?: { dedupe?: boolean }
   ): void {
+    console.log('[Router] performNavigation called', { path, action, dedupe: opts?.dedupe });
     const { pathname, query } = this.parsePath(path);
     const matched = this.matchRoute(pathname);
     if (!matched) {
@@ -413,7 +441,7 @@ export class Router {
     const matchResult = matched.match(pathname);
     const params = matchResult ? matchResult.params : undefined;
 
-    // Prevent duplicate push when navigating to the same screen already on top of its stack
+    // Prevent duplicate push to same screen with same params
     if (action === 'push') {
       const top = this.getTopForTarget(matched.stackId);
       if (top && top.routeId === matched.routeId) {
@@ -425,19 +453,57 @@ export class Router {
       }
     }
 
-    // Optional dedupe for replace: no-op when nothing changes at the top
+    // Optional dedupe for replace: reuse existing item from stack history
     if (action === 'replace' && opts?.dedupe) {
       const top = this.getTopForTarget(matched.stackId);
+      console.log('[Router] dedupe: checking top of stack', {
+        top: top ? { key: top.key, routeId: top.routeId, path: top.path } : null,
+        matched: { routeId: matched.routeId, pathname }
+      });
+
       if (top && top.routeId === matched.routeId) {
         const sameParams =
           JSON.stringify(top.params ?? {}) === JSON.stringify(params ?? {});
         const sameQuery =
           JSON.stringify(top.query ?? {}) === JSON.stringify(query ?? {});
         const samePath = (top.path ?? '') === pathname;
+        console.log('[Router] dedupe: top matches routeId, checking params/query/path', {
+          sameParams, sameQuery, samePath
+        });
         if (sameParams && sameQuery && samePath) {
+          // Already at target, no-op
+          console.log('[Router] dedupe: already at target, no-op');
           return;
         }
       }
+
+      // Look for existing item in stack history to reuse its key
+      const stackHistory = this.getStackHistory(matched.stackId!);
+      console.log('[Router] dedupe: searching in stack history', {
+        stackId: matched.stackId,
+        stackHistory: stackHistory.map(h => ({ key: h.key, routeId: h.routeId, path: h.path })),
+        looking: { routeId: matched.routeId, pathname, params, query },
+      });
+
+      const existing = stackHistory.find((item) => {
+        const sameRoute = item.routeId === matched.routeId;
+        const sameParams =
+          JSON.stringify(item.params ?? {}) === JSON.stringify(params ?? {});
+        const sameQuery =
+          JSON.stringify(item.query ?? {}) === JSON.stringify(query ?? {});
+        const samePath = (item.path ?? '') === pathname;
+        return sameRoute && sameParams && sameQuery && samePath;
+      });
+
+      if (existing) {
+        // Reuse existing item by popping to it (within same stack)
+        console.log('[Router] dedupe: found existing item, calling popTo', { key: existing.key });
+        this.applyHistoryChange('popTo', existing);
+        return;
+      } else {
+        console.log('[Router] dedupe: no existing item found, will create new');
+      }
+
     }
 
     // If there's a controller, execute it first
@@ -485,7 +551,133 @@ export class Router {
     };
   }
 
-  // Internal helpers
+  // =====================
+  // Core stack manipulation
+  // =====================
+
+  /**
+   * applyHistoryChange:
+   *
+   * Семантика по стеку для stackId:
+   * - push:    [...prev, item]
+   * - replace: [..., lastOfStack] → заменить lastOfStack на item (если стека не было — push)
+   * - pop:     удалить lastOfStack
+   * - popTo:   оставить элементы до item.key включительно, всё после — удалить (внутри стека)
+   *
+   * История хранится линейно (по времени навигации), но операции всегда
+   * работают по stackId на «верхушке» конкретного стека.
+   */
+  private applyHistoryChange(
+    action: 'push' | 'replace' | 'pop' | 'popTo',
+    item: HistoryItem
+  ): void {
+    const stackId = item.stackId;
+    if (!stackId) return;
+
+    const prevHist = this.state.history;
+    let nextHist = prevHist;
+
+    if (action === 'push') {
+      nextHist = [...prevHist, item];
+    } else if (action === 'replace') {
+      let replaced = false;
+      const copy = [...prevHist];
+
+      // Ищем последний элемент этого стека и заменяем его
+      for (let i = copy.length - 1; i >= 0; i--) {
+        const h = copy[i];
+        if (h) {
+          if (h.stackId === stackId) {
+            // Сохраняем ключ старого элемента, чтобы не ломать анимации по key
+            copy[i] = {
+              ...item,
+              key: h.key,
+            };
+            replaced = true;
+            break;
+          }
+        }
+      }
+
+      if (!replaced) {
+        // Если в стеке ещё не было элементов — ведём себя как push
+        copy.push(item);
+      }
+
+      nextHist = copy;
+    } else if (action === 'pop') {
+      const copy = [...prevHist];
+      for (let i = copy.length - 1; i >= 0; i--) {
+        const h = copy[i]!;
+        if (h.stackId === stackId) {
+          copy.splice(i, 1);
+          break;
+        }
+      }
+      nextHist = copy;
+    } else if (action === 'popTo') {
+      const targetKey = item.key;
+      const keysToRemove = new Set<string>();
+      let found = false;
+
+      // Идём с конца: все элементы этого стека после targetKey удаляем
+      for (let i = prevHist.length - 1; i >= 0; i--) {
+        const h = prevHist[i]!;
+        if (h.stackId !== stackId) {
+          continue;
+        }
+        if (h.key === targetKey) {
+          found = true;
+          break;
+        }
+        keysToRemove.add(h.key);
+      }
+
+      if (!found) {
+        // Нет такого элемента в стеке — ничего не делаем
+        return;
+      }
+
+      nextHist = prevHist.filter((h) => !keysToRemove.has(h.key));
+    }
+
+    // Обновляем состояние
+    this.setState({ history: nextHist });
+
+    // Обновляем срез стека
+    const newSlice = nextHist.filter((h) => h.stackId === stackId);
+    this.stackSlices.set(stackId, newSlice);
+    this.emit(this.stackListeners.get(stackId));
+
+    // Обновляем visibleRoute + глобальные слушатели
+    this.recomputeVisibleRoute();
+    this.emit(this.listeners);
+  }
+
+  private setState(next: Partial<RouterState>): void {
+    const prev = this.state;
+    const nextState: RouterState = {
+      history: next.history ?? prev.history,
+      activeTabIndex: next.activeTabIndex ?? prev.activeTabIndex,
+    };
+    this.state = nextState;
+  }
+
+  private emit(set?: Set<Listener> | null): void {
+    if (!set) return;
+    set.forEach((l) => l());
+  }
+
+  private getTopForTarget(stackId?: string): HistoryItem | undefined {
+    if (!stackId) return undefined;
+    const slice = this.stackSlices.get(stackId) ?? EMPTY_ARRAY;
+    return slice.length ? slice[slice.length - 1] : undefined;
+  }
+
+  // =====================
+  // Registry & routes
+  // =====================
+
   private buildRegistry(): void {
     this.registry.length = 0;
 
@@ -515,9 +707,9 @@ export class Router {
           scope,
         });
       }
-      // init empty slice
-      if (!this.stackSlices.has(stackId))
+      if (!this.stackSlices.has(stackId)) {
         this.stackSlices.set(stackId, EMPTY_ARRAY);
+      }
     };
 
     if (isNavigationStackLike(this.root)) {
@@ -601,98 +793,6 @@ export class Router {
     return { pathname: parsed.url, query: parsed.query };
   }
 
-  private applyHistoryChange(
-    action: 'push' | 'replace' | 'pop',
-    item: HistoryItem
-  ): void {
-    const sid = item.stackId!;
-    if (action === 'push') {
-      this.setState({ history: [...this.state.history, item] });
-      const prevSlice = this.stackSlices.get(sid) ?? EMPTY_ARRAY;
-      const nextSlice = [...prevSlice, item];
-      this.stackSlices.set(sid, nextSlice);
-      this.emit(this.stackListeners.get(sid));
-      this.recomputeVisibleRoute();
-      this.emit(this.listeners);
-    } else if (action === 'replace') {
-      const prevTop = this.state.history[this.state.history.length - 1];
-      const prevSid = prevTop?.stackId;
-      this.setState({ history: [...this.state.history.slice(0, -1), item] });
-      if (prevSid && prevSid !== sid) {
-        // Cross-stack replace: do not modify the source stack.
-        // Update target stack without growing it unnecessarily.
-        const targetSlice = this.stackSlices.get(sid) ?? EMPTY_ARRAY;
-        if (targetSlice.length === 0) {
-          this.stackSlices.set(sid, [item]);
-        } else {
-          const targetTop = targetSlice[targetSlice.length - 1];
-          const sameRoute = targetTop?.routeId === item.routeId;
-          const sameParams =
-            JSON.stringify(targetTop?.params ?? {}) ===
-            JSON.stringify(item.params ?? {});
-          if (sameRoute && sameParams) {
-            // No change needed for target stack
-            this.stackSlices.set(sid, targetSlice);
-          } else {
-            // Replace top of target stack
-            const replaced = [...targetSlice.slice(0, -1), item];
-            this.stackSlices.set(sid, replaced);
-          }
-        }
-        this.emit(this.stackListeners.get(sid));
-      } else {
-        // Same-stack replace: replace top element
-        const prevSlice = this.stackSlices.get(sid) ?? EMPTY_ARRAY;
-        const nextSlice = prevSlice.length
-          ? [...prevSlice.slice(0, -1), item]
-          : [item];
-        this.stackSlices.set(sid, nextSlice);
-        this.emit(this.stackListeners.get(sid));
-      }
-      this.recomputeVisibleRoute();
-      this.emit(this.listeners);
-    } else if (action === 'pop') {
-      // Remove specific item by key from global history
-      const nextHist = this.state.history.filter((h) => h.key !== item.key);
-      this.setState({ history: nextHist });
-
-      // Update slice only if the last item matches the popped one
-      const prevSlice = this.stackSlices.get(sid) ?? EMPTY_ARRAY;
-      const last = prevSlice.length
-        ? prevSlice[prevSlice.length - 1]
-        : undefined;
-      if (last && last.key === item.key) {
-        const nextSlice = prevSlice.slice(0, -1);
-        this.stackSlices.set(sid, nextSlice);
-        this.emit(this.stackListeners.get(sid));
-      }
-
-      this.recomputeVisibleRoute();
-      this.emit(this.listeners);
-    }
-  }
-
-  private setState(next: Partial<RouterState>): void {
-    const prev = this.state;
-    const nextState: RouterState = {
-      history: next.history ?? prev.history,
-      activeTabIndex: next.activeTabIndex ?? prev.activeTabIndex,
-    };
-    this.state = nextState;
-    // Callers will emit updates explicitly.
-  }
-
-  private emit(set?: Set<Listener> | null): void {
-    if (!set) return;
-    set.forEach((l) => l());
-  }
-
-  private getTopForTarget(stackId?: string): HistoryItem | undefined {
-    if (!stackId) return undefined;
-    const slice = this.stackSlices.get(stackId) ?? EMPTY_ARRAY;
-    return slice.length ? slice[slice.length - 1] : undefined;
-  }
-
   private mergeOptions(
     routeOptions?: ScreenOptions,
     stackId?: string
@@ -724,7 +824,10 @@ export class Router {
     return this.stackById.get(stackId);
   }
 
-  // ==== Web integration (History API) ====
+  // =====================
+  // Web integration (History API)
+  // =====================
+
   private isWebEnv(): boolean {
     const g = globalThis as unknown as {
       addEventListener?: (type: string, cb: (ev: Event) => void) => void;
@@ -790,16 +893,11 @@ export class Router {
         state: unknown;
         pushState: (data: unknown, unused: string, url?: string) => void;
       };
-      Event?: new (type: string) => Event;
-      dispatchEvent?: (ev: Event) => boolean;
     };
     const st = g.history?.state ?? {};
     const prev = this.readIndex(st);
     const next = { ...(st as Record<string, unknown>), __srIndex: prev + 1 };
     g.history?.pushState(next, '', to);
-    if (g.Event && g.dispatchEvent) {
-      g.dispatchEvent(new g.Event('pushState'));
-    }
   }
 
   private replaceUrl(to: string): void {
@@ -808,14 +906,9 @@ export class Router {
         state: unknown;
         replaceState: (data: unknown, unused: string, url?: string) => void;
       };
-      Event?: new (type: string) => Event;
-      dispatchEvent?: (ev: Event) => boolean;
     };
     const st = g.history?.state ?? {};
     g.history?.replaceState(st, '', to);
-    if (g.Event && g.dispatchEvent) {
-      g.dispatchEvent(new g.Event('replaceState'));
-    }
   }
 
   private patchHistoryOnce(): void {
@@ -853,9 +946,6 @@ export class Router {
     g[key] = true;
   }
 
-  private lastBrowserIndex: number = 0;
-  private pendingReplaceDedupe: boolean = false;
-
   private setupBrowserHistory(): void {
     const g = globalThis as unknown as {
       addEventListener?: (type: string, cb: (ev: Event) => void) => void;
@@ -866,11 +956,13 @@ export class Router {
 
     const onHistory = (ev: Event): void => {
       const url = this.getCurrentUrl();
+
       if (ev.type === 'pushState') {
         this.lastBrowserIndex = this.getHistoryIndex();
         this.performNavigation(url, 'push');
         return;
       }
+
       if (ev.type === 'replaceState') {
         const dedupe = this.pendingReplaceDedupe === true;
         this.performNavigation(url, 'replace', { dedupe });
@@ -878,20 +970,23 @@ export class Router {
         this.pendingReplaceDedupe = false;
         return;
       }
+
       if (ev.type === 'popstate') {
         const idx = this.getHistoryIndex();
         const delta = idx - this.lastBrowserIndex;
+
         if (delta < 0) {
-          let steps = -delta;
-          while (steps-- > 0) this.popOnce();
-          const target = this.parsePath(url).pathname;
-          const current = this.getVisibleRoute()?.path;
-          if (current !== target) this.performNavigation(url, 'replace');
+          // Going back: use replace with dedupe to reuse existing route
+          // dedupe will find the existing item in stack history and popTo it
+          this.performNavigation(url, 'replace', { dedupe: true });
         } else if (delta > 0) {
+          // Going forward: treat as push
           this.performNavigation(url, 'push');
         } else {
-          this.performNavigation(url, 'replace');
+          // Same index: soft replace with dedupe
+          this.performNavigation(url, 'replace', { dedupe: true });
         }
+
         this.lastBrowserIndex = idx;
       }
     };
@@ -901,12 +996,14 @@ export class Router {
     g.addEventListener?.('popstate', onHistory);
   }
 
+  // =====================
+  // Pop helpers
+  // =====================
+
   private popOnce(): void {
     if (this.tryPopActiveStack()) return;
   }
 
-  // Attempts to pop exactly one screen within the active stack only.
-  // Returns true if a pop occurred; false otherwise.
   private tryPopActiveStack(): boolean {
     const handlePop = (item: HistoryItem): boolean => {
       if ((item.options?.stackPresentation as any) === 'sheet') {
@@ -963,6 +1060,10 @@ export class Router {
     return false;
   }
 
+  // =====================
+  // Initial deep-link parsing
+  // =====================
+
   // Expand deep URL into a stack chain on initial load
   private parse(url: string): void {
     const { pathname, query } = this.parsePath(url);
@@ -972,6 +1073,8 @@ export class Router {
         throw new Error(`Route not found: "${pathname}"`);
       }
       this.seedInitialHistory();
+      this.recomputeVisibleRoute();
+      this.emit(this.listeners);
       return;
     }
 
@@ -1023,6 +1126,8 @@ export class Router {
 
     if (!candidates.length) {
       this.seedInitialHistory();
+      this.recomputeVisibleRoute();
+      this.emit(this.listeners);
       return;
     }
 
@@ -1037,12 +1142,17 @@ export class Router {
       )
     );
 
-    const first = items[0];
-    const sid = (first?.stackId ?? deepest.stackId) as string | undefined;
     this.setState({ history: items });
+
+    // Обновляем срез только для соответствующего стека
+    const sid = (items[0]?.stackId ?? deepest.stackId) as string | undefined;
     if (sid) {
-      this.stackSlices.set(sid, items);
+      const slice = items.filter((h) => h.stackId === sid);
+      this.stackSlices.set(sid, slice);
       this.emit(this.stackListeners.get(sid));
     }
+
+    this.recomputeVisibleRoute();
+    this.emit(this.listeners);
   }
 }

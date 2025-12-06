@@ -114,72 +114,66 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       | undefined;
 
     return (
-      <div
-        className="screen-stack-item"
-        data-presentation="push"
-        data-phase="active"
-      >
-        <TabBarContext.Provider value={tabBar}>
-          <div className="tab-stacks-container">
-            {stack ? (
-              <StackRenderer appearance={appearance} stack={stack} />
-            ) : Screen ? (
-              <Screen />
-            ) : null}
+      <TabBarContext.Provider value={tabBar}>
+        <div className="tab-stacks-container">
+          {stack ? (
+            <StackRenderer appearance={appearance} stack={stack} />
+          ) : Screen ? (
+            <Screen />
+          ) : null}
 
-            {CustomTabBar ? (
-              <CustomTabBar
-                onTabPress={onTabClick}
-                activeIndex={index}
-                tabs={tabs}
-              />
-            ) : (
-              <div className="tab-bar" style={tabBarStyle}>
-                {tabs.map((tab, i) => {
-                  const isActive = i === index;
-                  const iconTint = toColorString(
-                    isActive
-                      ? appearance?.tabBar?.iconColorActive
-                      : appearance?.tabBar?.iconColor
-                  );
-                  const title = appearance?.tabBar?.title;
-                  const labelColor = isActive
-                    ? (toColorString(title?.activeColor) ??
-                      toColorString(title?.color))
-                    : toColorString(title?.color);
-                  const labelStyle: CSSProperties = {
-                    ...titleBaseStyle,
-                    color: labelColor,
-                  };
-                  return (
-                    <button
-                      key={tab.tabKey}
-                      data-index={i}
-                      className={`tab-item${isActive ? ' active' : ''}`}
-                      onClick={() => onTabClick(i)}
-                    >
-                      <div className="tab-item-icon">
-                        {isImageSource(tab.icon) ? (
-                          <TabIcon source={tab.icon} tintColor={iconTint} />
-                        ) : null}
-                      </div>
-                      {tab.badgeValue ? (
-                        <span className="tab-item-label-badge">
-                          {tab.badgeValue}
-                        </span>
+          {CustomTabBar ? (
+            <CustomTabBar
+              onTabPress={onTabClick}
+              activeIndex={index}
+              tabs={tabs}
+            />
+          ) : (
+            <div className="tab-bar" style={tabBarStyle}>
+              {tabs.map((tab, i) => {
+                const isActive = i === index;
+                const iconTint = toColorString(
+                  isActive
+                    ? appearance?.tabBar?.iconColorActive
+                    : appearance?.tabBar?.iconColor
+                );
+                const title = appearance?.tabBar?.title;
+                const labelColor = isActive
+                  ? (toColorString(title?.activeColor) ??
+                    toColorString(title?.color))
+                  : toColorString(title?.color);
+                const labelStyle: CSSProperties = {
+                  ...titleBaseStyle,
+                  color: labelColor,
+                };
+                return (
+                  <button
+                    key={tab.tabKey}
+                    data-index={i}
+                    className={`tab-item${isActive ? ' active' : ''}`}
+                    onClick={() => onTabClick(i)}
+                  >
+                    <div className="tab-item-icon">
+                      {isImageSource(tab.icon) ? (
+                        <TabIcon source={tab.icon} tintColor={iconTint} />
                       ) : null}
+                    </div>
+                    {tab.badgeValue ? (
+                      <span className="tab-item-label-badge">
+                        {tab.badgeValue}
+                      </span>
+                    ) : null}
 
-                      <div className="tab-item-label" style={labelStyle}>
-                        {tab.title}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </TabBarContext.Provider>
-      </div>
+                    <div className="tab-item-label" style={labelStyle}>
+                      {tab.title}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </TabBarContext.Provider>
     );
   }
 );

@@ -3604,6 +3604,7 @@ __metadata:
     react-native: 0.81.4
     react-native-builder-bob: ^0.40.13
     react-native-screens: ^4.16.0
+    react-transition-state: ^2.3.1
     release-it: ^19.0.4
     typescript: ^5.9.2
   peerDependencies:
@@ -11463,6 +11464,16 @@ __metadata:
   version: 0.14.2
   resolution: "react-refresh@npm:0.14.2"
   checksum: d80db4bd40a36dab79010dc8aa317a5b931f960c0d83c4f3b81f0552cbcf7f29e115b84bb7908ec6a1eb67720fff7023084eff73ece8a7ddc694882478464382
+  languageName: node
+  linkType: hard
+
+"react-transition-state@npm:^2.3.1":
+  version: 2.3.1
+  resolution: "react-transition-state@npm:2.3.1"
+  peerDependencies:
+    react: ">=16.8.0"
+    react-dom: ">=16.8.0"
+  checksum: c42ac14b7b1dc062e1c75915bf054efd42814bcd3c9ed1ea041e21cefd8d0d19e30125374ec2deaafbf50d47d2f51a05db9b8de6659068df507065e694f08a2d
   languageName: node
   linkType: hard
 
