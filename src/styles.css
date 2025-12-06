@@ -15,10 +15,96 @@
   display: none;
   /* z-index задаётся inline в ScreenStack.web.tsx */
 
-  /* Базовый transition для навигации вперёд */
+  /* Базовый transition для открытия экрана */
   transition:
-    transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
-    opacity 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
+    filter 300ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Внутренний контейнер обычного экрана */
+.stack-screen-container {
+  display: flex;
+  flex: 1;
+  height: 100%;
+}
+
+/* Внутренний контейнер модалки (НЕ flex: 1, чтобы не растягиваться на всю ширину) */
+.stack-modal-container {
+  display: flex;
+  height: 100%;
+}
+
+/* Overlay внутри ScreenStackItem — всегда full-screen, только opacity-анимация */
+.stack-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+  will-change: opacity;
+}
+
+/* Показываем overlay только для модалок */
+.screen-stack-item:not([data-presentation='modal']) .stack-modal-overlay {
+  display: none;
+}
+
+/* Keyframes для появления overlay */
+@keyframes modal-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
+
+/* Keyframes для исчезновения overlay */
+@keyframes modal-overlay-exit {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Overlay в начальном состоянии — прозрачный */
+.screen-stack-item[data-presentation='modal'].transition-preEnter .stack-modal-overlay {
+  opacity: 0;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* Overlay при входе — запускаем анимацию */
+.screen-stack-item[data-presentation='modal'].transition-entering .stack-modal-overlay,
+.screen-stack-item[data-presentation='modal'].phase-active.transition-preEnter .stack-modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: modal-overlay-enter 300ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+/* Для модалок в активных / вошедших состояниях — полностью видимый */
+.screen-stack-item[data-presentation='modal'].phase-active .stack-modal-overlay,
+.screen-stack-item[data-presentation='modal'].transition-entered .stack-modal-overlay {
+  opacity: 0.5;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+/* Overlay при закрытии модалки — анимация исчезновения */
+.screen-stack-item[data-presentation='modal'].phase-exiting .stack-modal-overlay,
+.screen-stack-item[data-presentation='modal'].transition-exiting .stack-modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: modal-overlay-exit 250ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+/* Контейнер контента модалки всегда над overlay */
+.screen-stack-item[data-presentation='modal'] .stack-modal-container {
+  position: relative;
+  z-index: 2;
 }
 
 /* Показываем активные / входящие элементы */
@@ -33,7 +119,7 @@
 /* Базовое состояние для активных элементов после входа */
 .screen-stack > .screen-stack-item.phase-active.transition-entered {
   transform: translateX(0);
-  opacity: 1;
+  filter: none;
 }
 
 /* Фоновые (inactive) — видимы, но без интеракций */
@@ -55,198 +141,313 @@
   display: none;
 }
 
-/* ==================== NAVIGATION ANIMATIONS ==================== */
+/* ==================== МОДАЛКИ: базовая нейтрализация transform ==================== */
 
-/* Forward navigation (push) */
-.screen-stack[data-animation="navigation"][data-direction="forward"] {
-  /* forward — базовый transition уже задан в .screen-stack-item */
+/* ВАЖНО: модальные элементы не должны двигаться как обычные экраны */
+.screen-stack > .screen-stack-item[data-presentation='modal'] {
+  transform: translate3d(0, 0, 0) !important;
 }
 
-/* Входящий экран при push — въезжает справа */
-.screen-stack[data-animation="navigation"][data-direction="forward"]
-  > .screen-stack-item.transition-preEnter,
-.screen-stack[data-animation="navigation"][data-direction="forward"]
-  > .screen-stack-item.phase-active.transition-preEnter {
-  transform: translateX(100%);
-  opacity: 1;
-}
+/* ==================== NAVIGATION ANIMATIONS (ТОЛЬКО НЕ-МОДАЛКИ) ==================== */
 
+/* Forward navigation (push) — открытие экрана 300ms */
 .screen-stack[data-animation="navigation"][data-direction="forward"]
-  > .screen-stack-item.transition-entering,
-.screen-stack[data-animation="navigation"][data-direction="forward"]
-  > .screen-stack-item.transition-entered,
-.screen-stack[data-animation="navigation"][data-direction="forward"]
-  > .screen-stack-item.phase-active.transition-entering,
-.screen-stack[data-animation="navigation"][data-direction="forward"]
-  > .screen-stack-item.phase-active.transition-entered {
-  transform: translateX(0);
-  opacity: 1;
-}
-
-/* Фоновый экран при push — слегка сдвигаем влево и затемняем (iOS-style parallax) */
-.screen-stack[data-animation="navigation"][data-direction="forward"]
-  > .screen-stack-item.phase-inactive,
-.screen-stack[data-animation="navigation"][data-direction="forward"]
-  > .screen-stack-item.phase-inactive.transition-entered {
-  transform: translateX(-16px); /* можно поиграть значением: -8px, -6% и т.д. */
-  opacity: 0.7;
-}
-
-/* Backward navigation (pop) — немного быстрее */
-.screen-stack[data-animation="navigation"][data-direction="back"]
-  > .screen-stack-item {
+  > .screen-stack-item:not([data-presentation='modal']) {
   transition:
-    transform 200ms cubic-bezier(0.4, 0.0, 0.2, 1),
-    opacity 200ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
+    filter 300ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Входящий экран при push — въезжает справа (кроме модалок) */
+.screen-stack[data-animation="navigation"][data-direction="forward"]
+  > .screen-stack-item:not([data-presentation='modal']).transition-preEnter,
+.screen-stack[data-animation="navigation"][data-direction="forward"]
+  > .screen-stack-item:not([data-presentation='modal']).phase-active.transition-preEnter {
+  transform: translateX(100%);
+  filter: none;
+}
+
+.screen-stack[data-animation="navigation"][data-direction="forward"]
+  > .screen-stack-item:not([data-presentation='modal']).transition-entering,
+.screen-stack[data-animation="navigation"][data-direction="forward"]
+  > .screen-stack-item:not([data-presentation='modal']).transition-entered,
+.screen-stack[data-animation="navigation"][data-direction="forward"]
+  > .screen-stack-item:not([data-presentation='modal']).phase-active.transition-entering,
+.screen-stack[data-animation="navigation"][data-direction="forward"]
+  > .screen-stack-item:not([data-presentation='modal']).phase-active.transition-entered {
+  transform: translateX(0);
+  filter: none;
+}
+
+/* Фоновый экран при push — слегка сдвигаем влево на 25% (iOS-style parallax) */
+.screen-stack[data-animation="navigation"][data-direction="forward"]
+  > .screen-stack-item:not([data-presentation='modal']).phase-inactive,
+.screen-stack[data-animation="navigation"][data-direction="forward"]
+  > .screen-stack-item:not([data-presentation='modal']).phase-inactive.transition-entered {
+  transform: translateX(-25%);
+  filter: none;
+}
+
+/* Backward navigation (pop) — закрытие экрана 250ms */
+.screen-stack[data-animation="navigation"][data-direction="back"]
+  > .screen-stack-item:not([data-presentation='modal']) {
+  transition:
+    transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
+    filter 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 /* При pop верхний экран уезжает вправо */
 .screen-stack[data-animation="navigation"][data-direction="back"]
-  > .screen-stack-item.phase-exiting,
+  > .screen-stack-item:not([data-presentation='modal']).phase-exiting,
 .screen-stack[data-animation="navigation"][data-direction="back"]
-  > .screen-stack-item.transition-exiting {
+  > .screen-stack-item:not([data-presentation='modal']).transition-exiting {
   transform: translateX(100%);
-  opacity: 1;
+  filter: none;
 }
 
-/* Экран под ним становится активным и возвращается из -16px в 0 */
+/* Экран под ним становится активным и возвращается из -25% в 0 */
 .screen-stack[data-animation="navigation"][data-direction="back"]
-  > .screen-stack-item.phase-active,
+  > .screen-stack-item:not([data-presentation='modal']).phase-active,
 .screen-stack[data-animation="navigation"][data-direction="back"]
-  > .screen-stack-item.phase-active.transition-entered {
+  > .screen-stack-item:not([data-presentation='modal']).phase-active.transition-entered {
   transform: translateX(0);
-  opacity: 1;
+  filter: none;
 }
 
-/* ==================== MODAL ANIMATIONS (общая база) ==================== */
+/* ==================== МОДАЛЬНЫЙ СТЕК: фон не двигаем ==================== */
 
-/* Все модалки — поверх других экранов */
-.screen-stack > .screen-stack-item[data-presentation='modal'] {
-  /* базовая геометрия, потом уточним в media */
-  transform: translate3d(0, 0, 0);
-  opacity: 1;
-}
-
-/* Если сверху есть активная модалка — не двигаем предыдущий экран */
+/* Если сверху есть модалка — не двигаем предыдущий экран и не затемняем его,
+   за затемнение отвечает overlay. */
 .screen-stack:has(> .screen-stack-item[data-presentation='modal'].phase-active)
   > .screen-stack-item.phase-inactive,
 .screen-stack:has(> .screen-stack-item[data-presentation='modal'].phase-active)
   > .screen-stack-item.phase-inactive.transition-entered {
   transform: translate3d(0, 0, 0) !important;
-  opacity: 0.9;
   filter: none;
 }
 
-/* ==================== MOBILE MODAL (<= 639px) — снизу вверх ==================== */
+/* ==================== MOBILE MODAL (<= 639px) — bottom sheet ==================== */
 @media (max-width: 639px) {
-  /* Открытие модалки (push, forward): выезжает снизу */
-  .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].transition-preEnter,
-  .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].phase-active.transition-preEnter {
-    transform: translateY(100%);
-    opacity: 1;
+  /* Overlay для мобильной модалки — прозрачный */
+  .screen-stack-item[data-presentation='modal'] .stack-modal-overlay {
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 
-  .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].transition-entering,
-  .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].transition-entered,
-  .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].phase-active.transition-entering,
-  .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].phase-active.transition-entered {
+  /* Внутренний контейнер модалки — bottom sheet на всю ширину без скругления */
+  .screen-stack-item[data-presentation='modal'] .stack-modal-container {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    align-self: flex-end; /* прижимаем к нижнему краю родителя */
+    overflow: hidden;
+    background: #fff; /* или var(--modal-bg) */
+
     transform: translateY(0);
-    opacity: 1;
+    transition:
+      transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
+      filter 300ms cubic-bezier(0.4, 0.0, 0.2, 1);
   }
 
-  /* Закрытие модалки (back): уезжает вниз */
-  .screen-stack[data-direction='back']
-    > .screen-stack-item[data-presentation='modal'].phase-exiting,
-  .screen-stack[data-direction='back']
-    > .screen-stack-item[data-presentation='modal'].transition-exiting {
+  /* PUSH (forward): анимируем ТОЛЬКО stack-modal-container снизу вверх */
+  .screen-stack[data-direction='forward']
+    > .screen-stack-item[data-presentation='modal'].transition-preEnter
+    .stack-modal-container,
+  .screen-stack[data-direction='forward']
+    > .screen-stack-item[data-presentation='modal'].phase-active.transition-preEnter
+    .stack-modal-container {
     transform: translateY(100%);
-    opacity: 1;
+    filter: none;
+  }
+
+  .screen-stack[data-direction='forward']
+    > .screen-stack-item[data-presentation='modal'].transition-entering
+    .stack-modal-container,
+  .screen-stack[data-direction='forward']
+    > .screen-stack-item[data-presentation='modal'].transition-entered
+    .stack-modal-container,
+  .screen-stack[data-direction='forward']
+    > .screen-stack-item[data-presentation='modal'].phase-active.transition-entering
+    .stack-modal-container,
+  .screen-stack[data-direction='forward']
+    > .screen-stack-item[data-presentation='modal'].phase-active.transition-entered
+    .stack-modal-container {
+    transform: translateY(0);
+    filter: none;
+  }
+
+  /* POP (back): контейнер уезжает вниз */
+  .screen-stack[data-direction='back']
+    > .screen-stack-item[data-presentation='modal'].phase-exiting
+    .stack-modal-container,
+  .screen-stack[data-direction='back']
+    > .screen-stack-item[data-presentation='modal'].transition-exiting
+    .stack-modal-container {
+    transform: translateY(100%);
+    filter: none;
+    transition:
+      transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
+      filter 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
   }
 }
 
-/* ==================== DESKTOP MODAL SHEET (>= 640px) — справа налево ==================== */
+/* ==================== DESKTOP MODAL (>= 640px) — sheet справа ==================== */
 @media (min-width: 640px) {
-  /* Геометрия модалки: правый сайд-sheet 393px по ширине, на всю высоту */
-  .screen-stack
-    > .screen-stack-item[data-presentation='modal'] {
+  /* Внутренний контейнер модалки — правый sheet 393px, с margin и скруглением */
+  .screen-stack-item[data-presentation='modal'] .stack-modal-container {
     width: 393px;
-    max-width: 100%;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    left: auto;
-    display: flex;
+    max-width: calc(100% - 36px);
+    height: calc(100% - 36px);
+    margin: 18px;
+    margin-left: auto; /* прижимаем к правому краю */
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff; /* или var(--modal-bg) */
+
+    transform: translateX(0);
+    transition:
+      transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
+      filter 300ms cubic-bezier(0.4, 0.0, 0.2, 1);
   }
 
-  /* PUSH (forward): модалка выезжает справа */
+  /* PUSH (forward): анимируем ТОЛЬКО stack-modal-container справа налево */
   .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].transition-preEnter,
+    > .screen-stack-item[data-presentation='modal'].transition-preEnter
+    .stack-modal-container,
   .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].phase-active.transition-preEnter {
-    transform: translateX(100%) !important;
-    opacity: 1;
+    > .screen-stack-item[data-presentation='modal'].phase-active.transition-preEnter
+    .stack-modal-container {
+    transform: translateX(100%);
+    filter: none;
   }
 
   .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].transition-entering,
+    > .screen-stack-item[data-presentation='modal'].transition-entering
+    .stack-modal-container,
   .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].transition-entered,
+    > .screen-stack-item[data-presentation='modal'].transition-entered
+    .stack-modal-container,
   .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].phase-active.transition-entering,
+    > .screen-stack-item[data-presentation='modal'].phase-active.transition-entering
+    .stack-modal-container,
   .screen-stack[data-direction='forward']
-    > .screen-stack-item[data-presentation='modal'].phase-active.transition-entered {
-    transform: translateX(0) !important;
-    opacity: 1;
+    > .screen-stack-item[data-presentation='modal'].phase-active.transition-entered
+    .stack-modal-container {
+    transform: translateX(0);
+    filter: none;
   }
 
-  /* POP (back): модалка уезжает обратно вправо */
+  /* POP (back): контейнер уезжает обратно вправо */
   .screen-stack[data-direction='back']
-    > .screen-stack-item[data-presentation='modal'].phase-exiting,
+    > .screen-stack-item[data-presentation='modal'].phase-exiting
+    .stack-modal-container,
   .screen-stack[data-direction='back']
-    > .screen-stack-item[data-presentation='modal'].transition-exiting {
-    transform: translateX(100%) !important;
-    opacity: 1;
+    > .screen-stack-item[data-presentation='modal'].transition-exiting
+    .stack-modal-container {
+    transform: translateX(100%);
+    filter: none;
+    transition:
+      transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
+      filter 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
   }
 
-  /* Бэкграунд под модалкой на десктопе: не двигаем, слегка затемняем (если хочется) */
+  /* Фоновые экраны под модалкой — не двигаем, не затемняем (overlay делает это) */
   .screen-stack:has(> .screen-stack-item[data-presentation='modal'].phase-active)
     > .screen-stack-item.phase-inactive,
   .screen-stack:has(> .screen-stack-item[data-presentation='modal'].phase-active)
     > .screen-stack-item.phase-inactive.transition-entered {
     transform: translate3d(0, 0, 0) !important;
-    opacity: 0.7;
-    filter: brightness(0.7);
+    filter: none;
+  }
+
+  /* ==================== DESKTOP: убираем анимацию для обычных экранов (navigation) ==================== */
+
+  /* Убираем анимацию при push (forward) для обычных экранов */
+  .screen-stack[data-animation="navigation"][data-direction="forward"]
+    > .screen-stack-item:not([data-presentation='modal']) {
+    transition: none !important;
+  }
+
+  .screen-stack[data-animation="navigation"][data-direction="forward"]
+    > .screen-stack-item:not([data-presentation='modal']).transition-preEnter,
+  .screen-stack[data-animation="navigation"][data-direction="forward"]
+    > .screen-stack-item:not([data-presentation='modal']).phase-active.transition-preEnter {
+    transform: translateX(0);
+    filter: none;
+  }
+
+  .screen-stack[data-animation="navigation"][data-direction="forward"]
+    > .screen-stack-item:not([data-presentation='modal']).transition-entering,
+  .screen-stack[data-animation="navigation"][data-direction="forward"]
+    > .screen-stack-item:not([data-presentation='modal']).transition-entered,
+  .screen-stack[data-animation="navigation"][data-direction="forward"]
+    > .screen-stack-item:not([data-presentation='modal']).phase-active.transition-entering,
+  .screen-stack[data-animation="navigation"][data-direction="forward"]
+    > .screen-stack-item:not([data-presentation='modal']).phase-active.transition-entered {
+    transform: translateX(0);
+    filter: none;
+  }
+
+  /* Фоновый экран при push — не двигаем */
+  .screen-stack[data-animation="navigation"][data-direction="forward"]
+    > .screen-stack-item:not([data-presentation='modal']).phase-inactive,
+  .screen-stack[data-animation="navigation"][data-direction="forward"]
+    > .screen-stack-item:not([data-presentation='modal']).phase-inactive.transition-entered {
+    transform: translateX(0);
+    filter: none;
+  }
+
+  /* Убираем анимацию при pop (back) для обычных экранов */
+  .screen-stack[data-animation="navigation"][data-direction="back"]
+    > .screen-stack-item:not([data-presentation='modal']) {
+    transition: none !important;
+  }
+
+  .screen-stack[data-animation="navigation"][data-direction="back"]
+    > .screen-stack-item:not([data-presentation='modal']).phase-exiting,
+  .screen-stack[data-animation="navigation"][data-direction="back"]
+    > .screen-stack-item:not([data-presentation='modal']).transition-exiting {
+    transform: translateX(0);
+    filter: none;
+  }
+
+  .screen-stack[data-animation="navigation"][data-direction="back"]
+    > .screen-stack-item:not([data-presentation='modal']).phase-active,
+  .screen-stack[data-animation="navigation"][data-direction="back"]
+    > .screen-stack-item:not([data-presentation='modal']).phase-active.transition-entered {
+    transform: translateX(0);
+    filter: none;
   }
 }
 
-
 /* ==================== INACTIVE SCREENS (общие настройки) ==================== */
 
-/* Inactive screens (фоновые элементы стека) — по умолчанию слегка тусклее */
+/* Inactive screens (фоновые элементы стека)
+   (кроме случая с модалкой, там переопределяем через :has) */
 .screen-stack > .screen-stack-item.phase-inactive {
   transform: translateX(0); /* при отсутствии контекста навигации */
-  opacity: 0.7;
+  filter: none;
 }
 
 /* Initial mount: отрисовать экран без анимации, игнорируя transitionStatus */
 .screen-stack[data-animation='none'] .screen-stack-item {
   transform: translate3d(0, 0, 0);
-  opacity: 1;
+  filter: none;
   transition: none !important;
 }
+
+/* Initial mount: overlay тоже без анимации */
+.screen-stack[data-animation='none'] .stack-modal-overlay {
+  transition: none !important;
+}
+
+
 
 .tab-stacks-container {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 100vhd;
+  min-height: 100dvh;
 }
 
 .tab-bar {

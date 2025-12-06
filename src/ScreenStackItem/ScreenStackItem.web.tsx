@@ -31,6 +31,8 @@ export const ScreenStackItem = memo(
       path: item.path,
     };
 
+    const isModal = value.presentation === 'modal';
+
     const className = useMemo(() => {
       const classes = ['screen-stack-item'];
 
@@ -70,11 +72,23 @@ export const ScreenStackItem = memo(
         data-phase={phase}
         data-transition-status={transitionStatus}
       >
-        <RouteLocalContext.Provider value={value}>
-          <View style={[styles.flex, appearance?.screen]}>
-            <item.component {...(item.passProps || {})} />
-          </View>
-        </RouteLocalContext.Provider>
+        {/* Overlay только для модалки */}
+        {isModal && <div className="stack-modal-overlay" />}
+
+        {/* Внутренний контейнер:
+            - для модалки: stack-modal-container (будет анимироваться)
+            - для обычного экрана: stack-screen-container (без спец. правил) */}
+        <div
+          className={
+            isModal ? 'stack-modal-container' : 'stack-screen-container'
+          }
+        >
+          <RouteLocalContext.Provider value={value}>
+            <View style={[styles.flex, appearance?.screen]}>
+              <item.component {...(item.passProps || {})} />
+            </View>
+          </RouteLocalContext.Provider>
+        </div>
       </div>
     );
   }
