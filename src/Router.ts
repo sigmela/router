@@ -420,7 +420,11 @@ export class Router {
     action: 'push' | 'replace',
     opts?: { dedupe?: boolean }
   ): void {
-    console.log('[Router] performNavigation called', { path, action, dedupe: opts?.dedupe });
+    console.log('[Router] performNavigation called', {
+      path,
+      action,
+      dedupe: opts?.dedupe,
+    });
     const { pathname, query } = this.parsePath(path);
     const matched = this.matchRoute(pathname);
     if (!matched) {
@@ -457,8 +461,10 @@ export class Router {
     if (action === 'replace' && opts?.dedupe) {
       const top = this.getTopForTarget(matched.stackId);
       console.log('[Router] dedupe: checking top of stack', {
-        top: top ? { key: top.key, routeId: top.routeId, path: top.path } : null,
-        matched: { routeId: matched.routeId, pathname }
+        top: top
+          ? { key: top.key, routeId: top.routeId, path: top.path }
+          : null,
+        matched: { routeId: matched.routeId, pathname },
       });
 
       if (top && top.routeId === matched.routeId) {
@@ -467,9 +473,14 @@ export class Router {
         const sameQuery =
           JSON.stringify(top.query ?? {}) === JSON.stringify(query ?? {});
         const samePath = (top.path ?? '') === pathname;
-        console.log('[Router] dedupe: top matches routeId, checking params/query/path', {
-          sameParams, sameQuery, samePath
-        });
+        console.log(
+          '[Router] dedupe: top matches routeId, checking params/query/path',
+          {
+            sameParams,
+            sameQuery,
+            samePath,
+          }
+        );
         if (sameParams && sameQuery && samePath) {
           // Already at target, no-op
           console.log('[Router] dedupe: already at target, no-op');
@@ -481,7 +492,11 @@ export class Router {
       const stackHistory = this.getStackHistory(matched.stackId!);
       console.log('[Router] dedupe: searching in stack history', {
         stackId: matched.stackId,
-        stackHistory: stackHistory.map(h => ({ key: h.key, routeId: h.routeId, path: h.path })),
+        stackHistory: stackHistory.map((h) => ({
+          key: h.key,
+          routeId: h.routeId,
+          path: h.path,
+        })),
         looking: { routeId: matched.routeId, pathname, params, query },
       });
 
@@ -497,13 +512,14 @@ export class Router {
 
       if (existing) {
         // Reuse existing item by popping to it (within same stack)
-        console.log('[Router] dedupe: found existing item, calling popTo', { key: existing.key });
+        console.log('[Router] dedupe: found existing item, calling popTo', {
+          key: existing.key,
+        });
         this.applyHistoryChange('popTo', existing);
         return;
       } else {
         console.log('[Router] dedupe: no existing item found, will create new');
       }
-
     }
 
     // If there's a controller, execute it first
@@ -946,6 +962,34 @@ export class Router {
     g[key] = true;
   }
 
+  /**
+   * Web-only helper: при шаге назад по browser history
+   * сначала пытаемся убрать верхний экран из global-стека (модалка).
+   *
+   * Возвращает true, если что-то реально попнули.
+   */
+  private tryPopGlobalForWebBack(): boolean {
+    if (!this.global) return false;
+
+    const gid = this.global.getId();
+    const gslice = this.getStackHistory(gid);
+    if (!gslice.length) {
+      return false;
+    }
+
+    const top = gslice[gslice.length - 1]!;
+    console.log('[Router] web back: popping global top', {
+      key: top.key,
+      routeId: top.routeId,
+      path: top.path,
+    });
+
+    // Для глобального стека нас устраивает обычный pop:
+    // модалка закрывается, стейк табов/рута не трогаем.
+    this.applyHistoryChange('pop', top);
+    return true;
+  }
+
   private setupBrowserHistory(): void {
     const g = globalThis as unknown as {
       addEventListener?: (type: string, cb: (ev: Event) => void) => void;
@@ -972,18 +1016,42 @@ export class Router {
       }
 
       if (ev.type === 'popstate') {
+        const url = this.getCurrentUrl();
         const idx = this.getHistoryIndex();
         const delta = idx - this.lastBrowserIndex;
 
+        console.log('[Router] popstate event', {
+          url,
+          idx,
+          prevIndex: this.lastBrowserIndex,
+          delta,
+        });
+
         if (delta < 0) {
-          // Going back: use replace with dedupe to reuse existing route
-          // dedupe will find the existing item in stack history and popTo it
+          // Шаг НАЗАД по browser history
+          // 1) Сначала пробуем убрать верхний экран из global-стека (модалка)
+          const poppedGlobal = this.tryPopGlobalForWebBack();
+          if (poppedGlobal) {
+            console.log(
+              '[Router] popstate: handled by global pop, skip URL-based navigation'
+            );
+            this.lastBrowserIndex = idx;
+            return;
+          }
+
+          // 2) Если глобального экрана нет — ведём себя как раньше:
+          // replace + dedupe по текущему URL
+          console.log(
+            '[Router] popstate: no global to pop, using replace+dedupe'
+          );
           this.performNavigation(url, 'replace', { dedupe: true });
         } else if (delta > 0) {
-          // Going forward: treat as push
+          // Шаг ВПЕРЁД по истории браузера — это push
+          console.log('[Router] popstate: forward history step, treat as push');
           this.performNavigation(url, 'push');
         } else {
-          // Same index: soft replace with dedupe
+          // Тот же индекс: мягкий replace с dedupe
+          console.log('[Router] popstate: same index, soft replace+dedupe');
           this.performNavigation(url, 'replace', { dedupe: true });
         }
 

@@ -137,6 +137,9 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // Флаг initial-фазы: пока true — не анимируем первый рендер стека
+  const isInitialMountRef = useRef(true);
+
   // Храним предыдущий список ключей стека
   const prevKeysRef = useRef<string[]>([]);
   // Храним последнее направление навигации (используем для CSS)
@@ -235,6 +238,8 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     routeKeys,
     direction,
   });
+
+  const isInitialPhase = isInitialMountRef.current;
 
   // Вычисляем список ключей, которые должны быть отрисованы:
   // 1) все текущие routeKeys
@@ -370,6 +375,24 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     devLog('[ScreenStack] === CLEANUP EFFECT END ===');
   }, [routeKeys, stateMap, deleteItem]);
 
+  /**
+   * EFFECT 3: завершение initial-фазы.
+   * Как только появился хотя бы один смонтированный элемент в stateMap,
+   * считаем, что initial-mount закончился и дальше анимации включены.
+   */
+  useEffect(() => {
+    if (!isInitialMountRef.current) return;
+
+    const hasMountedItem = Array.from(stateMap.values()).some(
+      (st) => st.isMounted
+    );
+
+    if (hasMountedItem) {
+      isInitialMountRef.current = false;
+      devLog('[ScreenStack] Initial mount completed');
+    }
+  }, [stateMap]);
+
   // Лог DOM-состояния после рендера (в деве)
   useEffect(() => {
     if (!containerRef.current) return;
@@ -393,7 +416,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     <div
       ref={containerRef}
       className={containerClassName}
-      data-animation={type}
+      data-animation={isInitialPhase ? 'none' : type}
       data-direction={direction}
     >
       {/* Нестековые дети рендерим как есть */}
@@ -431,7 +454,13 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
           phase = 'inactive';
         }
 
-        const status = transitionState.status;
+        const rawStatus = transitionState.status;
+        const status =
+          isInitialPhase &&
+          (rawStatus === 'preEnter' || rawStatus === 'entering')
+            ? 'entered'
+            : rawStatus;
+
         const zIndex = index + 1;
 
         devLog(`[ScreenStack] Rendering item ${key}:`, {

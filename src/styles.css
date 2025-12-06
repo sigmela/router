@@ -15,6 +15,7 @@
   display: none;
   /* z-index задаётся inline в ScreenStack.web.tsx */
 
+  /* Базовый transition для навигации вперёд */
   transition:
     transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
     opacity 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
@@ -29,7 +30,7 @@
   display: flex;
 }
 
-/* Базовое состояние для активных */
+/* Базовое состояние для активных элементов после входа */
 .screen-stack > .screen-stack-item.phase-active.transition-entered {
   transform: translateX(0);
   opacity: 1;
@@ -38,7 +39,7 @@
 /* Фоновые (inactive) — видимы, но без интеракций */
 .screen-stack > .screen-stack-item.phase-inactive {
   display: flex;
-  pointer-events: none;
+  pointer-events: none; /* Не перехватываем клики */
 }
 
 /* Выходящие элементы тоже показываем во время анимации */
@@ -56,11 +57,12 @@
 
 /* ==================== NAVIGATION ANIMATIONS ==================== */
 
+/* Forward navigation (push) */
 .screen-stack[data-animation="navigation"][data-direction="forward"] {
-  /* push */
+  /* forward — базовый transition уже задан в .screen-stack-item */
 }
 
-/* Входящий экран при push — справа */
+/* Входящий экран при push — въезжает справа */
 .screen-stack[data-animation="navigation"][data-direction="forward"]
   > .screen-stack-item.transition-preEnter,
 .screen-stack[data-animation="navigation"][data-direction="forward"]
@@ -81,16 +83,16 @@
   opacity: 1;
 }
 
-/* Фоновый экран при push — слегка затемняем */
+/* Фоновый экран при push — слегка сдвигаем влево и затемняем (iOS-style parallax) */
 .screen-stack[data-animation="navigation"][data-direction="forward"]
   > .screen-stack-item.phase-inactive,
 .screen-stack[data-animation="navigation"][data-direction="forward"]
   > .screen-stack-item.phase-inactive.transition-entered {
-  transform: translateX(0);
+  transform: translateX(-16px); /* можно поиграть значением: -8px, -6% и т.д. */
   opacity: 0.7;
 }
 
-/* Back navigation (pop) — немного быстрее */
+/* Backward navigation (pop) — немного быстрее */
 .screen-stack[data-animation="navigation"][data-direction="back"]
   > .screen-stack-item {
   transition:
@@ -107,17 +109,18 @@
   opacity: 1;
 }
 
-/* Экран под ним остаётся на месте */
+/* Экран под ним становится активным и возвращается из -16px в 0 */
 .screen-stack[data-animation="navigation"][data-direction="back"]
   > .screen-stack-item.phase-active,
 .screen-stack[data-animation="navigation"][data-direction="back"]
-  > .screen-stack-item.transition-entered {
+  > .screen-stack-item.phase-active.transition-entered {
   transform: translateX(0);
   opacity: 1;
 }
 
 /* ==================== MODAL ANIMATIONS ==================== */
 
+/* Modal: push — снизу вверх */
 .screen-stack[data-animation="modal"][data-direction="forward"]
   > .screen-stack-item.transition-preEnter {
   transform: translateY(100%);
@@ -132,6 +135,7 @@
   opacity: 1;
 }
 
+/* Фон под модалкой затемняется */
 .screen-stack[data-animation="modal"][data-direction="forward"]
   > .screen-stack-item.phase-inactive {
   transform: translateY(0);
@@ -139,6 +143,7 @@
   filter: brightness(0.7);
 }
 
+/* Modal: back — модалка уезжает вниз */
 .screen-stack[data-animation="modal"][data-direction="back"]
   > .screen-stack-item.phase-exiting,
 .screen-stack[data-animation="modal"][data-direction="back"]
@@ -147,6 +152,7 @@
   opacity: 1;
 }
 
+/* Бэкграунд под модалкой возвращается к нормальной яркости */
 .screen-stack[data-animation="modal"][data-direction="back"]
   > .screen-stack-item.phase-active,
 .screen-stack[data-animation="modal"][data-direction="back"]
@@ -156,20 +162,19 @@
   filter: brightness(1);
 }
 
-/* ==================== INACTIVE SCREENS ==================== */
+/* ==================== INACTIVE SCREENS (общие настройки) ==================== */
 
-/* Inactive screens (фоновые) — на месте, чуть тусклее */
+/* Inactive screens (фоновые элементы стека) — по умолчанию слегка тусклее */
 .screen-stack > .screen-stack-item.phase-inactive {
-  transform: translateX(0);
+  transform: translateX(0); /* при отсутствии контекста навигации */
   opacity: 0.7;
 }
 
-/* ==================== INACTIVE SCREENS ==================== */
-
-/* Inactive screens (background items in stack) stay in place but dimmed */
-.screen-stack > .screen-stack-item.phase-inactive {
-  transform: translateX(0);
-  opacity: 0.7;
+/* Initial mount: отрисовать экран без анимации, игнорируя transitionStatus */
+.screen-stack[data-animation='none'] .screen-stack-item {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+  transition: none !important;
 }
 
 .tab-stacks-container {
