@@ -445,19 +445,40 @@ export class Router {
     const matchResult = matched.match(pathname);
     const params = matchResult ? matchResult.params : undefined;
 
-    // Prevent duplicate push to same screen with same params
+    /**
+     * PUSH:
+     * Если identity (routeId + path + params) совпадает с top стека —
+     * не создаём новый экран, а просто обновляем query у текущего.
+     */
     if (action === 'push') {
       const top = this.getTopForTarget(matched.stackId);
       if (top && top.routeId === matched.routeId) {
-        const prev = top.params ? JSON.stringify(top.params) : '';
-        const next = params ? JSON.stringify(params) : '';
-        if (prev === next) {
+        const samePath = (top.path ?? '') === pathname;
+        const sameParams = this.areShallowEqual(
+          (top.params ?? {}) as Record<string, any>,
+          (params ?? {}) as Record<string, any>
+        );
+
+        if (samePath && sameParams) {
+          console.log(
+            '[Router] push: same identity as top, updating query instead of pushing'
+          );
+          const updatedTop: HistoryItem = {
+            ...top,
+            params,
+            query: query as any,
+            path: pathname,
+          };
+          this.applyHistoryChange('replace', updatedTop);
           return;
         }
       }
     }
 
-    // Optional dedupe for replace: reuse existing item from stack history
+    /**
+     * Optional dedupe for replace: теперь identity = routeId + path + params
+     * Query — отдельно, не влияет на поиск entry.
+     */
     if (action === 'replace' && opts?.dedupe) {
       const top = this.getTopForTarget(matched.stackId);
       console.log('[Router] dedupe: checking top of stack', {
@@ -468,27 +489,51 @@ export class Router {
       });
 
       if (top && top.routeId === matched.routeId) {
-        const sameParams =
-          JSON.stringify(top.params ?? {}) === JSON.stringify(params ?? {});
-        const sameQuery =
-          JSON.stringify(top.query ?? {}) === JSON.stringify(query ?? {});
+        const sameParams = this.areShallowEqual(
+          (top.params ?? {}) as Record<string, any>,
+          (params ?? {}) as Record<string, any>
+        );
         const samePath = (top.path ?? '') === pathname;
+        const sameIdentity = sameParams && samePath;
+
+        const sameQuery = this.areShallowEqual(
+          (top.query ?? {}) as Record<string, any>,
+          (query ?? {}) as Record<string, any>
+        );
+
         console.log(
-          '[Router] dedupe: top matches routeId, checking params/query/path',
+          '[Router] dedupe: top matches routeId, checking identity (params+path) and query',
           {
             sameParams,
-            sameQuery,
             samePath,
+            sameIdentity,
+            sameQuery,
           }
         );
-        if (sameParams && sameQuery && samePath) {
-          // Already at target, no-op
+
+        if (sameIdentity && sameQuery) {
+          // Уже на целевом экране с теми же фильтрами
           console.log('[Router] dedupe: already at target, no-op');
+          return;
+        }
+
+        if (sameIdentity && !sameQuery) {
+          // Тот же экран, но другие query → обновляем query без изменения стека
+          console.log(
+            '[Router] dedupe: same identity, updating query on top via replace'
+          );
+          const updatedTop: HistoryItem = {
+            ...top,
+            params,
+            query: query as any,
+            path: pathname,
+          };
+          this.applyHistoryChange('replace', updatedTop);
           return;
         }
       }
 
-      // Look for existing item in stack history to reuse its key
+      // Look for existing item in stack history to reuse its key (identity без query)
       const stackHistory = this.getStackHistory(matched.stackId!);
       console.log('[Router] dedupe: searching in stack history', {
         stackId: matched.stackId,
@@ -502,20 +547,27 @@ export class Router {
 
       const existing = stackHistory.find((item) => {
         const sameRoute = item.routeId === matched.routeId;
-        const sameParams =
-          JSON.stringify(item.params ?? {}) === JSON.stringify(params ?? {});
-        const sameQuery =
-          JSON.stringify(item.query ?? {}) === JSON.stringify(query ?? {});
+        const sameParams = this.areShallowEqual(
+          (item.params ?? {}) as Record<string, any>,
+          (params ?? {}) as Record<string, any>
+        );
         const samePath = (item.path ?? '') === pathname;
-        return sameRoute && sameParams && sameQuery && samePath;
+        // query намеренно НЕ учитываем для identity
+        return sameRoute && sameParams && samePath;
       });
 
       if (existing) {
-        // Reuse existing item by popping to it (within same stack)
+        // Reuse existing item by popping to it (within same stack) и обновляем его query
+        const updatedExisting: HistoryItem = {
+          ...existing,
+          params,
+          query: query as any,
+          path: pathname,
+        };
         console.log('[Router] dedupe: found existing item, calling popTo', {
-          key: existing.key,
+          key: updatedExisting.key,
         });
-        this.applyHistoryChange('popTo', existing);
+        this.applyHistoryChange('popTo', updatedExisting);
         return;
       } else {
         console.log('[Router] dedupe: no existing item found, will create new');
@@ -578,7 +630,8 @@ export class Router {
    * - push:    [...prev, item]
    * - replace: [..., lastOfStack] → заменить lastOfStack на item (если стека не было — push)
    * - pop:     удалить lastOfStack
-   * - popTo:   оставить элементы до item.key включительно, всё после — удалить (внутри стека)
+   * - popTo:   оставить элементы до item.key включительно, всё после — удалить (внутри стека),
+   *             при этом payload item может обновить сам target (например, query).
    *
    * История хранится линейно (по времени навигации), но операции всегда
    * работают по stackId на «верхушке» конкретного стека.
@@ -634,27 +687,38 @@ export class Router {
     } else if (action === 'popTo') {
       const targetKey = item.key;
       const keysToRemove = new Set<string>();
-      let found = false;
+      let foundIndex = -1;
 
-      // Идём с конца: все элементы этого стека после targetKey удаляем
+      // Идём с конца: все элементы этого стека после targetKey помечаем на удаление,
+      // а сам target обновим данными из item.
       for (let i = prevHist.length - 1; i >= 0; i--) {
         const h = prevHist[i]!;
         if (h.stackId !== stackId) {
           continue;
         }
         if (h.key === targetKey) {
-          found = true;
+          foundIndex = i;
           break;
         }
         keysToRemove.add(h.key);
       }
 
-      if (!found) {
+      if (foundIndex === -1) {
         // Нет такого элемента в стеке — ничего не делаем
         return;
       }
 
-      nextHist = prevHist.filter((h) => !keysToRemove.has(h.key));
+      const copy = [...prevHist];
+
+      // Обновляем сам target-элемент (например, query / params / path),
+      // но key сохраняем, чтобы не ломать анимации.
+      copy[foundIndex] = {
+        ...copy[foundIndex],
+        ...item,
+        key: targetKey,
+      };
+
+      nextHist = copy.filter((h) => !keysToRemove.has(h.key));
     }
 
     // Обновляем состояние
@@ -838,6 +902,19 @@ export class Router {
 
   private findStackById(stackId: string): NavigationStack | undefined {
     return this.stackById.get(stackId);
+  }
+
+  /**
+   * Простое сравнение объектов (params/query) через JSON, достаточно для наших целей.
+   */
+  private areShallowEqual(
+    a?: Record<string, any>,
+    b?: Record<string, any>
+  ): boolean {
+    if (a === b) return true;
+    const prev = a ? JSON.stringify(a) : '';
+    const next = b ? JSON.stringify(b) : '';
+    return prev === next;
   }
 
   // =====================
