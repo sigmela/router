@@ -1105,29 +1105,27 @@ export class Router {
         });
 
         if (delta < 0) {
-          // Шаг НАЗАД по browser history
-          // 1) Сначала пробуем убрать верхний экран из global-стека (модалка)
+          // Шаг НАЗАД
           const poppedGlobal = this.tryPopGlobalForWebBack();
+
           if (poppedGlobal) {
             console.log(
-              '[Router] popstate: handled by global pop, skip URL-based navigation'
+              '[Router] popstate: global popped, syncing stack with URL via replace+dedupe'
             );
-            this.lastBrowserIndex = idx;
-            return;
+          } else {
+            console.log(
+              '[Router] popstate: no global to pop, using replace+dedupe'
+            );
           }
 
-          // 2) Если глобального экрана нет — ведём себя как раньше:
-          // replace + dedupe по текущему URL
-          console.log(
-            '[Router] popstate: no global to pop, using replace+dedupe'
-          );
+          // В ЛЮБОМ СЛУЧАЕ синкаем стек с URL
           this.performNavigation(url, 'replace', { dedupe: true });
         } else if (delta > 0) {
-          // Шаг ВПЕРЁД по истории браузера — это push
+          // Шаг ВПЕРЁД по истории браузера — трактуем как push
           console.log('[Router] popstate: forward history step, treat as push');
           this.performNavigation(url, 'push');
         } else {
-          // Тот же индекс: мягкий replace с dedupe
+          // Тот же индекс: мягкий replace+dedupe
           console.log('[Router] popstate: same index, soft replace+dedupe');
           this.performNavigation(url, 'replace', { dedupe: true });
         }
