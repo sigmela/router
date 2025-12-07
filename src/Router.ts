@@ -122,7 +122,8 @@ export class Router {
    */
   public navigate = (path: string): void => {
     if (this.isWebEnv()) {
-      this.pushUrl(path);
+      const syncWithUrl = this.getPersistenceForPath(path);
+      this.pushUrl(path, { syncWithUrl });
       return;
     }
     this.performNavigation(path, 'push');
@@ -138,7 +139,8 @@ export class Router {
   public replace = (path: string, dedupe?: boolean): void => {
     if (this.isWebEnv()) {
       this.pendingReplaceDedupe = !!dedupe;
-      this.replaceUrl(path);
+      const syncWithUrl = this.getPersistenceForPath(path);
+      this.replaceUrl(path, { syncWithUrl });
       return;
     }
     this.performNavigation(path, 'replace', { dedupe: !!dedupe });
@@ -954,6 +956,11 @@ export class Router {
     return this.readIndex(g.history?.state);
   }
 
+  /**
+   * Гарантируем, что в history.state есть:
+   * - __srIndex (для расчёта delta)
+   * - __srPath (router-путь, по которому работает Router)
+   */
   private ensureHistoryIndex(): void {
     const g = globalThis as unknown as {
       history?: {
@@ -962,16 +969,21 @@ export class Router {
       };
       location?: { href: string };
     };
-    const st = g.history?.state ?? {};
-    if (
-      this.readIndex(st) === 0 &&
-      !(
-        st &&
-        typeof st === 'object' &&
-        '__srIndex' in (st as Record<string, unknown>)
-      )
-    ) {
-      const next = { ...(st as Record<string, unknown>), __srIndex: 0 };
+    const st = (g.history?.state ?? {}) as Record<string, unknown>;
+    let next = st;
+    let changed = false;
+
+    if (!('__srIndex' in next)) {
+      next = { ...next, __srIndex: 0 };
+      changed = true;
+    }
+
+    if (!('__srPath' in next)) {
+      next = { ...next, __srPath: this.getCurrentUrl() };
+      changed = true;
+    }
+
+    if (changed) {
       try {
         g.history?.replaceState(next, '', g.location?.href);
       } catch {
@@ -980,7 +992,52 @@ export class Router {
     }
   }
 
-  private pushUrl(to: string): void {
+  private getRouterPathFromHistory(): string {
+    const g = globalThis as unknown as { history?: { state: unknown } };
+    const st = g.history?.state;
+    if (
+      st &&
+      typeof st === 'object' &&
+      '__srPath' in (st as Record<string, unknown>)
+    ) {
+      const p = (st as { __srPath?: unknown }).__srPath;
+      if (typeof p === 'string' && p.length > 0) {
+        return p;
+      }
+    }
+    // fallback: старые записи истории или что-то пошло не так
+    return this.getCurrentUrl();
+  }
+
+  /**
+   * Определяем, должен ли данный path быть syncWithUrl в history браузера.
+   * Берём mergeOptions(routeOptions + stackDefaults + routerDefaults) и читаем:
+   * - options.syncWithUrlInHistory
+   * - или options.syncWithUrl
+   * По умолчанию — true.
+   */
+  private getPersistenceForPath(path: string): boolean {
+    const { pathname } = this.parsePath(path);
+    const matched = this.matchRoute(pathname);
+    if (!matched) return true;
+
+    const mergedOptions = this.mergeOptions(matched.options, matched.stackId);
+    const rawsyncWithUrl = mergedOptions && (mergedOptions as any).syncWithUrl;
+
+    if (typeof rawsyncWithUrl === 'boolean') {
+      return rawsyncWithUrl;
+    }
+
+    // По умолчанию ВСЁ syncWithUrl, кроме явно отключённых
+    return true;
+  }
+
+  private pushUrl(
+    to: string,
+    opts?: {
+      syncWithUrl?: boolean;
+    }
+  ): void {
     const g = globalThis as unknown as {
       history?: {
         state: unknown;
@@ -989,11 +1046,27 @@ export class Router {
     };
     const st = g.history?.state ?? {};
     const prev = this.readIndex(st);
-    const next = { ...(st as Record<string, unknown>), __srIndex: prev + 1 };
-    g.history?.pushState(next, '', to);
+    const base = st as Record<string, unknown>;
+    const syncWithUrl = opts?.syncWithUrl ?? true;
+
+    const routerPath = to;
+    const visualUrl = syncWithUrl ? to : this.getCurrentUrl();
+
+    const next = {
+      ...base,
+      __srIndex: prev + 1,
+      __srPath: routerPath,
+    };
+
+    g.history?.pushState(next, '', visualUrl);
   }
 
-  private replaceUrl(to: string): void {
+  private replaceUrl(
+    to: string,
+    opts?: {
+      syncWithUrl?: boolean;
+    }
+  ): void {
     const g = globalThis as unknown as {
       history?: {
         state: unknown;
@@ -1001,7 +1074,18 @@ export class Router {
       };
     };
     const st = g.history?.state ?? {};
-    g.history?.replaceState(st, '', to);
+    const base = st as Record<string, unknown>;
+    const syncWithUrl = opts?.syncWithUrl ?? true;
+
+    const routerPath = to;
+    const visualUrl = syncWithUrl ? to : this.getCurrentUrl();
+
+    const next = {
+      ...base,
+      __srPath: routerPath,
+    };
+
+    g.history?.replaceState(next, '', visualUrl);
   }
 
   private patchHistoryOnce(): void {
@@ -1076,23 +1160,24 @@ export class Router {
     this.lastBrowserIndex = this.getHistoryIndex();
 
     const onHistory = (ev: Event): void => {
-      const url = this.getCurrentUrl();
-
       if (ev.type === 'pushState') {
+        const path = this.getRouterPathFromHistory();
         this.lastBrowserIndex = this.getHistoryIndex();
-        this.performNavigation(url, 'push');
+        this.performNavigation(path, 'push');
         return;
       }
 
       if (ev.type === 'replaceState') {
+        const path = this.getRouterPathFromHistory();
         const dedupe = this.pendingReplaceDedupe === true;
-        this.performNavigation(url, 'replace', { dedupe });
+        this.performNavigation(path, 'replace', { dedupe });
         this.lastBrowserIndex = this.getHistoryIndex();
         this.pendingReplaceDedupe = false;
         return;
       }
 
       if (ev.type === 'popstate') {
+        // ❗ Дальше ИСПОЛЬЗУЕМ только реальный URL из location
         const url = this.getCurrentUrl();
         const idx = this.getHistoryIndex();
         const delta = idx - this.lastBrowserIndex;
@@ -1118,15 +1203,20 @@ export class Router {
             );
           }
 
-          // В ЛЮБОМ СЛУЧАЕ синкаем стек с URL
+          // Синхронизация стека именно с URL из адресной строки
           this.performNavigation(url, 'replace', { dedupe: true });
         } else if (delta > 0) {
           // Шаг ВПЕРЁД по истории браузера — трактуем как push
-          console.log('[Router] popstate: forward history step, treat as push');
+          console.log(
+            '[Router] popstate: forward history step, treat as push',
+            { url }
+          );
           this.performNavigation(url, 'push');
         } else {
           // Тот же индекс: мягкий replace+dedupe
-          console.log('[Router] popstate: same index, soft replace+dedupe');
+          console.log('[Router] popstate: same index, soft replace+dedupe', {
+            url,
+          });
           this.performNavigation(url, 'replace', { dedupe: true });
         }
 

@@ -31,6 +31,7 @@ export const settingsStack = new NavigationStack().addScreen(
 
 export const globalStack = new NavigationStack().addModal('/auth', AuthScreen, {
   header: { title: 'Sign in' },
+  syncWithUrl: false,
 });
 
 export const ordersStack = new NavigationStack()
