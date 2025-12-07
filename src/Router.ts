@@ -1260,7 +1260,7 @@ export class Router {
     }
 
     const search = qs.stringify(query);
-    return `${path}?${search}`;
+    return `${path}${search}`;
   }
 
   private patchHistoryOnce(): void {
@@ -1486,9 +1486,9 @@ export class Router {
       }
 
       const hasQuery = Object.keys(nextQuery).length > 0;
-      const newSearch = hasQuery ? qs.stringify(nextQuery) : '';
+      const newSearch = hasQuery ? `?${qs.stringify(nextQuery)}` : '';
 
-      const nextUrl = `${pathname}?${newSearch}`;
+      const nextUrl = `${pathname}${newSearch}`;
 
       this.log('syncUrlWithStateAfterInternalPop (query-global)', {
         poppedRouteId: popped.routeId,
