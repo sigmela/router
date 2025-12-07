@@ -3,16 +3,17 @@ import { RouteLocalContext } from '../RouterContext';
 import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-const devLog = (message: string, data?: any) => {
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    if (data !== undefined) {
-      // eslint-disable-next-line no-console
-      console.log(message, data);
-    } else {
-      // eslint-disable-next-line no-console
-      console.log(message);
-    }
-  }
+const devLog = (_: string, __?: any) => {
+  // if (false) {
+  //   //if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  //   if (data !== undefined) {
+  //     // eslint-disable-next-line no-console
+  //     console.log(message, data);
+  //   } else {
+  //     // eslint-disable-next-line no-console
+  //     console.log(message);
+  //   }
+  // }
 };
 
 export const ScreenStackItem = memo(

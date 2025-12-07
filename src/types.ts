@@ -1,3 +1,4 @@
+// types.ts
 import type { ColorValue, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import type {
   BottomTabsScreenProps,
@@ -6,6 +7,10 @@ import type {
   TabBarItemLabelVisibilityMode,
   TabBarMinimizeBehavior,
 } from 'react-native-screens';
+
+// =====================
+// Core enums / base types
+// =====================
 
 export type StackPresentationTypes =
   | 'push'
@@ -69,17 +74,69 @@ export type VisibleRoute = {
   query?: Record<string, unknown>;
 } | null;
 
+// =====================
+// Query pattern support
+// =====================
+
+export type QueryToken =
+  | { type: 'const'; value: string }
+  | { type: 'param'; name: string };
+
+export type QueryPattern = Record<string, QueryToken>;
+
+// =====================
+// CompiledRoute with path + query pattern
+// =====================
+
 export type CompiledRoute = {
   routeId: string;
   scope: Scope;
+
+  /**
+   * Original pattern string as passed to NavigationStack (may include query),
+   * e.g. "/auth", "/auth?kind=email", "*?modal=promo"
+   */
   path: string;
-  match: (path: string) => false | { params: Record<string, any> };
+
+  /**
+   * Pure pathname pattern for path matching, e.g. "/auth" or "*"
+   */
+  pathnamePattern: string;
+
+  /**
+   * Whether this route is a wildcard by path ("*").
+   * Wildcard path matches any pathname.
+   */
+  isWildcardPath: boolean;
+
+  /**
+   * Query match pattern (parsed from "?kind=email", "?kind=:kind", etc).
+   * Null if no query pattern is specified.
+   */
+  queryPattern: QueryPattern | null;
+
+  /**
+   * Base specificity score (precomputed from path + query pattern).
+   * Used to pick the "most specific" route among multiple matches.
+   */
+  baseSpecificity: number;
+
+  /**
+   * Path matcher (only for path, no query here).
+   * Returns params if matched, false otherwise.
+   */
+  matchPath: (path: string) => false | { params: Record<string, any> };
+
   component: React.ComponentType<any>;
   controller?: import('./createController').Controller<any, any>;
   options?: ScreenOptions;
   tabIndex?: number;
   stackId?: string;
 };
+
+// =====================
+// Tab bar / appearance
+// =====================
 
 export type TabBarConfig = {
   /**

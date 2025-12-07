@@ -9,6 +9,7 @@ import type {
   Scope,
   ScreenOptions,
   VisibleRoute,
+  QueryPattern,
 } from './types';
 
 type Listener = () => void;
@@ -16,10 +17,10 @@ type Listener = () => void;
 export interface RouterConfig {
   root: TabBar | NavigationStack;
   global?: NavigationStack;
-  screenOptions?: ScreenOptions; // global overrides
+  screenOptions?: ScreenOptions;
+  debug?: boolean;
 }
 
-// Root transition option: allow string shorthand like 'fade'
 export type RootTransition = ScreenOptions['stackAnimation'];
 
 function isTabBarLike(obj: any): obj is TabBar {
@@ -59,9 +60,9 @@ export class Router {
   };
 
   private readonly routerScreenOptions: ScreenOptions | undefined;
+  private readonly debugEnabled: boolean = false;
   private sheetDismissers = new Map<string, () => void>();
 
-  // per-stack slices and listeners
   private stackSlices = new Map<string, HistoryItem[]>();
   private stackListeners = new Map<string, Set<Listener>>();
   private activeTabListeners = new Set<Listener>();
@@ -71,17 +72,18 @@ export class Router {
     { path: string; stackId: string; tabIndex?: number; scope: Scope }
   >();
   private visibleRoute: VisibleRoute = null;
-  // Root structure listeners (TabBar ↔ NavigationStack changes)
   private rootListeners: Set<Listener> = new Set();
   private rootTransition?: RootTransition = undefined;
 
-  // Web history bridging
   private lastBrowserIndex: number = 0;
   private pendingReplaceDedupe: boolean = false;
+  private suppressHistorySync: boolean = false;
 
   constructor(config: RouterConfig) {
-    console.log('test');
+    this.debugEnabled = config.debug ?? false;
     this.routerScreenOptions = config.screenOptions;
+
+    this.log('ctor');
 
     if (isTabBarLike(config.root)) {
       this.tabBar = config.root as TabBar;
@@ -103,7 +105,8 @@ export class Router {
 
     if (this.isWebEnv()) {
       this.setupBrowserHistory();
-      this.parse(this.getCurrentUrl());
+      const url = this.getCurrentUrl();
+      this.parse(url);
     } else {
       this.seedInitialHistory();
     }
@@ -111,15 +114,16 @@ export class Router {
     this.recomputeVisibleRoute();
   }
 
-  // =====================
-  // Public API
-  // =====================
+  private log(message: string, data?: any): void {
+    if (this.debugEnabled) {
+      if (data !== undefined) {
+        console.log(`[Router] ${message}`, data);
+      } else {
+        console.log(`[Router] ${message}`);
+      }
+    }
+  }
 
-  /**
-   * navigate(path):
-   * - mobile: локальный push в стек
-   * - web: pushState + sync через History API
-   */
   public navigate = (path: string): void => {
     if (this.isWebEnv()) {
       const syncWithUrl = this.getPersistenceForPath(path);
@@ -129,13 +133,6 @@ export class Router {
     this.performNavigation(path, 'push');
   };
 
-  /**
-   * replace(path):
-   * - всегда: замена верхнего элемента активного стека
-   *   Примеры:
-   *   ['a'] → replace(b) → ['b']
-   *   ['a', 'b', 'c'] → replace(d) → ['a', 'b', 'd']
-   */
   public replace = (path: string, dedupe?: boolean): void => {
     if (this.isWebEnv()) {
       this.pendingReplaceDedupe = !!dedupe;
@@ -157,19 +154,16 @@ export class Router {
     this.sheetDismissers.delete(key);
   };
 
-  /**
-   * goBack():
-   * - mobile: чистый pop верхнего экрана активного стека
-   * - web: history.back() → popstate → sync
-   */
   public goBack = (): void => {
     if (this.isWebEnv()) {
-      const g = globalThis as unknown as {
-        history?: { back: () => void };
-      };
-      g.history?.back();
+      const popped = this.popOnce();
+      if (popped) {
+        this.syncUrlWithStateAfterInternalPop(popped);
+      }
+
       return;
     }
+
     this.popOnce();
   };
 
@@ -224,7 +218,6 @@ export class Router {
     };
   }
 
-  // Per-stack subscriptions
   public getStackHistory = (stackId: string): HistoryItem[] => {
     return this.stackSlices.get(stackId) ?? EMPTY_ARRAY;
   };
@@ -276,11 +269,6 @@ export class Router {
     return this.rootTransition;
   }
 
-  /**
-   * setRoot:
-   * - полностью сбрасывает историю и реестры
-   * - пересобирает registry из нового root
-   */
   public setRoot(
     nextRoot: TabBar | NavigationStack,
     options?: { transition?: RootTransition }
@@ -306,18 +294,21 @@ export class Router {
 
     this.buildRegistry();
     this.seedInitialHistory();
+
+    const url = this.getCurrentUrl();
+    const { pathname, query } = this.parsePath(url);
+    this.syncGlobalStackForUrl(pathname, query);
+
     this.recomputeVisibleRoute();
     this.emitRootChange();
     this.emit(this.listeners);
   }
 
-  // Visible route (global top if present, else active tab/root top)
   public getVisibleRoute = (): VisibleRoute => {
     return this.visibleRoute;
   };
 
   private recomputeVisibleRoute(): void {
-    // Global top
     if (this.global) {
       const gid = this.global.getId();
       const gslice = this.getStackHistory(gid);
@@ -343,7 +334,6 @@ export class Router {
       }
     }
 
-    // TabBar
     if (this.tabBar) {
       const idx = this.getActiveTabIndex();
       const state = this.tabBar.getState();
@@ -385,7 +375,6 @@ export class Router {
       }
     }
 
-    // Root stack
     if (this.root && isNavigationStackLike(this.root)) {
       const sid = this.root.getId();
       const slice = this.getStackHistory(sid);
@@ -413,189 +402,208 @@ export class Router {
     this.visibleRoute = null;
   }
 
-  // =====================
-  // Internal navigation logic
-  // =====================
-
   private performNavigation(
     path: string,
     action: 'push' | 'replace',
     opts?: { dedupe?: boolean }
   ): void {
-    console.log('[Router] performNavigation called', {
+    const { pathname, query } = this.parsePath(path);
+
+    this.log('performNavigation', {
       path,
+      pathname,
+      query,
       action,
       dedupe: opts?.dedupe,
     });
-    const { pathname, query } = this.parsePath(path);
-    const matched = this.matchRoute(pathname);
-    if (!matched) {
+
+    const base = this.matchBaseRoute(pathname, query);
+    const globalMatch = this.matchGlobalRoute(pathname, query);
+
+    this.log('resolveNavigation', {
+      base: base
+        ? {
+            routeId: base.routeId,
+            scope: base.scope,
+            path: base.path,
+            stackId: base.stackId,
+          }
+        : null,
+      global: globalMatch
+        ? {
+            routeId: globalMatch.routeId,
+            scope: globalMatch.scope,
+            path: globalMatch.path,
+            stackId: globalMatch.stackId,
+          }
+        : null,
+    });
+
+    if (!base && !globalMatch) {
       if (__DEV__) {
         throw new Error(`Route not found: "${pathname}"`);
       }
       return;
     }
 
-    if (
-      matched.scope === 'tab' &&
-      this.tabBar &&
-      matched.tabIndex !== undefined
-    ) {
-      this.onTabIndexChange(matched.tabIndex);
-    }
-
-    const matchResult = matched.match(pathname);
-    const params = matchResult ? matchResult.params : undefined;
-
-    /**
-     * PUSH:
-     * Если identity (routeId + path + params) совпадает с top стека —
-     * не создаём новый экран, а просто обновляем query у текущего.
-     */
-    if (action === 'push') {
-      const top = this.getTopForTarget(matched.stackId);
-      if (top && top.routeId === matched.routeId) {
-        const samePath = (top.path ?? '') === pathname;
-        const sameParams = this.areShallowEqual(
-          (top.params ?? {}) as Record<string, any>,
-          (params ?? {}) as Record<string, any>
-        );
-
-        if (samePath && sameParams) {
-          console.log(
-            '[Router] push: same identity as top, updating query instead of pushing'
-          );
-          const updatedTop: HistoryItem = {
-            ...top,
-            params,
-            query: query as any,
-            path: pathname,
-          };
-          this.applyHistoryChange('replace', updatedTop);
-          return;
-        }
+    if (base) {
+      if (base.scope === 'tab' && this.tabBar && base.tabIndex !== undefined) {
+        this.onTabIndexChange(base.tabIndex);
       }
-    }
 
-    /**
-     * Optional dedupe for replace: теперь identity = routeId + path + params
-     * Query — отдельно, не влияет на поиск entry.
-     */
-    if (action === 'replace' && opts?.dedupe) {
-      const top = this.getTopForTarget(matched.stackId);
-      console.log('[Router] dedupe: checking top of stack', {
-        top: top
-          ? { key: top.key, routeId: top.routeId, path: top.path }
-          : null,
-        matched: { routeId: matched.routeId, pathname },
-      });
+      const matchResult = base.matchPath(pathname);
+      const params = matchResult ? matchResult.params : undefined;
 
-      if (top && top.routeId === matched.routeId) {
-        const sameParams = this.areShallowEqual(
-          (top.params ?? {}) as Record<string, any>,
-          (params ?? {}) as Record<string, any>
-        );
-        const samePath = (top.path ?? '') === pathname;
-        const sameIdentity = sameParams && samePath;
+      if (action === 'push') {
+        const top = this.getTopForTarget(base.stackId);
+        if (top && top.routeId === base.routeId) {
+          const samePath = (top.path ?? '') === pathname;
+          const sameParams = this.areShallowEqual(
+            (top.params ?? {}) as Record<string, any>,
+            (params ?? {}) as Record<string, any>
+          );
 
-        const sameQuery = this.areShallowEqual(
-          (top.query ?? {}) as Record<string, any>,
-          (query ?? {}) as Record<string, any>
-        );
-
-        console.log(
-          '[Router] dedupe: top matches routeId, checking identity (params+path) and query',
-          {
-            sameParams,
-            samePath,
-            sameIdentity,
-            sameQuery,
+          if (samePath && sameParams) {
+            this.log(
+              'push: same identity as top, updating query instead of pushing'
+            );
+            const updatedTop: HistoryItem = {
+              ...top,
+              params,
+              query: query as any,
+              path: pathname,
+            };
+            this.applyHistoryChange('replace', updatedTop);
+            this.syncGlobalStackForUrl(pathname, query);
+            return;
           }
-        );
+        }
+      }
 
-        if (sameIdentity && sameQuery) {
-          // Уже на целевом экране с теми же фильтрами
-          console.log('[Router] dedupe: already at target, no-op');
-          return;
+      if (action === 'replace' && opts?.dedupe) {
+        const top = this.getTopForTarget(base.stackId);
+
+        this.log('dedupe: checking top of stack', {
+          top: top
+            ? { key: top.key, routeId: top.routeId, path: top.path }
+            : null,
+          matched: { routeId: base.routeId, pathname },
+        });
+
+        if (top && top.routeId === base.routeId) {
+          const sameParams = this.areShallowEqual(
+            (top.params ?? {}) as Record<string, any>,
+            (params ?? {}) as Record<string, any>
+          );
+          const samePath = (top.path ?? '') === pathname;
+          const sameIdentity = sameParams && samePath;
+
+          const sameQuery = this.areShallowEqual(
+            (top.query ?? {}) as Record<string, any>,
+            (query ?? {}) as Record<string, any>
+          );
+
+          this.log(
+            'dedupe: top matches routeId, checking identity (params+path) and query',
+            {
+              sameParams,
+              samePath,
+              sameIdentity,
+              sameQuery,
+            }
+          );
+
+          if (sameIdentity && sameQuery) {
+            this.log('dedupe: already at target, no-op');
+            this.syncGlobalStackForUrl(pathname, query);
+            return;
+          }
+
+          if (sameIdentity && !sameQuery) {
+            this.log(
+              'dedupe: same identity, updating query on top via replace'
+            );
+            const updatedTop: HistoryItem = {
+              ...top,
+              params,
+              query: query as any,
+              path: pathname,
+            };
+            this.applyHistoryChange('replace', updatedTop);
+            this.syncGlobalStackForUrl(pathname, query);
+            return;
+          }
         }
 
-        if (sameIdentity && !sameQuery) {
-          // Тот же экран, но другие query → обновляем query без изменения стека
-          console.log(
-            '[Router] dedupe: same identity, updating query on top via replace'
+        const stackHistory = this.getStackHistory(base.stackId!);
+
+        this.log('dedupe: searching in stack history', {
+          stackId: base.stackId,
+          stackHistory: stackHistory.map((h) => ({
+            key: h.key,
+            routeId: h.routeId,
+            path: h.path,
+          })),
+          looking: { routeId: base.routeId, pathname, params, query },
+        });
+
+        const existing = stackHistory.find((item) => {
+          const sameRoute = item.routeId === base.routeId;
+          const sameParams = this.areShallowEqual(
+            (item.params ?? {}) as Record<string, any>,
+            (params ?? {}) as Record<string, any>
           );
-          const updatedTop: HistoryItem = {
-            ...top,
+          const samePath = (item.path ?? '') === pathname;
+          return sameRoute && sameParams && samePath;
+        });
+
+        if (existing) {
+          const updatedExisting: HistoryItem = {
+            ...existing,
             params,
             query: query as any,
             path: pathname,
           };
-          this.applyHistoryChange('replace', updatedTop);
+
+          this.log('dedupe: found existing item, calling popTo', {
+            key: updatedExisting.key,
+          });
+
+          this.applyHistoryChange('popTo', updatedExisting);
+          this.syncGlobalStackForUrl(pathname, query);
           return;
+        } else {
+          this.log('dedupe: no existing item found, will create new');
         }
       }
 
-      // Look for existing item in stack history to reuse its key (identity без query)
-      const stackHistory = this.getStackHistory(matched.stackId!);
-      console.log('[Router] dedupe: searching in stack history', {
-        stackId: matched.stackId,
-        stackHistory: stackHistory.map((h) => ({
-          key: h.key,
-          routeId: h.routeId,
-          path: h.path,
-        })),
-        looking: { routeId: matched.routeId, pathname, params, query },
-      });
-
-      const existing = stackHistory.find((item) => {
-        const sameRoute = item.routeId === matched.routeId;
-        const sameParams = this.areShallowEqual(
-          (item.params ?? {}) as Record<string, any>,
-          (params ?? {}) as Record<string, any>
-        );
-        const samePath = (item.path ?? '') === pathname;
-        // query намеренно НЕ учитываем для identity
-        return sameRoute && sameParams && samePath;
-      });
-
-      if (existing) {
-        // Reuse existing item by popping to it (within same stack) и обновляем его query
-        const updatedExisting: HistoryItem = {
-          ...existing,
-          params,
-          query: query as any,
-          path: pathname,
+      if (base.controller) {
+        const controllerInput = { params, query };
+        const present = (passProps?: Record<string, unknown>) => {
+          const newItem = this.createHistoryItem(
+            base,
+            params,
+            query,
+            pathname,
+            passProps
+          );
+          this.applyHistoryChange(action, newItem);
+          this.syncGlobalStackForUrl(pathname, query);
         };
-        console.log('[Router] dedupe: found existing item, calling popTo', {
-          key: updatedExisting.key,
-        });
-        this.applyHistoryChange('popTo', updatedExisting);
+
+        base.controller(controllerInput, present);
         return;
-      } else {
-        console.log('[Router] dedupe: no existing item found, will create new');
       }
+
+      const newItem = this.createHistoryItem(base, params, query, pathname);
+      this.applyHistoryChange(action, newItem);
+    } else {
+      this.log(
+        'performNavigation: no base route, relying only on global stack sync'
+      );
     }
 
-    // If there's a controller, execute it first
-    if (matched.controller) {
-      const controllerInput = { params, query };
-      const present = (passProps?: Record<string, unknown>) => {
-        const newItem = this.createHistoryItem(
-          matched,
-          params,
-          query,
-          pathname,
-          passProps
-        );
-        this.applyHistoryChange(action, newItem);
-      };
-
-      matched.controller(controllerInput, present);
-      return;
-    }
-
-    const newItem = this.createHistoryItem(matched, params, query, pathname);
-    this.applyHistoryChange(action, newItem);
+    this.syncGlobalStackForUrl(pathname, query);
   }
 
   private createHistoryItem(
@@ -621,23 +629,6 @@ export class Router {
     };
   }
 
-  // =====================
-  // Core stack manipulation
-  // =====================
-
-  /**
-   * applyHistoryChange:
-   *
-   * Семантика по стеку для stackId:
-   * - push:    [...prev, item]
-   * - replace: [..., lastOfStack] → заменить lastOfStack на item (если стека не было — push)
-   * - pop:     удалить lastOfStack
-   * - popTo:   оставить элементы до item.key включительно, всё после — удалить (внутри стека),
-   *             при этом payload item может обновить сам target (например, query).
-   *
-   * История хранится линейно (по времени навигации), но операции всегда
-   * работают по stackId на «верхушке» конкретного стека.
-   */
   private applyHistoryChange(
     action: 'push' | 'replace' | 'pop' | 'popTo',
     item: HistoryItem
@@ -648,18 +639,27 @@ export class Router {
     const prevHist = this.state.history;
     let nextHist = prevHist;
 
+    this.log('applyHistoryChange', {
+      action,
+      stackId,
+      item: {
+        key: item.key,
+        routeId: item.routeId,
+        path: item.path,
+        scope: item.scope,
+      },
+    });
+
     if (action === 'push') {
       nextHist = [...prevHist, item];
     } else if (action === 'replace') {
       let replaced = false;
       const copy = [...prevHist];
 
-      // Ищем последний элемент этого стека и заменяем его
       for (let i = copy.length - 1; i >= 0; i--) {
         const h = copy[i];
         if (h) {
           if (h.stackId === stackId) {
-            // Сохраняем ключ старого элемента, чтобы не ломать анимации по key
             copy[i] = {
               ...item,
               key: h.key,
@@ -671,7 +671,6 @@ export class Router {
       }
 
       if (!replaced) {
-        // Если в стеке ещё не было элементов — ведём себя как push
         copy.push(item);
       }
 
@@ -691,8 +690,6 @@ export class Router {
       const keysToRemove = new Set<string>();
       let foundIndex = -1;
 
-      // Идём с конца: все элементы этого стека после targetKey помечаем на удаление,
-      // а сам target обновим данными из item.
       for (let i = prevHist.length - 1; i >= 0; i--) {
         const h = prevHist[i]!;
         if (h.stackId !== stackId) {
@@ -706,14 +703,11 @@ export class Router {
       }
 
       if (foundIndex === -1) {
-        // Нет такого элемента в стеке — ничего не делаем
         return;
       }
 
       const copy = [...prevHist];
 
-      // Обновляем сам target-элемент (например, query / params / path),
-      // но key сохраняем, чтобы не ломать анимации.
       copy[foundIndex] = {
         ...copy[foundIndex],
         ...item,
@@ -723,15 +717,12 @@ export class Router {
       nextHist = copy.filter((h) => !keysToRemove.has(h.key));
     }
 
-    // Обновляем состояние
     this.setState({ history: nextHist });
 
-    // Обновляем срез стека
     const newSlice = nextHist.filter((h) => h.stackId === stackId);
     this.stackSlices.set(stackId, newSlice);
     this.emit(this.stackListeners.get(stackId));
 
-    // Обновляем visibleRoute + глобальные слушатели
     this.recomputeVisibleRoute();
     this.emit(this.listeners);
   }
@@ -743,6 +734,8 @@ export class Router {
       activeTabIndex: next.activeTabIndex ?? prev.activeTabIndex,
     };
     this.state = nextState;
+
+    this.log('setState', nextState);
   }
 
   private emit(set?: Set<Listener> | null): void {
@@ -756,10 +749,6 @@ export class Router {
     return slice.length ? slice[slice.length - 1] : undefined;
   }
 
-  // =====================
-  // Registry & routes
-  // =====================
-
   private buildRegistry(): void {
     this.registry.length = 0;
 
@@ -770,23 +759,40 @@ export class Router {
     ) => {
       const stackId = stack.getId();
       this.stackById.set(stackId, stack);
-      for (const r of stack.getRoutes()) {
-        this.registry.push({
+      for (const r of stack.getRoutes() as any[]) {
+        const compiled: CompiledRoute = {
           routeId: r.routeId,
           scope,
           path: r.path,
-          match: r.match,
+          pathnamePattern: r.pathnamePattern,
+          isWildcardPath: r.isWildcardPath,
+          queryPattern: r.queryPattern,
+          baseSpecificity: r.baseSpecificity,
+          matchPath: r.matchPath,
           component: r.component,
           controller: r.controller,
           options: r.options,
           tabIndex: extras.tabIndex,
           stackId,
-        });
+        };
+
+        this.registry.push(compiled);
         this.routeById.set(r.routeId, {
           path: r.path,
           stackId,
           tabIndex: extras.tabIndex,
           scope,
+        });
+
+        this.log('buildRegistry route', {
+          routeId: compiled.routeId,
+          scope: compiled.scope,
+          path: compiled.path,
+          pathnamePattern: compiled.pathnamePattern,
+          isWildcardPath: compiled.isWildcardPath,
+          baseSpecificity: compiled.baseSpecificity,
+          stackId,
+          tabIndex: extras.tabIndex,
         });
       }
       if (!this.stackSlices.has(stackId)) {
@@ -856,11 +862,116 @@ export class Router {
     }
   }
 
-  private matchRoute(path: string): CompiledRoute | undefined {
+  private matchBaseRoute(
+    pathname: string,
+    query: Record<string, unknown>
+  ): CompiledRoute | undefined {
+    this.log('matchBaseRoute', { pathname, query });
+
+    let best:
+      | {
+          route: CompiledRoute;
+          specificity: number;
+        }
+      | undefined;
+
     for (const r of this.registry) {
-      if (r.match(path)) return r;
+      if (r.scope === 'global') continue;
+
+      let pathMatch: false | { params: Record<string, any> };
+      if (r.isWildcardPath) {
+        pathMatch = { params: {} };
+      } else {
+        pathMatch = r.matchPath(pathname);
+      }
+      if (!pathMatch) continue;
+
+      if (!this.matchQueryPattern(r.queryPattern, query)) continue;
+
+      const spec = r.baseSpecificity;
+
+      this.log('matchBaseRoute candidate', {
+        routeId: r.routeId,
+        scope: r.scope,
+        path: r.path,
+        baseSpecificity: r.baseSpecificity,
+      });
+
+      if (!best || spec > best.specificity) {
+        best = { route: r, specificity: spec };
+      }
     }
-    return undefined;
+
+    if (best) {
+      this.log('matchBaseRoute winner', {
+        routeId: best.route.routeId,
+        scope: best.route.scope,
+        path: best.route.path,
+        specificity: best.specificity,
+      });
+    } else {
+      this.log('matchBaseRoute no match');
+    }
+
+    return best?.route;
+  }
+
+  private matchGlobalRoute(
+    pathname: string,
+    query: Record<string, unknown>
+  ): CompiledRoute | undefined {
+    if (!this.global) {
+      return undefined;
+    }
+
+    this.log('matchGlobalRoute', { pathname, query });
+
+    let best:
+      | {
+          route: CompiledRoute;
+          specificity: number;
+        }
+      | undefined;
+
+    for (const r of this.registry) {
+      if (r.scope !== 'global') continue;
+
+      let pathMatch: false | { params: Record<string, any> };
+      if (r.isWildcardPath) {
+        pathMatch = { params: {} };
+      } else {
+        pathMatch = r.matchPath(pathname);
+      }
+      if (!pathMatch) continue;
+
+      if (!this.matchQueryPattern(r.queryPattern, query)) continue;
+
+      const spec = r.baseSpecificity;
+
+      this.log('matchGlobalRoute candidate', {
+        routeId: r.routeId,
+        scope: r.scope,
+        path: r.path,
+        baseSpecificity: r.baseSpecificity,
+      });
+
+      if (!best || spec > best.specificity) {
+        best = { route: r, specificity: spec };
+      }
+    }
+
+    if (best) {
+      this.log('matchGlobalRoute winner', {
+        routeId: best.route.routeId,
+        scope: best.route.scope,
+        path: best.route.path,
+        specificity: best.specificity,
+      });
+    } else {
+      this.log('matchGlobalRoute no match');
+    }
+
+    return best?.route;
   }
 
   private generateKey(): string {
@@ -872,7 +983,17 @@ export class Router {
     query: Record<string, unknown>;
   } {
     const parsed = qs.parseUrl(path);
-    return { pathname: parsed.url, query: parsed.query };
+    const result = {
+      pathname: parsed.url,
+      query: parsed.query as Record<string, unknown>,
+    };
+
+    this.log('parsePath', {
+      input: path,
+      output: result,
+    });
+
+    return result;
   }
 
   private mergeOptions(
@@ -906,9 +1027,6 @@ export class Router {
     return this.stackById.get(stackId);
   }
 
-  /**
-   * Простое сравнение объектов (params/query) через JSON, достаточно для наших целей.
-   */
   private areShallowEqual(
     a?: Record<string, any>,
     b?: Record<string, any>
@@ -919,9 +1037,59 @@ export class Router {
     return prev === next;
   }
 
-  // =====================
-  // Web integration (History API)
-  // =====================
+  private matchQueryPattern(
+    pattern: QueryPattern | null,
+    query: Record<string, unknown>
+  ): boolean {
+    if (!pattern) {
+      return true;
+    }
+
+    for (const [key, token] of Object.entries(pattern)) {
+      const raw = query[key];
+      if (raw == null) {
+        this.log('matchQueryPattern: key missing', {
+          key,
+          token,
+          query,
+        });
+        return false;
+      }
+
+      if (typeof raw !== 'string') {
+        this.log('matchQueryPattern: non-string value', {
+          key,
+          token,
+          value: raw,
+        });
+        return false;
+      }
+
+      if (token.type === 'const') {
+        if (raw !== token.value) {
+          this.log('matchQueryPattern: const mismatch', {
+            key,
+            expected: token.value,
+            actual: raw,
+          });
+          return false;
+        }
+      } else if (token.type === 'param') {
+        this.log('matchQueryPattern: param ok', {
+          key,
+          value: raw,
+          paramName: token.name,
+        });
+      }
+    }
+
+    this.log('matchQueryPattern: success', {
+      pattern,
+      query,
+    });
+
+    return true;
+  }
 
   private isWebEnv(): boolean {
     const g = globalThis as unknown as {
@@ -956,11 +1124,6 @@ export class Router {
     return this.readIndex(g.history?.state);
   }
 
-  /**
-   * Гарантируем, что в history.state есть:
-   * - __srIndex (для расчёта delta)
-   * - __srPath (router-путь, по которому работает Router)
-   */
   private ensureHistoryIndex(): void {
     const g = globalThis as unknown as {
       history?: {
@@ -986,9 +1149,7 @@ export class Router {
     if (changed) {
       try {
         g.history?.replaceState(next, '', g.location?.href);
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
   }
 
@@ -1005,30 +1166,21 @@ export class Router {
         return p;
       }
     }
-    // fallback: старые записи истории или что-то пошло не так
     return this.getCurrentUrl();
   }
 
-  /**
-   * Определяем, должен ли данный path быть syncWithUrl в history браузера.
-   * Берём mergeOptions(routeOptions + stackDefaults + routerDefaults) и читаем:
-   * - options.syncWithUrlInHistory
-   * - или options.syncWithUrl
-   * По умолчанию — true.
-   */
   private getPersistenceForPath(path: string): boolean {
-    const { pathname } = this.parsePath(path);
-    const matched = this.matchRoute(pathname);
-    if (!matched) return true;
+    const { pathname, query } = this.parsePath(path);
+    const base = this.matchBaseRoute(pathname, query);
+    if (!base) return true;
 
-    const mergedOptions = this.mergeOptions(matched.options, matched.stackId);
+    const mergedOptions = this.mergeOptions(base.options, base.stackId);
     const rawsyncWithUrl = mergedOptions && (mergedOptions as any).syncWithUrl;
 
     if (typeof rawsyncWithUrl === 'boolean') {
       return rawsyncWithUrl;
     }
 
-    // По умолчанию ВСЁ syncWithUrl, кроме явно отключённых
     return true;
   }
 
@@ -1088,6 +1240,29 @@ export class Router {
     g.history?.replaceState(next, '', visualUrl);
   }
 
+  private replaceUrlSilently(to: string): void {
+    if (!this.isWebEnv()) return;
+    this.suppressHistorySync = true;
+    this.replaceUrl(to, { syncWithUrl: true });
+  }
+
+  private buildUrlFromVisibleRoute(): string | null {
+    const vr = this.visibleRoute;
+    if (!vr || !vr.path) {
+      return null;
+    }
+
+    const path = vr.path;
+    const query = (vr as any).query as Record<string, unknown> | undefined;
+
+    if (!query || Object.keys(query).length === 0) {
+      return path;
+    }
+
+    const search = qs.stringify(query);
+    return `${path}${search}`;
+  }
+
   private patchHistoryOnce(): void {
     const g = globalThis as unknown as {
       history?: {
@@ -1123,12 +1298,6 @@ export class Router {
     g[key] = true;
   }
 
-  /**
-   * Web-only helper: при шаге назад по browser history
-   * сначала пытаемся убрать верхний экран из global-стека (модалка).
-   *
-   * Возвращает true, если что-то реально попнули.
-   */
   private tryPopGlobalForWebBack(): boolean {
     if (!this.global) return false;
 
@@ -1139,14 +1308,13 @@ export class Router {
     }
 
     const top = gslice[gslice.length - 1]!;
-    console.log('[Router] web back: popping global top', {
+
+    this.log('web back: popping global top', {
       key: top.key,
       routeId: top.routeId,
       path: top.path,
     });
 
-    // Для глобального стека нас устраивает обычный pop:
-    // модалка закрывается, стейк табов/рута не трогаем.
     this.applyHistoryChange('pop', top);
     return true;
   }
@@ -1168,6 +1336,14 @@ export class Router {
       }
 
       if (ev.type === 'replaceState') {
+        if (this.suppressHistorySync) {
+          this.log('onHistory: replaceState suppressed (internal URL sync)');
+          this.suppressHistorySync = false;
+          this.lastBrowserIndex = this.getHistoryIndex();
+          this.pendingReplaceDedupe = false;
+          return;
+        }
+
         const path = this.getRouterPathFromHistory();
         const dedupe = this.pendingReplaceDedupe === true;
         this.performNavigation(path, 'replace', { dedupe });
@@ -1177,12 +1353,11 @@ export class Router {
       }
 
       if (ev.type === 'popstate') {
-        // ❗ Дальше ИСПОЛЬЗУЕМ только реальный URL из location
         const url = this.getCurrentUrl();
         const idx = this.getHistoryIndex();
         const delta = idx - this.lastBrowserIndex;
 
-        console.log('[Router] popstate event', {
+        this.log('popstate event', {
           url,
           idx,
           prevIndex: this.lastBrowserIndex,
@@ -1190,33 +1365,22 @@ export class Router {
         });
 
         if (delta < 0) {
-          // Шаг НАЗАД
           const poppedGlobal = this.tryPopGlobalForWebBack();
 
           if (poppedGlobal) {
-            console.log(
-              '[Router] popstate: global popped, syncing stack with URL via replace+dedupe'
+            this.log(
+              'popstate: global popped, syncing stack with URL via replace+dedupe'
             );
           } else {
-            console.log(
-              '[Router] popstate: no global to pop, using replace+dedupe'
-            );
+            this.log('popstate: no global to pop, using replace+dedupe');
           }
 
-          // Синхронизация стека именно с URL из адресной строки
           this.performNavigation(url, 'replace', { dedupe: true });
         } else if (delta > 0) {
-          // Шаг ВПЕРЁД по истории браузера — трактуем как push
-          console.log(
-            '[Router] popstate: forward history step, treat as push',
-            { url }
-          );
+          this.log('popstate: forward history step, treat as push', { url });
           this.performNavigation(url, 'push');
         } else {
-          // Тот же индекс: мягкий replace+dedupe
-          console.log('[Router] popstate: same index, soft replace+dedupe', {
-            url,
-          });
+          this.log('popstate: same index, soft replace+dedupe', { url });
           this.performNavigation(url, 'replace', { dedupe: true });
         }
 
@@ -1229,27 +1393,150 @@ export class Router {
     g.addEventListener?.('popstate', onHistory);
   }
 
-  // =====================
-  // Pop helpers
-  // =====================
+  private syncGlobalStackForUrl(
+    pathname: string,
+    query: Record<string, unknown>
+  ): void {
+    if (!this.global) {
+      return;
+    }
 
-  private popOnce(): void {
-    if (this.tryPopActiveStack()) return;
+    const globalStackId = this.global.getId();
+    const globalSlice = this.getStackHistory(globalStackId);
+    const currentTop = globalSlice.length
+      ? globalSlice[globalSlice.length - 1]
+      : undefined;
+
+    const desired = this.matchGlobalRoute(pathname, query);
+
+    if (!desired) {
+      if (currentTop) {
+        this.log(
+          'syncGlobalStackForUrl: no desired global route, popping existing top',
+          {
+            key: currentTop.key,
+            routeId: currentTop.routeId,
+            path: currentTop.path,
+          }
+        );
+        this.applyHistoryChange('pop', currentTop);
+      } else {
+        this.log(
+          'syncGlobalStackForUrl: no desired global route and no current global top'
+        );
+      }
+      return;
+    }
+
+    if (currentTop && currentTop.routeId === desired.routeId) {
+      const samePath = (currentTop.path ?? '') === pathname;
+      const sameQuery = this.areShallowEqual(
+        (currentTop.query ?? {}) as Record<string, any>,
+        (query ?? {}) as Record<string, any>
+      );
+
+      if (samePath && sameQuery) {
+        this.log(
+          'syncGlobalStackForUrl: desired global already on top, no-op',
+          {
+            routeId: desired.routeId,
+            path: desired.path,
+          }
+        );
+        return;
+      }
+    }
+
+    const matchResult = desired.matchPath(pathname);
+    const params = matchResult ? matchResult.params : undefined;
+
+    const newItem = this.createHistoryItem(desired, params, query, pathname);
+
+    this.log('syncGlobalStackForUrl: pushing desired global item', {
+      routeId: desired.routeId,
+      path: desired.path,
+      stackId: desired.stackId,
+      pathname,
+      query,
+    });
+
+    this.applyHistoryChange('push', newItem);
   }
 
-  private tryPopActiveStack(): boolean {
-    const handlePop = (item: HistoryItem): boolean => {
+  private syncUrlWithStateAfterInternalPop(popped: HistoryItem): void {
+    if (!this.isWebEnv()) return;
+
+    const compiled = this.registry.find((r) => r.routeId === popped.routeId);
+
+    const isQueryGlobal =
+      compiled &&
+      compiled.scope === 'global' &&
+      compiled.queryPattern &&
+      Object.keys(compiled.queryPattern).length > 0;
+
+    if (isQueryGlobal) {
+      const currentUrl = this.getCurrentUrl();
+      const { pathname, query } = this.parsePath(currentUrl);
+
+      const pattern = compiled!.queryPattern!;
+      const nextQuery: Record<string, unknown> = { ...query };
+
+      for (const key of Object.keys(pattern)) {
+        delete nextQuery[key];
+      }
+
+      const hasQuery = Object.keys(nextQuery).length > 0;
+      const newSearch = hasQuery ? qs.stringify(nextQuery) : '';
+
+      const nextUrl = `${pathname}${newSearch}`;
+
+      this.log('syncUrlWithStateAfterInternalPop (query-global)', {
+        poppedRouteId: popped.routeId,
+        from: currentUrl,
+        to: nextUrl,
+      });
+
+      this.replaceUrlSilently(nextUrl);
+      return;
+    }
+
+    const from = this.getCurrentUrl();
+    const nextUrl = this.buildUrlFromVisibleRoute();
+
+    if (!nextUrl) {
+      this.log(
+        'syncUrlWithStateAfterInternalPop: no visibleRoute, skip URL sync',
+        { from }
+      );
+      return;
+    }
+
+    this.log('syncUrlWithStateAfterInternalPop (base/global)', {
+      poppedRouteId: popped.routeId,
+      from,
+      to: nextUrl,
+    });
+
+    this.replaceUrlSilently(nextUrl);
+  }
+
+  private popOnce(): HistoryItem | null {
+    return this.tryPopActiveStack();
+  }
+
+  private tryPopActiveStack(): HistoryItem | null {
+    const handlePop = (item: HistoryItem): HistoryItem => {
       if ((item.options?.stackPresentation as any) === 'sheet') {
         const dismisser = this.sheetDismissers.get(item.key);
         if (dismisser) {
           this.unregisterSheetDismisser(item.key);
           dismisser();
-          return true;
+          return item;
         }
       }
 
       this.applyHistoryChange('pop', item);
-      return true;
+      return item;
     };
 
     if (this.global) {
@@ -1265,9 +1552,9 @@ export class Router {
       const idx = this.getActiveTabIndex();
       const state = this.tabBar.getState();
       const route = state.tabs[idx];
-      if (!route) return false;
+      if (!route) return null;
       const stack = this.tabBar.stacks[route.tabKey];
-      if (!stack) return false;
+      if (!stack) return null;
       const sid = stack.getId();
       const slice = this.getStackHistory(sid);
       if (slice.length > 1) {
@@ -1276,7 +1563,7 @@ export class Router {
           return handlePop(top);
         }
       }
-      return false;
+      return null;
     }
 
     if (isNavigationStackLike(this.root)) {
@@ -1290,22 +1577,26 @@ export class Router {
       }
     }
 
-    return false;
+    return null;
   }
 
-  // =====================
-  // Initial deep-link parsing
-  // =====================
-
-  // Expand deep URL into a stack chain on initial load
   private parse(url: string): void {
     const { pathname, query } = this.parsePath(url);
-    const deepest = this.matchRoute(pathname);
+
+    this.log('parse', { url, pathname, query });
+
+    const deepest = this.matchBaseRoute(pathname, query);
+
     if (!deepest) {
       if (__DEV__) {
-        throw new Error(`Route not found: "${pathname}"`);
+        console.warn(
+          `[Router] parse: no base route found for "${pathname}", seeding initial history and syncing global stack if any`
+        );
       }
+
       this.seedInitialHistory();
+      this.syncGlobalStackForUrl(pathname, query);
+
       this.recomputeVisibleRoute();
       this.emit(this.listeners);
       return;
@@ -1319,71 +1610,123 @@ export class Router {
       this.onTabIndexChange(deepest.tabIndex);
     }
 
-    const parts = pathname.split('/').filter(Boolean);
-    const prefixes: string[] = new Array(parts.length + 1);
-    let acc = '';
-    prefixes[0] = '/';
-    for (let i = 0; i < parts.length; i++) {
-      acc += `/${parts[i]}`;
-      prefixes[i + 1] = acc;
-    }
+    const segments = pathname.split('/').filter(Boolean);
+    const stackId = deepest.stackId;
+    const scope = deepest.scope;
 
-    const candidates: {
-      segmentCount: number;
-      route: CompiledRoute;
-      candidateUrl: string;
-      params?: Record<string, unknown>;
-    }[] = [];
-
-    for (const route of this.registry) {
-      if (route.stackId !== deepest.stackId || route.scope !== deepest.scope) {
-        continue;
-      }
-      const segmentsCount = route.path.split('/').filter(Boolean).length;
-      const candidateUrl = prefixes[segmentsCount];
-      if (!candidateUrl) {
-        continue;
-      }
-      const matchResult = route.match(candidateUrl);
-      if (!matchResult) {
-        continue;
+    if (!stackId) {
+      if (__DEV__) {
+        console.warn(
+          '[Router] parse: deepest route has no stackId, seeding initial history and syncing global stack'
+        );
       }
 
-      candidates.push({
-        params: matchResult.params,
-        segmentCount: segmentsCount,
-        candidateUrl,
-        route,
-      });
-    }
-
-    if (!candidates.length) {
       this.seedInitialHistory();
+      this.syncGlobalStackForUrl(pathname, query);
       this.recomputeVisibleRoute();
       this.emit(this.listeners);
       return;
     }
 
-    candidates.sort((a, b) => a.segmentCount - b.segmentCount);
+    const items: HistoryItem[] = [];
 
-    const items = candidates.map((c, i) =>
-      this.createHistoryItem(
-        c.route,
-        c.params,
-        i === candidates.length - 1 ? query : {},
-        c.candidateUrl
-      )
-    );
+    for (let i = 0; i < segments.length; i++) {
+      const prefixPath = '/' + segments.slice(0, i + 1).join('/');
+
+      this.log('parse prefix', {
+        index: i,
+        prefixPath,
+      });
+
+      let routeForPrefix: CompiledRoute | undefined;
+
+      if (i === segments.length - 1) {
+        routeForPrefix = deepest;
+      } else {
+        let best:
+          | {
+              route: CompiledRoute;
+              spec: number;
+            }
+          | undefined;
+
+        for (const route of this.registry) {
+          if (route.stackId !== stackId || route.scope !== scope) continue;
+
+          if (route.queryPattern) continue;
+
+          const matchResult = route.matchPath(prefixPath);
+          if (!matchResult) continue;
+
+          const spec = route.baseSpecificity;
+
+          this.log('parse candidate for prefix', {
+            prefixPath,
+            routeId: route.routeId,
+            path: route.path,
+            baseSpecificity: spec,
+          });
+
+          if (!best || spec > best.spec) {
+            best = { route, spec };
+          }
+        }
+
+        routeForPrefix = best?.route;
+      }
+
+      if (!routeForPrefix) {
+        this.log('parse: no route for prefix', {
+          index: i,
+          prefixPath,
+        });
+        continue;
+      }
+
+      const matchResult = routeForPrefix.matchPath(prefixPath);
+      const params = matchResult ? matchResult.params : undefined;
+      const itemQuery = i === segments.length - 1 ? query : {};
+
+      const item = this.createHistoryItem(
+        routeForPrefix,
+        params,
+        itemQuery,
+        prefixPath
+      );
+
+      this.log('parse: push item', {
+        index: i,
+        routeId: routeForPrefix.routeId,
+        path: routeForPrefix.path,
+        prefixPath,
+        params,
+        itemQuery,
+      });
+
+      items.push(item);
+    }
+
+    if (!items.length) {
+      if (__DEV__) {
+        console.warn(
+          '[Router] parse: no items built for URL, seeding initial history and syncing global stack'
+        );
+      }
+
+      this.seedInitialHistory();
+      this.syncGlobalStackForUrl(pathname, query);
+      this.recomputeVisibleRoute();
+      this.emit(this.listeners);
+      return;
+    }
 
     this.setState({ history: items });
 
-    // Обновляем срез только для соответствующего стека
-    const sid = (items[0]?.stackId ?? deepest.stackId) as string | undefined;
-    if (sid) {
-      const slice = items.filter((h) => h.stackId === sid);
-      this.stackSlices.set(sid, slice);
-      this.emit(this.stackListeners.get(sid));
-    }
+    const slice = items.filter((h) => h.stackId === stackId);
+    this.stackSlices.set(stackId, slice);
+    this.emit(this.stackListeners.get(stackId));
+
+    this.syncGlobalStackForUrl(pathname, query);
 
     this.recomputeVisibleRoute();
     this.emit(this.listeners);

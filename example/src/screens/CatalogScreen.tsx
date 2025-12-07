@@ -29,8 +29,8 @@ export const CatalogScreen = () => {
           onPress={() => router.navigate('/catalog?search=chair&sort=asc')}
         />
         <Button
-          title="Show Auth (global)"
-          onPress={() => router.navigate('/auth?returnTo=/catalog')}
+          title="Show promo (global)"
+          onPress={() => router.navigate('/catalog?modal=promo')}
         />
         <Button title="Back" onPress={() => router.goBack()} />
       </View>

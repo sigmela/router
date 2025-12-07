@@ -28,16 +28,17 @@ type Direction = 'forward' | 'back';
 /**
  * Development-only logging helper
  */
-const devLog = (message: string, data?: any) => {
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    if (data !== undefined) {
-      // eslint-disable-next-line no-console
-      console.log(message, data);
-    } else {
-      // eslint-disable-next-line no-console
-      console.log(message);
-    }
-  }
+const devLog = (_: string, __?: any) => {
+  // if (false) {
+  //   //if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  //   if (data !== undefined) {
+  //     // eslint-disable-next-line no-console
+  //     console.log(message, data);
+  //   } else {
+  //     // eslint-disable-next-line no-console
+  //     console.log(message);
+  //   }
+  // }
 };
 
 /**
