@@ -37,6 +37,7 @@ export type ScreenOptions = Partial<
   header?: ScreenStackHeaderConfigProps;
   stackPresentation?: StackPresentationTypes;
   convertModalToSheetForAndroid?: boolean;
+  syncWithUrl?: boolean; // default: true
   /**
    * Tab bar icon source for this route (used on web renderer, optional on native).
    */
