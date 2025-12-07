@@ -1260,7 +1260,7 @@ export class Router {
     }
 
     const search = qs.stringify(query);
-    return `${path}${search}`;
+    return `${path}${search && search !== '' ? `?${search}` : ''}`;
   }
 
   private patchHistoryOnce(): void {
