@@ -30,6 +30,7 @@ function useStackHistory(router: Router, stackId?: string) {
     () => (stackId ? router.getStackHistory(stackId) : EMPTY_HISTORY),
     [router, stackId]
   );
+  // useSyncExternalStore для реактивности, но getStackHistory() теперь просто читает готовый массив
   return useSyncExternalStore(subscribe, get, get);
 }
 

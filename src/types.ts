@@ -59,7 +59,7 @@ export type HistoryItem = {
   path?: string;
 };
 
-export type VisibleRoute = {
+export type ActiveRoute = {
   routeId: string;
   stackId?: string;
   tabIndex?: number;

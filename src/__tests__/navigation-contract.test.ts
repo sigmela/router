@@ -8,16 +8,20 @@ function getStackHistoryLength(router: Router, stackId: string): number {
   return router.debugGetStackInfo(stackId).historyLength;
 }
 
-function getVisibleRoutePath(router: Router): string | undefined {
-  return router.debugGetState().visibleRoute?.path;
+function getActiveRoutePath(router: Router): string | undefined {
+  return router.debugGetState().activeRoute?.path;
 }
 
-function getVisibleRouteParams(router: Router): Record<string, unknown> | undefined {
-  return router.debugGetState().visibleRoute?.params;
+function getActiveRouteParams(
+  router: Router
+): Record<string, unknown> | undefined {
+  return router.debugGetState().activeRoute?.params;
 }
 
-function getVisibleRouteQuery(router: Router): Record<string, unknown> | undefined {
-  return router.debugGetState().visibleRoute?.query;
+function getActiveRouteQuery(
+  router: Router
+): Record<string, unknown> | undefined {
+  return router.debugGetState().activeRoute?.query;
 }
 
 // Mock screens
@@ -139,7 +143,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
       const homeStackId = homeStack.getId();
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
-      expect(getVisibleRoutePath(router)).toBe('/');
+      expect(getActiveRoutePath(router)).toBe('/');
     });
 
     test('navigate to catalog path', () => {
@@ -147,7 +151,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: tabBar });
 
       router.navigate('/catalog');
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
     });
 
     test('navigate to settings path', () => {
@@ -155,7 +159,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: tabBar });
 
       router.navigate('/settings');
-      expect(getVisibleRoutePath(router)).toBe('/settings');
+      expect(getActiveRoutePath(router)).toBe('/settings');
     });
 
     test('navigate to orders path', () => {
@@ -163,7 +167,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: tabBar });
 
       router.navigate('/orders');
-      expect(getVisibleRoutePath(router)).toBe('/orders');
+      expect(getActiveRoutePath(router)).toBe('/orders');
     });
   });
 
@@ -173,9 +177,9 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: tabBar });
 
       router.navigate('/catalog/products/123');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/catalog/products/123');
-      expect(visibleRoute?.params?.productId).toBe('123');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/catalog/products/123');
+      expect(activeRoute?.params?.productId).toBe('123');
     });
 
     test('navigate to orders with year and month parameters', () => {
@@ -183,10 +187,10 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: tabBar });
 
       router.navigate('/orders/2024/12');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/orders/2024/12');
-      expect(visibleRoute?.params?.year).toBe('2024');
-      expect(visibleRoute?.params?.month).toBe('12');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/orders/2024/12');
+      expect(activeRoute?.params?.year).toBe('2024');
+      expect(activeRoute?.params?.month).toBe('12');
     });
 
     test('navigate to user with userId parameter', () => {
@@ -201,9 +205,9 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: rootStackWithUser });
 
       router.navigate('/users/42');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/users/42');
-      expect(visibleRoute?.params?.userId).toBe('42');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/users/42');
+      expect(activeRoute?.params?.userId).toBe('42');
     });
 
     test('navigate to user details with userId parameter', () => {
@@ -218,9 +222,9 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: rootStackWithUser });
 
       router.navigate('/users/42/details');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/users/42/details');
-      expect(visibleRoute?.params?.userId).toBe('42');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/users/42/details');
+      expect(activeRoute?.params?.userId).toBe('42');
     });
   });
 
@@ -230,9 +234,9 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: rootStack });
 
       router.navigate('/auth?kind=email');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/auth');
-      expect(visibleRoute?.query?.kind).toBe('email');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/auth');
+      expect(activeRoute?.query?.kind).toBe('email');
     });
 
     test('navigate to auth with sms kind query', () => {
@@ -240,9 +244,9 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: rootStack });
 
       router.navigate('/auth?kind=sms');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/auth');
-      expect(visibleRoute?.query?.kind).toBe('sms');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/auth');
+      expect(activeRoute?.query?.kind).toBe('sms');
     });
 
     test('navigate to auth with generic kind query parameter', () => {
@@ -250,9 +254,9 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: rootStack });
 
       router.navigate('/auth?kind=google');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/auth');
-      expect(visibleRoute?.query?.kind).toBe('google');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/auth');
+      expect(activeRoute?.query?.kind).toBe('google');
     });
 
     test('navigate to auth with multiple query parameters', () => {
@@ -260,9 +264,9 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: rootStack });
 
       router.navigate('/auth?kind=email&redirect=/home');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toContain('/auth');
-      expect(visibleRoute?.query?.kind).toBe('email');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toContain('/auth');
+      expect(activeRoute?.query?.kind).toBe('email');
     });
   });
 
@@ -272,8 +276,8 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: rootStack });
 
       router.navigate('/auth');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/auth');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/auth');
     });
 
     test('navigate to promo modal with wildcard', () => {
@@ -281,8 +285,8 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const router = new Router({ root: rootStack });
 
       router.navigate('/catalog?modal=promo');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.query?.modal).toBe('promo');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.query?.modal).toBe('promo');
     });
 
     test('navigate to promo modal from any path', () => {
@@ -291,8 +295,8 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
       router.navigate('/settings');
       router.navigate('/settings?modal=promo');
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.query?.modal).toBe('promo');
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.query?.modal).toBe('promo');
     });
   });
 
@@ -308,24 +312,24 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const settingsStackId = settingsStack.getId();
 
       // Start at home
-      expect(getVisibleRoutePath(router)).toBe('/');
+      expect(getActiveRoutePath(router)).toBe('/');
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
 
       // Navigate to catalog tab
       router.navigate('/catalog');
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
       expect(getStackHistoryLength(router, homeStackId)).toBe(1); // Preserved
 
       // Navigate to orders tab
       router.navigate('/orders');
-      expect(getVisibleRoutePath(router)).toBe('/orders');
+      expect(getActiveRoutePath(router)).toBe('/orders');
       expect(getStackHistoryLength(router, ordersStackId)).toBe(1);
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1); // Preserved
 
       // Navigate to settings tab
       router.navigate('/settings');
-      expect(getVisibleRoutePath(router)).toBe('/settings');
+      expect(getActiveRoutePath(router)).toBe('/settings');
       expect(getStackHistoryLength(router, settingsStackId)).toBe(1);
       expect(getStackHistoryLength(router, ordersStackId)).toBe(1); // Preserved
     });
@@ -341,18 +345,18 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       router.navigate('/catalog');
       router.navigate('/catalog/products/123');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
-      expect(getVisibleRoutePath(router)).toBe('/catalog/products/123');
+      expect(getActiveRoutePath(router)).toBe('/catalog/products/123');
 
       // Switch to settings
       router.navigate('/settings');
-      expect(getVisibleRoutePath(router)).toBe('/settings');
+      expect(getActiveRoutePath(router)).toBe('/settings');
       expect(getStackHistoryLength(router, settingsStackId)).toBe(1);
 
       // Catalog stack should preserve its state
       expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
-      expect(
-        router.debugGetStackInfo(catalogStackId).items[1]?.path
-      ).toBe('/catalog/products/123');
+      expect(router.debugGetStackInfo(catalogStackId).items[1]?.path).toBe(
+        '/catalog/products/123'
+      );
     });
 
     test('switch to home tab after switching to another tab with same root path', () => {
@@ -364,27 +368,27 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const rootStackId = rootStack.getId();
 
       // Start at home (path is '/')
-      expect(getVisibleRoutePath(router)).toBe('/');
+      expect(getActiveRoutePath(router)).toBe('/');
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
-      
+
       // Check that visible route is from home stack, not root stack
-      const visibleRoute = router.getVisibleRoute();
-      expect(visibleRoute?.stackId).toBe(homeStackId);
+      const activeRoute = router.getActiveRoute();
+      expect(activeRoute?.stackId).toBe(homeStackId);
 
       // Switch to catalog tab
       router.navigate('/catalog');
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
       expect(getStackHistoryLength(router, homeStackId)).toBe(1); // Preserved
 
       // Switch back to home tab (path is '/')
       router.navigate('/');
-      
+
       // Should be on home stack, not root stack
-      expect(getVisibleRoutePath(router)).toBe('/');
-      const visibleRouteAfterSwitch = router.getVisibleRoute();
-      expect(visibleRouteAfterSwitch?.stackId).toBe(homeStackId);
-      expect(visibleRouteAfterSwitch?.stackId).not.toBe(rootStackId);
+      expect(getActiveRoutePath(router)).toBe('/');
+      const activeRouteAfterSwitch = router.getActiveRoute();
+      expect(activeRouteAfterSwitch?.stackId).toBe(homeStackId);
+      expect(activeRouteAfterSwitch?.stackId).not.toBe(rootStackId);
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1); // Preserved
     });
@@ -398,27 +402,27 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const rootStackId = rootStack.getId();
 
       // Start at home (path is '/')
-      expect(getVisibleRoutePath(router)).toBe('/');
+      expect(getActiveRoutePath(router)).toBe('/');
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
-      
+
       // Check that visible route is from home stack, not root stack
-      const visibleRoute = router.getVisibleRoute();
-      expect(visibleRoute?.stackId).toBe(homeStackId);
+      const activeRoute = router.getActiveRoute();
+      expect(activeRoute?.stackId).toBe(homeStackId);
 
       // Navigate to orders tab
       router.navigate('/orders');
-      expect(getVisibleRoutePath(router)).toBe('/orders');
+      expect(getActiveRoutePath(router)).toBe('/orders');
       expect(getStackHistoryLength(router, ordersStackId)).toBe(1);
       expect(getStackHistoryLength(router, homeStackId)).toBe(1); // Preserved
 
       // Switch back to home tab (path is '/') using replace (like tab switching does)
       router.replace('/', true);
-      
+
       // Should be on home stack, not root stack
-      expect(getVisibleRoutePath(router)).toBe('/');
-      const visibleRouteAfterSwitch = router.getVisibleRoute();
-      expect(visibleRouteAfterSwitch?.stackId).toBe(homeStackId);
-      expect(visibleRouteAfterSwitch?.stackId).not.toBe(rootStackId);
+      expect(getActiveRoutePath(router)).toBe('/');
+      const activeRouteAfterSwitch = router.getActiveRoute();
+      expect(activeRouteAfterSwitch?.stackId).toBe(homeStackId);
+      expect(activeRouteAfterSwitch?.stackId).not.toBe(rootStackId);
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
       expect(getStackHistoryLength(router, ordersStackId)).toBe(1); // Preserved
     });
@@ -432,29 +436,29 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       const rootStackId = rootStack.getId();
 
       // Start at home (path is '/') - default initial route
-      expect(getVisibleRoutePath(router)).toBe('/');
+      expect(getActiveRoutePath(router)).toBe('/');
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
-      
+
       // Navigate to catalog tab (initial state)
       router.navigate('/catalog');
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
       expect(getStackHistoryLength(router, homeStackId)).toBe(1); // Preserved
-      
+
       // Check that visible route is from catalog stack
-      const visibleRouteBeforeSwitch = router.getVisibleRoute();
-      expect(visibleRouteBeforeSwitch?.stackId).toBe(catalogStackId);
+      const activeRouteBeforeSwitch = router.getActiveRoute();
+      expect(activeRouteBeforeSwitch?.stackId).toBe(catalogStackId);
 
       // Switch to home tab (path is '/') using replace (like tab switching does)
       router.replace('/', true);
-      
+
       // Should be on home stack, not root stack
-      expect(getVisibleRoutePath(router)).toBe('/');
-      const visibleRouteAfterSwitch = router.getVisibleRoute();
-      expect(visibleRouteAfterSwitch?.stackId).toBe(homeStackId);
-      expect(visibleRouteAfterSwitch?.stackId).not.toBe(rootStackId);
-      expect(visibleRouteAfterSwitch?.stackId).not.toBe(catalogStackId);
-      
+      expect(getActiveRoutePath(router)).toBe('/');
+      const activeRouteAfterSwitch = router.getActiveRoute();
+      expect(activeRouteAfterSwitch?.stackId).toBe(homeStackId);
+      expect(activeRouteAfterSwitch?.stackId).not.toBe(rootStackId);
+      expect(activeRouteAfterSwitch?.stackId).not.toBe(catalogStackId);
+
       // History should be preserved
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1); // Preserved
@@ -473,15 +477,15 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
       router.navigate('/catalog/products/1');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
-      expect(getVisibleRouteParams(router)?.productId).toBe('1');
+      expect(getActiveRouteParams(router)?.productId).toBe('1');
 
       router.navigate('/catalog/products/2');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(3);
-      expect(getVisibleRouteParams(router)?.productId).toBe('2');
+      expect(getActiveRouteParams(router)?.productId).toBe('2');
 
       router.navigate('/catalog/products/3');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(4);
-      expect(getVisibleRouteParams(router)?.productId).toBe('3');
+      expect(getActiveRouteParams(router)?.productId).toBe('3');
     });
 
     test('navigate through orders with different dates', () => {
@@ -495,12 +499,12 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
       router.navigate('/orders/2024/1');
       expect(getStackHistoryLength(router, ordersStackId)).toBe(2);
-      expect(getVisibleRouteParams(router)?.year).toBe('2024');
-      expect(getVisibleRouteParams(router)?.month).toBe('1');
+      expect(getActiveRouteParams(router)?.year).toBe('2024');
+      expect(getActiveRouteParams(router)?.month).toBe('1');
 
       router.navigate('/orders/2024/2');
       expect(getStackHistoryLength(router, ordersStackId)).toBe(3);
-      expect(getVisibleRouteParams(router)?.month).toBe('2');
+      expect(getActiveRouteParams(router)?.month).toBe('2');
     });
 
     test('navigate to same path should not duplicate', () => {
@@ -543,7 +547,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
       router.goBack();
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
     });
 
     test('goBack from root should not go below root', () => {
@@ -571,15 +575,15 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
       router.goBack();
       expect(getStackHistoryLength(router, catalogStackId)).toBe(3);
-      expect(getVisibleRouteParams(router)?.productId).toBe('2');
+      expect(getActiveRouteParams(router)?.productId).toBe('2');
 
       router.goBack();
       expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
-      expect(getVisibleRouteParams(router)?.productId).toBe('1');
+      expect(getActiveRouteParams(router)?.productId).toBe('1');
 
       router.goBack();
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
     });
   });
 
@@ -590,11 +594,11 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
       router.navigate('/catalog');
       router.navigate('/catalog/products/123');
-      expect(getVisibleRouteParams(router)?.productId).toBe('123');
+      expect(getActiveRouteParams(router)?.productId).toBe('123');
 
       router.goBack();
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
-      expect(getVisibleRouteParams(router)).toBeUndefined();
+      expect(getActiveRoutePath(router)).toBe('/catalog');
+      expect(getActiveRouteParams(router)).toBeUndefined();
     });
 
     test('goBack from orders detail to orders list', () => {
@@ -603,12 +607,12 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
       router.navigate('/orders');
       router.navigate('/orders/2024/12');
-      expect(getVisibleRouteParams(router)?.year).toBe('2024');
-      expect(getVisibleRouteParams(router)?.month).toBe('12');
+      expect(getActiveRouteParams(router)?.year).toBe('2024');
+      expect(getActiveRouteParams(router)?.month).toBe('12');
 
       router.goBack();
-      expect(getVisibleRoutePath(router)).toBe('/orders');
-      expect(getVisibleRouteParams(router)).toBeUndefined();
+      expect(getActiveRoutePath(router)).toBe('/orders');
+      expect(getActiveRouteParams(router)).toBeUndefined();
     });
 
     test('goBack from user details to user', () => {
@@ -624,12 +628,12 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
       router.navigate('/users/42');
       router.navigate('/users/42/details');
-      expect(getVisibleRouteParams(router)?.userId).toBe('42');
-      expect(getVisibleRoutePath(router)).toBe('/users/42/details');
+      expect(getActiveRouteParams(router)?.userId).toBe('42');
+      expect(getActiveRoutePath(router)).toBe('/users/42/details');
 
       router.goBack();
-      expect(getVisibleRoutePath(router)).toBe('/users/42');
-      expect(getVisibleRouteParams(router)?.userId).toBe('42');
+      expect(getActiveRoutePath(router)).toBe('/users/42');
+      expect(getActiveRouteParams(router)?.userId).toBe('42');
     });
   });
 
@@ -640,12 +644,12 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
       router.navigate('/auth');
       router.navigate('/auth?kind=email');
-      expect(getVisibleRouteQuery(router)?.kind).toBe('email');
+      expect(getActiveRouteQuery(router)?.kind).toBe('email');
 
       router.goBack();
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/');
-      expect(visibleRoute?.query?.kind).toBeUndefined();
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/');
+      expect(activeRoute?.query?.kind).toBeUndefined();
     });
 
     test('goBack through multiple auth modals', () => {
@@ -655,28 +659,28 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       router.navigate('/auth');
       router.navigate('/auth?kind=email');
       router.navigate('/auth?kind=sms');
-      expect(getVisibleRouteQuery(router)?.kind).toBe('sms');
+      expect(getActiveRouteQuery(router)?.kind).toBe('sms');
 
       router.goBack();
-      expect(getVisibleRouteQuery(router)?.kind).toBeUndefined();
+      expect(getActiveRouteQuery(router)?.kind).toBeUndefined();
 
       router.goBack();
-      const visibleRoute = router.debugGetState().visibleRoute;
-      expect(visibleRoute?.path).toBe('/');
-      expect(visibleRoute?.query?.kind).toBeUndefined();
+      const activeRoute = router.debugGetState().activeRoute;
+      expect(activeRoute?.path).toBe('/');
+      expect(activeRoute?.query?.kind).toBeUndefined();
     });
   });
 
   describe('goBack from modals', () => {
     test('goBack from promo modal on initial render with modal in URL', () => {
       const { rootStack, catalogStack } = buildTestStacks();
-      
+
       // Симулируем initial render с модалкой в URL
       // В веб-окружении Router автоматически парсит URL при инициализации
       const g = globalThis as unknown as {
         location?: { pathname: string; search: string };
-        history?: { 
-          state: unknown; 
+        history?: {
+          state: unknown;
           replaceState: (data: unknown, unused: string, url?: string) => void;
           pushState: (data: unknown, unused: string, url?: string) => void;
         };
@@ -684,22 +688,25 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
         dispatchEvent?: (ev: Event) => boolean;
         Event?: new (type: string) => Event;
       };
-      
+
       // Сохраняем оригинальные значения
       const originalLocation = g.location;
       const originalHistory = g.history;
       const originalAddEventListener = g.addEventListener;
       const originalDispatchEvent = g.dispatchEvent;
       const originalEvent = g.Event;
-      
+
       // Мокаем location для initial render с /catalog?modal=promo
       g.location = {
         pathname: '/catalog',
         search: '?modal=promo',
       };
-      
+
       // Мокаем history для веб-окружения
-      const mockHistoryState = { __srIndex: 0, __srPath: '/catalog?modal=promo' };
+      const mockHistoryState = {
+        __srIndex: 0,
+        __srPath: '/catalog?modal=promo',
+      };
       g.history = {
         state: mockHistoryState,
         replaceState: (data: unknown) => {
@@ -707,7 +714,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
         },
         pushState: () => {},
       } as any;
-      
+
       // Мокаем addEventListener для веб-окружения
       const eventListeners = new Map<string, Set<(ev: Event) => void>>();
       g.addEventListener = (type: string, cb: (ev: Event) => void) => {
@@ -716,50 +723,54 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
         }
         eventListeners.get(type)!.add(cb);
       };
-      
+
       g.dispatchEvent = (ev: Event) => {
         const listeners = eventListeners.get(ev.type);
         if (listeners) {
-          listeners.forEach(cb => cb(ev));
+          listeners.forEach((cb) => cb(ev));
         }
         return true;
       };
-      
+
       g.Event = class MockEvent {
         type: string;
         constructor(type: string) {
           this.type = type;
         }
       } as any;
-      
+
       const router = new Router({ root: rootStack, debug: true });
 
       const catalogStackId = catalogStack.getId();
       const rootStackId = rootStack.getId();
 
       // Проверяем, что модалка видна
-      expect(getVisibleRouteQuery(router)?.modal).toBe('promo');
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
-      
+      expect(getActiveRouteQuery(router)?.modal).toBe('promo');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
+
       // Проверяем, что в истории есть базовый маршрут /catalog
       const catalogStackInfo = router.debugGetStackInfo(catalogStackId);
       expect(catalogStackInfo.historyLength).toBeGreaterThan(0);
-      const hasCatalogRoute = catalogStackInfo.items.some(item => item.path === '/catalog');
+      const hasCatalogRoute = catalogStackInfo.items.some(
+        (item) => item.path === '/catalog'
+      );
       expect(hasCatalogRoute).toBe(true);
-      
+
       // Проверяем, что в root stack есть модалка
       const rootStackInfo = router.debugGetStackInfo(rootStackId);
-      const hasModalRoute = rootStackInfo.items.some(item => item.query?.modal === 'promo');
+      const hasModalRoute = rootStackInfo.items.some(
+        (item) => item.query?.modal === 'promo'
+      );
       expect(hasModalRoute).toBe(true);
 
       // Вызываем goBack - должен вернуться на /catalog
       router.goBack();
-      
+
       // После goBack модалка должна закрыться, видимым должен быть /catalog
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
-      expect(getVisibleRouteQuery(router)?.modal).toBeUndefined();
+      expect(getActiveRoutePath(router)).toBe('/catalog');
+      expect(getActiveRouteQuery(router)?.modal).toBeUndefined();
       expect(getStackHistoryLength(router, catalogStackId)).toBeGreaterThan(0);
-      
+
       // Восстанавливаем оригинальные значения
       g.location = originalLocation;
       g.history = originalHistory;
@@ -770,12 +781,12 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
     test('switch to home tab after initial render on /catalog via URL', () => {
       const { rootStack, homeStack, catalogStack } = buildTestStacks();
-      
+
       // Симулируем initial render на /catalog через URL
       const g = globalThis as unknown as {
         location?: { pathname: string; search: string };
-        history?: { 
-          state: unknown; 
+        history?: {
+          state: unknown;
           replaceState: (data: unknown, unused: string, url?: string) => void;
           pushState: (data: unknown, unused: string, url?: string) => void;
         };
@@ -783,20 +794,20 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
         dispatchEvent?: (ev: Event) => boolean;
         Event?: new (type: string) => Event;
       };
-      
+
       // Сохраняем оригинальные значения
       const originalLocation = g.location;
       const originalHistory = g.history;
       const originalAddEventListener = g.addEventListener;
       const originalDispatchEvent = g.dispatchEvent;
       const originalEvent = g.Event;
-      
+
       // Мокаем location для initial render на /catalog
       g.location = {
         pathname: '/catalog',
         search: '',
       };
-      
+
       // Мокаем history для веб-окружения
       const mockHistoryState = { __srIndex: 0, __srPath: '/catalog' };
       g.history = {
@@ -806,7 +817,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
         },
         pushState: () => {},
       } as any;
-      
+
       // Мокаем addEventListener для веб-окружения
       const eventListeners = new Map<string, Set<(ev: Event) => void>>();
       g.addEventListener = (type: string, cb: (ev: Event) => void) => {
@@ -815,22 +826,22 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
         }
         eventListeners.get(type)!.add(cb);
       };
-      
+
       g.dispatchEvent = (ev: Event) => {
         const listeners = eventListeners.get(ev.type);
         if (listeners) {
-          listeners.forEach(cb => cb(ev));
+          listeners.forEach((cb) => cb(ev));
         }
         return true;
       };
-      
+
       g.Event = class MockEvent {
         type: string;
         constructor(type: string) {
           this.type = type;
         }
       } as any;
-      
+
       const router = new Router({ root: rootStack, debug: true });
 
       const homeStackId = homeStack.getId();
@@ -838,27 +849,27 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       const rootStackId = rootStack.getId();
 
       // Проверяем, что initial render был на /catalog
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
-      const visibleRouteBeforeSwitch = router.getVisibleRoute();
-      expect(visibleRouteBeforeSwitch?.stackId).toBe(catalogStackId);
-      
+      expect(getActiveRoutePath(router)).toBe('/catalog');
+      const activeRouteBeforeSwitch = router.getActiveRoute();
+      expect(activeRouteBeforeSwitch?.stackId).toBe(catalogStackId);
+
       // Проверяем, что в истории есть /catalog
       expect(getStackHistoryLength(router, catalogStackId)).toBeGreaterThan(0);
-      
+
       // Switch to home tab (path is '/') using replace (like tab switching does)
       router.replace('/', true);
-      
+
       // Should be on home stack, not root stack or catalog stack
-      expect(getVisibleRoutePath(router)).toBe('/');
-      const visibleRouteAfterSwitch = router.getVisibleRoute();
-      expect(visibleRouteAfterSwitch?.stackId).toBe(homeStackId);
-      expect(visibleRouteAfterSwitch?.stackId).not.toBe(rootStackId);
-      expect(visibleRouteAfterSwitch?.stackId).not.toBe(catalogStackId);
-      
+      expect(getActiveRoutePath(router)).toBe('/');
+      const activeRouteAfterSwitch = router.getActiveRoute();
+      expect(activeRouteAfterSwitch?.stackId).toBe(homeStackId);
+      expect(activeRouteAfterSwitch?.stackId).not.toBe(rootStackId);
+      expect(activeRouteAfterSwitch?.stackId).not.toBe(catalogStackId);
+
       // History should be preserved
       expect(getStackHistoryLength(router, homeStackId)).toBeGreaterThan(0);
       expect(getStackHistoryLength(router, catalogStackId)).toBeGreaterThan(0); // Preserved
-      
+
       // Восстанавливаем оригинальные значения
       g.location = originalLocation;
       g.history = originalHistory;
@@ -881,22 +892,24 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       console.log('Root stack:', router.debugGetStackInfo(rootStackId));
 
       console.log('\nDebug match for /catalog?modal=promo:');
-      console.log(JSON.stringify(router.debugMatchRoute('/catalog?modal=promo'), null, 2));
-      
+      console.log(
+        JSON.stringify(router.debugMatchRoute('/catalog?modal=promo'), null, 2)
+      );
+
       router.navigate('/catalog?modal=promo');
       console.log('\nAfter navigate to /catalog?modal=promo:');
       console.log(JSON.stringify(router.debugGetState(), null, 2));
       console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
       console.log('Root stack:', router.debugGetStackInfo(rootStackId));
-      expect(getVisibleRouteQuery(router)?.modal).toBe('promo');
+      expect(getActiveRouteQuery(router)?.modal).toBe('promo');
 
       router.goBack();
       console.log('\nAfter goBack:');
       console.log(JSON.stringify(router.debugGetState(), null, 2));
       console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
       console.log('Root stack:', router.debugGetStackInfo(rootStackId));
-      console.log('Visible route:', router.debugGetState().visibleRoute);
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      console.log('Active route:', router.debugGetState().activeRoute);
+      expect(getActiveRoutePath(router)).toBe('/catalog');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
     });
 
@@ -906,10 +919,10 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
       router.navigate('/catalog');
       router.navigate('/auth');
-      expect(getVisibleRoutePath(router)).toBe('/auth');
+      expect(getActiveRoutePath(router)).toBe('/auth');
 
       router.goBack();
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
     });
   });
 
@@ -922,7 +935,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       const homeStackId = homeStack.getId();
 
       // Start at home
-      expect(getVisibleRoutePath(router)).toBe('/');
+      expect(getActiveRoutePath(router)).toBe('/');
 
       // Navigate to catalog and deep
       router.navigate('/catalog');
@@ -932,7 +945,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       // goBack should work within catalog stack
       router.goBack();
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
 
       // Home stack should be preserved
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
@@ -967,13 +980,13 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       console.log(JSON.stringify(router.debugGetState(), null, 2));
       console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
       console.log('Orders stack:', router.debugGetStackInfo(ordersStackId));
-      console.log('Visible route:', router.debugGetState().visibleRoute);
+      console.log('Active route:', router.debugGetState().activeRoute);
       expect(getStackHistoryLength(router, ordersStackId)).toBe(1); // Can't go below root
 
       // Switch back to catalog - restore top
       router.navigate('/catalog');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
-      expect(getVisibleRoutePath(router)).toBe('/catalog');
+      expect(getActiveRoutePath(router)).toBe('/catalog');
     });
   });
 
@@ -998,7 +1011,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       console.log(JSON.stringify(router.debugGetState(), null, 2));
       console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
       console.log('Root stack:', router.debugGetStackInfo(rootStackId));
-      expect(getVisibleRouteQuery(router)?.modal).toBe('promo');
+      expect(getActiveRouteQuery(router)?.modal).toBe('promo');
 
       // Close modal
       router.goBack();
@@ -1006,12 +1019,12 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       console.log(JSON.stringify(router.debugGetState(), null, 2));
       console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
       console.log('Root stack:', router.debugGetStackInfo(rootStackId));
-      console.log('Visible route:', router.debugGetState().visibleRoute);
-      expect(getVisibleRoutePath(router)).toBe('/catalog/products/2');
+      console.log('Active route:', router.debugGetState().activeRoute);
+      expect(getActiveRoutePath(router)).toBe('/catalog/products/2');
 
       // Continue going back
       router.goBack();
-      expect(getVisibleRoutePath(router)).toBe('/catalog/products/1');
+      expect(getActiveRoutePath(router)).toBe('/catalog/products/1');
 
       router.goBack();
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
@@ -1030,14 +1043,14 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
       router.navigate('/users/42');
       router.navigate('/users/42/details');
-      expect(getVisibleRoutePath(router)).toBe('/users/42/details');
+      expect(getActiveRoutePath(router)).toBe('/users/42/details');
 
       router.goBack();
-      expect(getVisibleRoutePath(router)).toBe('/users/42');
+      expect(getActiveRoutePath(router)).toBe('/users/42');
 
       router.goBack();
       // Should go back to root tab
-      expect(getVisibleRoutePath(router)).toBe('/');
+      expect(getActiveRoutePath(router)).toBe('/');
     });
 
     test('goBack with replace operations', () => {
@@ -1058,7 +1071,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       // goBack should go to product 1, not product 2
       router.goBack();
       expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
-      expect(getVisibleRouteParams(router)?.productId).toBe('1');
+      expect(getActiveRouteParams(router)?.productId).toBe('1');
     });
   });
 });
@@ -1075,11 +1088,11 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
     expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
 
     router.goBack();
-      expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
+    expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
 
     router.navigate('/catalog/products/2');
     expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
-    expect(getVisibleRouteParams(router)?.productId).toBe('2');
+    expect(getActiveRouteParams(router)?.productId).toBe('2');
   });
 
   test('navigate to different tabs, goBack preserves state', () => {
@@ -1110,7 +1123,7 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
     console.log(JSON.stringify(router.debugGetState(), null, 2));
     console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
     console.log('Orders stack:', router.debugGetStackInfo(ordersStackId));
-    console.log('Visible route:', router.debugGetState().visibleRoute);
+    console.log('Active route:', router.debugGetState().activeRoute);
     expect(getStackHistoryLength(router, ordersStackId)).toBe(1);
 
     // Switch back to catalog - should restore state
@@ -1119,14 +1132,14 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
     console.log(JSON.stringify(router.debugGetState(), null, 2));
     console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
     console.log('Orders stack:', router.debugGetStackInfo(ordersStackId));
-    console.log('Visible route:', router.debugGetState().visibleRoute);
+    console.log('Active route:', router.debugGetState().activeRoute);
     expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
-    expect(getVisibleRouteParams(router)?.productId).toBe('123');
+    expect(getActiveRouteParams(router)?.productId).toBe('123');
 
     // goBack in catalog
     router.goBack();
-      expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
-    expect(getVisibleRoutePath(router)).toBeDefined();
+    expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
+    expect(getActiveRoutePath(router)).toBeDefined();
   });
 
   test('navigate with query, goBack, navigate with different query', () => {
@@ -1134,14 +1147,14 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
     const router = new Router({ root: rootStack });
 
     router.navigate('/auth?kind=email');
-    expect(getVisibleRouteQuery(router)?.kind).toBe('email');
+    expect(getActiveRouteQuery(router)?.kind).toBe('email');
 
     router.goBack();
-    const visibleRoute = router.debugGetState().visibleRoute;
-    expect(visibleRoute?.path).toBe('/');
+    const activeRoute = router.debugGetState().activeRoute;
+    expect(activeRoute?.path).toBe('/');
 
     router.navigate('/auth?kind=sms');
-    expect(getVisibleRouteQuery(router)?.kind).toBe('sms');
+    expect(getActiveRouteQuery(router)?.kind).toBe('sms');
   });
 
   test('complex flow: tabs -> deep navigation -> modal -> goBack chain', () => {
@@ -1152,7 +1165,7 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
     const rootStackId = rootStack.getId();
 
     // Start at home
-    expect(getVisibleRoutePath(router)).toBe('/');
+    expect(getActiveRoutePath(router)).toBe('/');
     console.log('Initial state:');
     console.log(JSON.stringify(router.debugGetState(), null, 2));
 
@@ -1160,7 +1173,7 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
     router.navigate('/catalog');
     console.log('\nAfter navigate to /catalog:');
     console.log(JSON.stringify(router.debugGetState(), null, 2));
-      expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
+    expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
 
     // Navigate deep
     router.navigate('/catalog/products/1');
@@ -1175,23 +1188,23 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
     console.log(JSON.stringify(router.debugGetState(), null, 2));
     console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
     console.log('Root stack:', router.debugGetStackInfo(rootStackId));
-    expect(router.getVisibleRoute()?.query?.modal).toBe('promo');
+    expect(router.getActiveRoute()?.query?.modal).toBe('promo');
 
     // Close modal
     router.goBack();
-      console.log('\nAfter goBack (close modal):');
-      console.log(JSON.stringify(router.debugGetState(), null, 2));
-      console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
-      console.log('Root stack:', router.debugGetStackInfo(rootStackId));
-      console.log('Visible route:', router.debugGetState().visibleRoute);
-      expect(getVisibleRoutePath(router)).toBe('/catalog/products/2');
+    console.log('\nAfter goBack (close modal):');
+    console.log(JSON.stringify(router.debugGetState(), null, 2));
+    console.log('Catalog stack:', router.debugGetStackInfo(catalogStackId));
+    console.log('Root stack:', router.debugGetStackInfo(rootStackId));
+    console.log('Active route:', router.debugGetState().activeRoute);
+    expect(getActiveRoutePath(router)).toBe('/catalog/products/2');
 
     // Continue going back
-      router.goBack();
-      expect(getVisibleRoutePath(router)).toBe('/catalog/products/1');
-      router.goBack();
-      expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
-    expect(getVisibleRoutePath(router)).toBe('/catalog');
+    router.goBack();
+    expect(getActiveRoutePath(router)).toBe('/catalog/products/1');
+    router.goBack();
+    expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
+    expect(getActiveRoutePath(router)).toBe('/catalog');
   });
 });
 
@@ -1322,8 +1335,10 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
       // Switch back to catalog tab
       router.navigate('/catalog/products/123');
-      const catalogHistoryAfter = router.debugGetStackInfo(catalogStackId).items;
-      const catalogKeyAfter = catalogHistoryAfter[catalogHistoryAfter.length - 1]?.key;
+      const catalogHistoryAfter =
+        router.debugGetStackInfo(catalogStackId).items;
+      const catalogKeyAfter =
+        catalogHistoryAfter[catalogHistoryAfter.length - 1]?.key;
 
       // Key should be preserved
       expect(catalogKeyAfter).toBe(catalogKey);
@@ -1346,8 +1361,10 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
       // Switch back to catalog (same route)
       router.navigate('/catalog');
-      const catalogHistoryAfter = router.debugGetStackInfo(catalogStackId).items;
-      const catalogKeyAfter = catalogHistoryAfter[catalogHistoryAfter.length - 1]?.key;
+      const catalogHistoryAfter =
+        router.debugGetStackInfo(catalogStackId).items;
+      const catalogKeyAfter =
+        catalogHistoryAfter[catalogHistoryAfter.length - 1]?.key;
 
       // Key should be preserved
       expect(catalogKeyAfter).toBe(catalogKey);
@@ -1404,12 +1421,12 @@ describe('Navigation Contract Tests - Key Preservation', () => {
       router.navigate('/catalog/products/456');
 
       const historyBefore = router.debugGetStackInfo(catalogStackId).items;
-      const keysBefore = historyBefore.map(item => item.key);
+      const keysBefore = historyBefore.map((item) => item.key);
 
       router.goBack();
 
       const historyAfter = router.debugGetStackInfo(catalogStackId).items;
-      const keysAfter = historyAfter.map(item => item.key);
+      const keysAfter = historyAfter.map((item) => item.key);
 
       // Keys should be preserved (only last item removed)
       expect(keysAfter).toEqual(keysBefore.slice(0, -1));
@@ -1471,13 +1488,16 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
       // Navigate through catalog
       router.navigate('/catalog');
-      const catalogKey1 = router.debugGetStackInfo(catalogStackId).items[0]?.key;
+      const catalogKey1 =
+        router.debugGetStackInfo(catalogStackId).items[0]?.key;
 
       router.navigate('/catalog/products/1');
-      const product1Key = router.debugGetStackInfo(catalogStackId).items[1]?.key;
+      const product1Key =
+        router.debugGetStackInfo(catalogStackId).items[1]?.key;
 
       router.navigate('/catalog/products/2');
-      const product2Key = router.debugGetStackInfo(catalogStackId).items[2]?.key;
+      const product2Key =
+        router.debugGetStackInfo(catalogStackId).items[2]?.key;
 
       // Open modal
       router.navigate('/catalog/products/2?modal=promo');
@@ -1486,20 +1506,25 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
       // Close modal
       router.goBack();
-      const product2KeyAfter = router.debugGetStackInfo(catalogStackId).items[2]?.key;
+      const product2KeyAfter =
+        router.debugGetStackInfo(catalogStackId).items[2]?.key;
 
       // All keys should be preserved
-      expect(router.debugGetStackInfo(catalogStackId).items[0]?.key).toBe(catalogKey1);
+      expect(router.debugGetStackInfo(catalogStackId).items[0]?.key).toBe(
+        catalogKey1
+      );
       expect(product2KeyAfter).toBe(product2Key);
       expect(modalKey).not.toBe(product2Key); // Modal had different key (correct)
 
       // Navigate back
       router.goBack();
-      const product1KeyAfter = router.debugGetStackInfo(catalogStackId).items[1]?.key;
+      const product1KeyAfter =
+        router.debugGetStackInfo(catalogStackId).items[1]?.key;
       expect(product1KeyAfter).toBe(product1Key);
 
       router.goBack();
-      const catalogKey1After = router.debugGetStackInfo(catalogStackId).items[0]?.key;
+      const catalogKey1After =
+        router.debugGetStackInfo(catalogStackId).items[0]?.key;
       expect(catalogKey1After).toBe(catalogKey1);
     });
 
@@ -1513,18 +1538,25 @@ describe('Navigation Contract Tests - Key Preservation', () => {
       const catalogKey = router.debugGetStackInfo(catalogStackId).items[0]?.key;
 
       router.navigate('/catalog/products/1');
-      const product1Key = router.debugGetStackInfo(catalogStackId).items[1]?.key;
+      const product1Key =
+        router.debugGetStackInfo(catalogStackId).items[1]?.key;
 
       router.navigate('/catalog/products/2');
-      const product2KeyBefore = router.debugGetStackInfo(catalogStackId).items[2]?.key;
+      const product2KeyBefore =
+        router.debugGetStackInfo(catalogStackId).items[2]?.key;
 
       // Replace product 2 with product 3
       router.replace('/catalog/products/3');
-      const product3Key = router.debugGetStackInfo(catalogStackId).items[2]?.key;
+      const product3Key =
+        router.debugGetStackInfo(catalogStackId).items[2]?.key;
 
       // Keys should be preserved
-      expect(router.debugGetStackInfo(catalogStackId).items[0]?.key).toBe(catalogKey);
-      expect(router.debugGetStackInfo(catalogStackId).items[1]?.key).toBe(product1Key);
+      expect(router.debugGetStackInfo(catalogStackId).items[0]?.key).toBe(
+        catalogKey
+      );
+      expect(router.debugGetStackInfo(catalogStackId).items[1]?.key).toBe(
+        product1Key
+      );
       // Product 2 key should be replaced with product 3 key (same position)
       expect(product3Key).toBe(product2KeyBefore); // Key preserved on replace
 
@@ -1537,7 +1569,8 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 describe('Navigation Contract Tests - Flat History Architecture', () => {
   describe('Flat history structure', () => {
     test('history is flat array containing items from multiple stacks', () => {
-      const { tabBar, homeStack, catalogStack, ordersStack } = buildTestStacks();
+      const { tabBar, homeStack, catalogStack, ordersStack } =
+        buildTestStacks();
       const router = new Router({ root: tabBar });
 
       const homeStackId = homeStack.getId();
@@ -1556,7 +1589,7 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
       expect(fullHistory.length).toBeGreaterThan(0);
 
       // Should contain items from different stacks
-      const stackIds = fullHistory.map(item => item.stackId);
+      const stackIds = fullHistory.map((item) => item.stackId);
       expect(stackIds).toContain(homeStackId);
       expect(stackIds).toContain(catalogStackId);
       expect(stackIds).toContain(ordersStackId);
@@ -1567,13 +1600,20 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
       const ordersHistory = router.getStackHistory(ordersStackId);
 
       // Each stack history should only contain items from that stack
-      expect(homeHistory.every(item => item.stackId === homeStackId)).toBe(true);
-      expect(catalogHistory.every(item => item.stackId === catalogStackId)).toBe(true);
-      expect(ordersHistory.every(item => item.stackId === ordersStackId)).toBe(true);
+      expect(homeHistory.every((item) => item.stackId === homeStackId)).toBe(
+        true
+      );
+      expect(
+        catalogHistory.every((item) => item.stackId === catalogStackId)
+      ).toBe(true);
+      expect(
+        ordersHistory.every((item) => item.stackId === ordersStackId)
+      ).toBe(true);
 
       // Sum of stack histories should equal or be less than full history
       // (full history may contain items from root stack or other stacks)
-      const totalStackItems = homeHistory.length + catalogHistory.length + ordersHistory.length;
+      const totalStackItems =
+        homeHistory.length + catalogHistory.length + ordersHistory.length;
       expect(totalStackItems).toBeLessThanOrEqual(fullHistory.length);
     });
 
@@ -1592,12 +1632,12 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
 
       // Full history should contain all catalog items
       const catalogItemsInFullHistory = fullHistory.filter(
-        item => item.stackId === catalogStackId
+        (item) => item.stackId === catalogStackId
       );
 
       expect(catalogItemsInFullHistory.length).toBe(catalogHistory.length);
-      expect(catalogItemsInFullHistory.map(item => item.path)).toEqual(
-        catalogHistory.map(item => item.path)
+      expect(catalogItemsInFullHistory.map((item) => item.path)).toEqual(
+        catalogHistory.map((item) => item.path)
       );
     });
 
@@ -1625,17 +1665,24 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
         .filter(({ item }) => item.stackId === catalogStackId);
 
       // First home item should be before first catalog item
-      expect(homeItems[0]?.index).toBeLessThan(catalogItems[0]?.index || Infinity);
+      expect(homeItems[0]?.index).toBeLessThan(
+        catalogItems[0]?.index || Infinity
+      );
       // Catalog product should be after catalog root
-      expect(catalogItems[0]?.index).toBeLessThan(catalogItems[1]?.index || Infinity);
+      expect(catalogItems[0]?.index).toBeLessThan(
+        catalogItems[1]?.index || Infinity
+      );
       // Last home item should be after catalog items
-      expect(catalogItems[1]?.index).toBeLessThan(homeItems[1]?.index || Infinity);
+      expect(catalogItems[1]?.index).toBeLessThan(
+        homeItems[1]?.index || Infinity
+      );
     });
   });
 
   describe('Multiple stacks working together', () => {
     test('navigating in one stack does not affect other stacks', () => {
-      const { tabBar, homeStack, catalogStack, ordersStack } = buildTestStacks();
+      const { tabBar, homeStack, catalogStack, ordersStack } =
+        buildTestStacks();
       const router = new Router({ root: tabBar });
 
       const homeStackId = homeStack.getId();
@@ -1712,7 +1759,7 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
       expect(Array.isArray(fullHistory)).toBe(true);
 
       // Should contain items from both stacks
-      const stackIds = fullHistory.map(item => item.stackId);
+      const stackIds = fullHistory.map((item) => item.stackId);
       expect(stackIds).toContain(rootStackId);
       expect(stackIds).toContain(catalogStackId);
 
@@ -1724,9 +1771,9 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
       expect(catalogHistory.length).toBeGreaterThan(0);
 
       // Stack histories should not overlap
-      const rootKeys = new Set(rootHistory.map(item => item.key));
-      const catalogKeys = new Set(catalogHistory.map(item => item.key));
-      const intersection = [...rootKeys].filter(key => catalogKeys.has(key));
+      const rootKeys = new Set(rootHistory.map((item) => item.key));
+      const catalogKeys = new Set(catalogHistory.map((item) => item.key));
+      const intersection = [...rootKeys].filter((key) => catalogKeys.has(key));
       expect(intersection.length).toBe(0); // No overlapping keys
     });
 
@@ -1748,16 +1795,17 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
 
       // History should contain items from both stacks
       const hasCatalogItem = fullHistory.some(
-        item => item.stackId === catalogStackId && item.path?.includes('products/123')
+        (item) =>
+          item.stackId === catalogStackId && item.path?.includes('products/123')
       );
       const hasModalItem = fullHistory.some(
-        item => item.stackId === rootStackId && item.query?.modal === 'promo'
+        (item) => item.stackId === rootStackId && item.query?.modal === 'promo'
       );
 
       expect(hasCatalogItem).toBe(true);
       expect(hasModalItem).toBe(true);
 
-      // Modal should be last (visible)
+      // Modal should be last (active)
       const lastItem = fullHistory[fullHistory.length - 1];
       expect(lastItem?.query?.modal).toBe('promo');
     });

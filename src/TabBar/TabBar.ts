@@ -152,11 +152,31 @@ export class TabBar implements NavigationNode {
     return stack?.getId();
   }
 
-  public setActiveChildByRoute(routeId: string): void {
+  /**
+   * Switches active tab by route ID.
+   * Implements NavigationNode.switchToRoute capability.
+   */
+  public switchToRoute(routeId: string): void {
     const idx = this.findTabIndexByRoute(routeId);
     if (idx === -1) return;
     if (idx === this.state.index) return;
     this.setState({ index: idx });
+  }
+
+  /**
+   * Checks if a route exists in any tab.
+   * Implements NavigationNode.hasRoute capability.
+   */
+  public hasRoute(routeId: string): boolean {
+    return this.findTabIndexByRoute(routeId) !== -1;
+  }
+
+  /**
+   * @deprecated Use switchToRoute instead. Kept for backward compatibility.
+   */
+  public setActiveChildByRoute(routeId: string): void {
+    // Делегируем в switchToRoute для единой логики
+    this.switchToRoute(routeId);
   }
 
   public getNodeRoutes(): NodeRoute[] {
@@ -181,6 +201,7 @@ export class TabBar implements NavigationNode {
   }
 
   public getRenderer(): React.ComponentType<any> {
+    // eslint-disable-next-line consistent-this
     const tabBarInstance = this;
     return function TabBarScreen() {
       return React.createElement(RenderTabBar, { tabBar: tabBarInstance });
@@ -214,7 +235,7 @@ export class TabBar implements NavigationNode {
       const tab = this.state.tabs[i];
       const stack = tab && this.stacks[tab.tabKey];
       if (!stack) continue;
-      const hasRoute = stack.getRoutes().some(r => r.routeId === routeId);
+      const hasRoute = stack.getRoutes().some((r) => r.routeId === routeId);
       if (hasRoute) {
         return i;
       }

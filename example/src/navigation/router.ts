@@ -1,7 +1,7 @@
 import { Router } from '@sigmela/router';
-import { rootStack } from './stacks';
+import { getRootStack } from './stacks';
 
 export const router = new Router({
-  root: rootStack,
+  root: getRootStack(),
   debug: true,
 });

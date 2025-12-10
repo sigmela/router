@@ -2,6 +2,8 @@ import type { InternalTabItem, TabBar } from './TabBar';
 import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
+import { NavigationStack } from '../NavigationStack';
+import { useRouter } from '../RouterContext';
 import type { TabBarProps } from './TabBar';
 import {
   type NativeFocusChangeEvent,
@@ -25,6 +27,7 @@ import {
   useState,
   type ComponentType,
 } from 'react';
+import type { HistoryItem } from '../types';
 
 export interface RenderTabBarProps {
   tabBar: TabBar;
@@ -74,6 +77,30 @@ const getTabIcon = (tab: InternalTabItem) => {
 
   return undefined;
 };
+
+// Компонент для рендеринга стека таба с реактивностью
+const TabStackRenderer = memo<{
+  stack: NavigationStack;
+  appearance?: NavigationAppearance;
+}>(({ stack, appearance }) => {
+  const router = useRouter();
+  const stackId = stack.getId();
+  const subscribe = useCallback(
+    (cb: () => void) => router.subscribeStack(stackId, cb),
+    [router, stackId]
+  );
+  const get = useCallback(
+    () => router.getStackHistory(stackId),
+    [router, stackId]
+  );
+  const history: HistoryItem[] = useSyncExternalStore(subscribe, get, get);
+
+  return (
+    <StackRenderer appearance={appearance} stack={stack} history={history} />
+  );
+});
+
+TabStackRenderer.displayName = 'TabStackRenderer';
 
 export const RenderTabBar = memo<RenderTabBarProps>(
   ({ tabBar, appearance = {} }) => {
@@ -193,7 +220,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                       style={[styles.flex, !isActive && styles.hidden]}
                     >
                       {stackForTab ? (
-                        <StackRenderer
+                        <TabStackRenderer
                           appearance={appearance}
                           stack={stackForTab}
                         />
@@ -248,7 +275,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                   icon={icon?.icon}
                 >
                   {stack ? (
-                    <StackRenderer appearance={appearance} stack={stack} />
+                    <TabStackRenderer appearance={appearance} stack={stack} />
                   ) : Screen ? (
                     <Screen />
                   ) : null}

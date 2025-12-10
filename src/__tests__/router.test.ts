@@ -101,7 +101,7 @@ describe('Router slices', () => {
     // Используем debugGetState для проверки состояния
     const allStacks5 = router5.debugGetAllStacks();
     // Проверяем, что есть хотя бы один стек с историей
-    const seededStack5 = allStacks5.find(s => s.historyLength > 0);
+    const seededStack5 = allStacks5.find((s) => s.historyLength > 0);
     expect(!!seededStack5).toBe(true);
     if (seededStack5) {
       expect(seededStack5.historyLength).toBe(1);
@@ -141,7 +141,9 @@ describe('Router slices', () => {
   });
 
   test('tab bar keeps active index in sync with navigation', () => {
-    const stackA = new NavigationStack().addScreen('/a', ScreenA).addScreen('/a/one', ScreenA);
+    const stackA = new NavigationStack()
+      .addScreen('/a', ScreenA)
+      .addScreen('/a/one', ScreenA);
     const stackB = new NavigationStack().addScreen('/b', ScreenB);
 
     const tabBar = new TabBar()
@@ -205,7 +207,9 @@ describe('Router controllers', () => {
     const topItem = stackInfo.items[stackInfo.items.length - 1]!;
     // Проверяем через debugGetState для passProps (если доступно)
     const state = router.debugGetState();
-    const historyItem = state.history.find(h => h.routeId === topItem.routeId);
+    const historyItem = state.history.find(
+      (h) => h.routeId === topItem.routeId
+    );
     expect(historyItem?.params?.id).toBe('123');
     expect(historyItem?.query?.param).toBe('value');
 
@@ -220,8 +224,11 @@ describe('Router controllers', () => {
 
     expect(router.debugGetStackInfo(stackId).historyLength).toBe(2);
     const replacedStackInfo = router.debugGetStackInfo(stackId);
-    const replacedTopItem = replacedStackInfo.items[replacedStackInfo.items.length - 1]!;
-    const replacedHistoryItem = router.debugGetState().history.find(h => h.routeId === replacedTopItem.routeId);
+    const replacedTopItem =
+      replacedStackInfo.items[replacedStackInfo.items.length - 1]!;
+    const replacedHistoryItem = router
+      .debugGetState()
+      .history.find((h) => h.routeId === replacedTopItem.routeId);
     expect(replacedHistoryItem?.params?.id).toBe('456');
 
     router.navigate('/test');

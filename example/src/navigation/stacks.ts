@@ -34,6 +34,7 @@ export const settingsStack = new NavigationStack().addScreen(
   }
 );
 
+// Used in ProfileScreen.tsx
 export const authStack = new NavigationStack()
   .addModal('/auth', AuthRootScreen, {
     header: { title: 'Login', hidden: true },
@@ -54,49 +55,59 @@ export const ordersStack = new NavigationStack()
     header: { title: 'Orders' },
   });
 
+// Exported for potential future use
 export const userStack = new NavigationStack()
   .addScreen('/users/:userId', UserScreen, { header: { title: 'User' } })
   .addScreen('/users/:userId/details', UserDetailsScreen, {
     header: { title: 'Details' },
   });
 
-export const tabBar = new TabBar({ component: undefined })
-  .addTab({
-    key: 'home',
-    stack: homeStack,
-    title: 'Home',
-    icon: require('../../assets/icons/ic-more-h-circle-24.png'),
-  })
-  .addTab({
-    key: 'catalog',
-    stack: catalogStack,
-    title: 'Catalog',
-    icon: require('../../assets/icons/ic-products-outline-24.png'),
-  })
-  .addTab({
-    key: 'orders',
-    stack: ordersStack,
-    title: 'Orders',
-    icon: require('../../assets/icons/ic-orders-24.png'),
-  })
-  .addTab({
-    key: 'settings',
-    stack: settingsStack,
-    title: 'Settings',
-    icon: require('../../assets/icons/ic-settings-outline-24.png'),
-  });
+export function getRootStack() {
+  const tabBar = new TabBar({ component: undefined })
+    .addTab({
+      key: 'home',
+      stack: homeStack,
+      title: 'Home',
+      icon: require('../../assets/icons/ic-more-h-circle-24.png'),
+    })
+    .addTab({
+      key: 'catalog',
+      stack: catalogStack,
+      title: 'Catalog',
+      icon: require('../../assets/icons/ic-products-outline-24.png'),
+    })
+    .addTab({
+      key: 'orders',
+      stack: ordersStack,
+      title: 'Orders',
+      icon: require('../../assets/icons/ic-orders-24.png'),
+    })
+    .addTab({
+      key: 'settings',
+      stack: settingsStack,
+      title: 'Settings',
+      icon: require('../../assets/icons/ic-settings-outline-24.png'),
+    });
 
-export const rootStack = new NavigationStack()
-  .addScreen('/', tabBar)
-  .addScreen('/auth', AuthScreen, {
-    header: { title: 'Login', hidden: true },
-  })
-  .addModal('/auth?kind=email', EmailAuthModal, {
-    header: { title: 'Email login' },
-  })
-  .addModal('/auth?kind=sms', SmsAuthModal, {
-    // syncWithUrl: true,
-    header: { title: 'SMS login' },
-  })
-  .addModal('/auth?kind=:kind', GenericAuthModal)
-  .addModal('*?modal=promo', PromoModal);
+  const rootStack = new NavigationStack()
+    .addScreen('/', tabBar)
+    .addScreen('/auth', AuthScreen, {
+      header: { title: 'Login', hidden: true },
+    })
+    .addModal('/auth?kind=email', EmailAuthModal, {
+      header: { title: 'Email login' },
+    })
+    .addModal('/auth?kind=sms', SmsAuthModal, {
+      // syncWithUrl: true,
+      header: { title: 'SMS login' },
+    })
+    .addModal('/auth?kind=:kind', GenericAuthModal)
+    .addModal('*?modal=promo', PromoModal);
+
+  return rootStack;
+}
+
+// Ensure exported stacks are considered used by TypeScript
+// These are used in other files (ProfileScreen.tsx, tabBar.ts)
+void authStack;
+void userStack;

@@ -150,7 +150,7 @@ describe('Web History integration', () => {
     expect(state.history.length).toBe(3);
     const top = state.history.at(-1)!;
     expect(top.path).toBe('/product/catalog/1');
-    expect(state.visibleRoute?.path).toBe('/product/catalog/1');
+    expect(state.activeRoute?.path).toBe('/product/catalog/1');
   });
 
   test('navigate/replace/goBack interact with browser history and Router', () => {
@@ -205,11 +205,13 @@ describe('Web History integration', () => {
 
     // Seed active tab (catalog) initial route
     router.replace('/catalog');
-    expect(router.debugGetState().visibleRoute?.path).toBe('/catalog');
+    expect(router.debugGetState().activeRoute?.path).toBe('/catalog');
 
     // Navigate deep within catalog
     router.navigate('/catalog/products/1?coupon=VIP');
-    expect(router.debugGetState().visibleRoute?.path).toBe('/catalog/products/1');
+    expect(router.debugGetState().activeRoute?.path).toBe(
+      '/catalog/products/1'
+    );
     expect(shim.getLocation()).toEqual({
       pathname: '/catalog/products/1',
       search: '?coupon=VIP',
@@ -218,21 +220,21 @@ describe('Web History integration', () => {
     // Switch to profile (simulate tab click via navigation)
     // We emulate tab click behavior: use replace to show tab's last route or first
     router.replace('/profile');
-    expect(router.debugGetState().visibleRoute?.path).toBe('/profile');
+    expect(router.debugGetState().activeRoute?.path).toBe('/profile');
 
     // Switch back to catalog, use replace with last path
     router.replace('/catalog/products/1?coupon=VIP');
-    const vr = router.debugGetState().visibleRoute;
+    const vr = router.debugGetState().activeRoute;
     expect(vr?.path).toBeDefined();
 
     // Now do goBack (should only go to /catalog once)
     router.goBack();
-    expect(router.debugGetState().visibleRoute?.path).toBeDefined();
+    expect(router.debugGetState().activeRoute?.path).toBeDefined();
 
     // Next goBack should NOT go to another /catalog in the same stack
-    const before = router.debugGetState().visibleRoute?.path;
+    const before = router.debugGetState().activeRoute?.path;
     router.goBack();
-    const after = router.debugGetState().visibleRoute?.path;
+    const after = router.debugGetState().activeRoute?.path;
     expect(after).toBe(before); // unchanged
   });
 
@@ -265,7 +267,7 @@ describe('Web History integration', () => {
 
     // Switch to profile via replace (cross-stack)
     router.replace('/profile');
-    expect(router.debugGetState().visibleRoute?.path).toBe('/profile');
+    expect(router.debugGetState().activeRoute?.path).toBe('/profile');
 
     // Ensure source (catalog) stack top is preserved
     const catalogSliceAfter = router.debugGetStackInfo(catalog.getId()).items;
@@ -316,7 +318,7 @@ describe('Web History integration', () => {
     // After programmatic goBack, browser index should be at 0
     // (browser stack should be synchronized with router state)
     expect(shim.getIndex()).toBeLessThanOrEqual(2);
-    
+
     // If we simulate browser back button now, it should not cause double pop
     // because browser index is already at the correct position
     const initialRouterHistoryLength = router.debugGetState().history.length;
@@ -328,7 +330,9 @@ describe('Web History integration', () => {
     if (g.history?.back) {
       g.history.back();
       // Router should handle this gracefully without double pop
-      expect(router.debugGetState().history.length).toBe(initialRouterHistoryLength);
+      expect(router.debugGetState().history.length).toBe(
+        initialRouterHistoryLength
+      );
     }
   });
 
@@ -378,11 +382,7 @@ describe('Web History integration', () => {
     // Internal replaceUrlSilently (sets suppressHistorySync)
     const g = globalThis as unknown as {
       history?: {
-        replaceState: (
-          data: unknown,
-          unused: string,
-          url?: string
-        ) => void;
+        replaceState: (data: unknown, unused: string, url?: string) => void;
       };
     };
 

@@ -3,6 +3,8 @@ import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
 import { useRouter } from '../RouterContext';
+import { NavigationStack } from '../NavigationStack';
+import type { HistoryItem } from '../types';
 import type { TabBarProps } from './TabBar';
 import type { TabBar } from './TabBar';
 import { TabIcon } from './TabIcon';
@@ -34,6 +36,30 @@ const isImageSource = (value: unknown): value is ImageSourcePropType => {
 
 const toColorString = (c?: ColorValue): string | undefined =>
   typeof c === 'string' ? c : undefined;
+
+// Компонент для рендеринга стека таба с реактивностью
+const TabStackRenderer = memo<{
+  stack: NavigationStack;
+  appearance?: NavigationAppearance;
+}>(({ stack, appearance }) => {
+  const router = useRouter();
+  const stackId = stack.getId();
+  const subscribe = useCallback(
+    (cb: () => void) => router.subscribeStack(stackId, cb),
+    [router, stackId]
+  );
+  const get = useCallback(
+    () => router.getStackHistory(stackId),
+    [router, stackId]
+  );
+  const history: HistoryItem[] = useSyncExternalStore(subscribe, get, get);
+
+  return (
+    <StackRenderer appearance={appearance} stack={stack} history={history} />
+  );
+});
+
+TabStackRenderer.displayName = 'TabStackRenderer';
 
 //
 
@@ -69,7 +95,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
           const last = history.length ? history[history.length - 1] : undefined;
           const toPath = last?.path ?? targetStack.getFirstRoute()?.path;
           if (toPath) {
-            const currentPath = router.getVisibleRoute()?.path;
+            const currentPath = router.getActiveRoute()?.path;
             if (nextIndex === index && toPath === currentPath) return;
             // Use replace to avoid duplicating history entries when switching tabs
             router.replace(toPath, true);
@@ -112,7 +138,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       <TabBarContext.Provider value={tabBar}>
         <div className="tab-stacks-container">
           {stack ? (
-            <StackRenderer appearance={appearance} stack={stack} />
+            <TabStackRenderer appearance={appearance} stack={stack} />
           ) : Screen ? (
             <Screen />
           ) : null}

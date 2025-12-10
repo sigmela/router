@@ -29,7 +29,7 @@ export const useCurrentRoute = () => {
     (cb: () => void) => router.subscribe(cb),
     [router]
   );
-  const get = React.useCallback(() => router.getVisibleRoute(), [router]);
+  const get = React.useCallback(() => router.getActiveRoute(), [router]);
   return React.useSyncExternalStore(subscribe, get, get);
 };
 

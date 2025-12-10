@@ -21,7 +21,7 @@ export type NodeChild = {
   node: NavigationNode;
   /**
    * Optional hook invoked when a route inside this child matches.
-   * Used by container nodes (e.g., TabBar) to update internal state.
+   * Used by container nodes (e.g., TabBar, Drawer) to update internal state.
    */
   onMatch?: () => void;
 };
@@ -32,11 +32,27 @@ export interface NavigationNode {
   getNodeChildren(): NodeChild[];
   getRenderer(): React.ComponentType<any>;
   /**
-   * Optional: returns currently active child stack id (for container nodes like TabBar).
+   * Optional: returns currently active child stack id (for container nodes like TabBar, Drawer).
    */
   getActiveChildId?: () => string | undefined;
   /**
+   * Optional: switches active child node by route ID.
+   * Used by container nodes (TabBar, Drawer, etc.) to switch active child.
+   *
+   * @param routeId - Route ID to switch to
+   */
+  switchToRoute?: (routeId: string) => void;
+  /**
+   * Optional: checks if a route exists in this container node.
+   * Used for fast route lookup without iterating all children.
+   *
+   * @param routeId - Route ID to check
+   * @returns true if route exists in this container
+   */
+  hasRoute?: (routeId: string) => boolean;
+  /**
    * Optional: informs container node that a route inside its children became active.
+   * @deprecated Use switchToRoute instead. Kept for backward compatibility.
    */
   setActiveChildByRoute?: (routeId: string) => void;
   /**
