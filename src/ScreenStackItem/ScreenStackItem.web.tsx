@@ -37,13 +37,8 @@ export const ScreenStackItem = memo(
     // Используется для логики внутри компонента, если потребуется
     useScreenStackAnimatingContext();
 
-    const {
-      presentationType,
-      animationType,
-      phase,
-      transitionStatus,
-      zIndex,
-    } = itemState;
+    const { presentationType, animationType, phase, transitionStatus, zIndex } =
+      itemState;
     const presentation = item.options?.stackPresentation ?? 'push';
 
     // Определяем является ли модалкой (для overlay и контейнера)
@@ -108,7 +103,14 @@ export const ScreenStackItem = memo(
       });
 
       return classes.join(' ');
-    }, [presentationType, animationType, transitionStatus, phase, item.key, item.path]);
+    }, [
+      presentationType,
+      animationType,
+      transitionStatus,
+      phase,
+      item.key,
+      item.path,
+    ]);
 
     // Объединяем стили: базовый, переданный через props, и zIndex из контекста
     const mergedStyle = useMemo(
@@ -145,11 +147,23 @@ export const ScreenStackItem = memo(
             isModalLike ? 'stack-modal-container' : 'stack-screen-container'
           }
         >
-          <RouteLocalContext.Provider value={value}>
-            <View style={[styles.flex, appearance?.screen]}>
-              <item.component {...(item.passProps || {})} />
+          {appearance?.screen ? (
+            <View style={[appearance?.screen, styles.flex]}>
+              <RouteLocalContext.Provider value={value}>
+                <item.component
+                  {...(item.passProps || {})}
+                  appearance={appearance}
+                />
+              </RouteLocalContext.Provider>
             </View>
-          </RouteLocalContext.Provider>
+          ) : (
+            <RouteLocalContext.Provider value={value}>
+              <item.component
+                {...(item.passProps || {})}
+                appearance={appearance}
+              />
+            </RouteLocalContext.Provider>
+          )}
         </div>
       </div>
     );
