@@ -1,4 +1,4 @@
-import type { ReactElement, Key, ReactNode, CSSProperties } from 'react';
+import type { ReactElement, Key, ReactNode } from 'react';
 import {
   memo,
   useRef,
@@ -7,19 +7,23 @@ import {
   useEffect,
   Children,
   isValidElement,
-  cloneElement,
+  Fragment,
 } from 'react';
-import type {
-  ScreenStackItemProps,
-  ScreenStackItemPhase,
-} from '../ScreenStackItem/ScreenStackItem.types';
-import type { TransitionStackType } from '../web/TransitionStackType';
+import type { ScreenStackItemProps } from '../ScreenStackItem/ScreenStackItem.types';
+import type { ScreenStackItemPhase } from '../ScreenStackItem/ScreenStackItem.types';
 import { useTransitionMap } from 'react-transition-state';
+import {
+  ScreenStackItemsContext,
+  ScreenStackAnimatingContext,
+} from './ScreenStackContext';
+import {
+  getPresentationTypeClass,
+  computeAnimationType,
+} from './animationHelpers';
 
 type ScreenStackProps = {
   children: ReactNode;
   transitionTime?: number;
-  type?: TransitionStackType;
   animated?: boolean;
 };
 
@@ -125,13 +129,11 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   const {
     children,
     transitionTime = 250,
-    type = 'navigation',
     animated = true,
   } = props;
 
   devLog('[ScreenStack] Render', {
     transitionTime,
-    type,
     animated,
     childrenExists: !!children,
   });
@@ -150,40 +152,45 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     new Map()
   );
 
-  // Разделяем детей на ScreenStackItem и "остальных"
-  const { stackChildren, otherChildren } = useMemo(() => {
+  // Разделяем детей на ScreenStackItem (otherChildren больше не поддерживаем)
+  const stackChildren = useMemo(() => {
     const stackItems: ReactElement<ScreenStackItemProps>[] = [];
-    const others: ReactNode[] = [];
 
     Children.forEach(children, (child) => {
       if (isScreenStackItemElement(child)) {
         stackItems.push(child);
       } else if (child != null) {
-        others.push(child);
+        // otherChildren больше не поддерживаем - выбрасываем предупреждение в dev
+        devLog('[ScreenStack] Non-ScreenStackItem child ignored', { child });
       }
     });
 
     devLog('[ScreenStack] Parsed children', {
       stackChildrenLength: stackItems.length,
-      otherChildrenLength: others.length,
     });
 
-    return { stackChildren: stackItems, otherChildren: others };
+    return stackItems;
   }, [children]);
 
   // Текущий стек ключей (в порядке снизу вверх)
+  // ВАЖНО: используем item.key, а не React key, чтобы совпадало с поиском в контексте
   const routeKeys = useMemo(() => {
-    const keys = stackChildren.map((child) => getItemKey(child));
+    const keys = stackChildren.map((child) => {
+      const item = child.props.item;
+      return item?.key || getItemKey(child);
+    });
     devLog('[ScreenStack] routeKeys', keys);
     return keys;
   }, [stackChildren]);
 
   // Обновляем childMap так, чтобы exiting элементы оставались доступны
+  // ВАЖНО: используем item.key как ключ, чтобы совпадало с поиском в контексте
   const childMap = useMemo(() => {
     const map = new Map(childMapRef.current);
 
     for (const child of stackChildren) {
-      const key = getItemKey(child);
+      const item = child.props.item;
+      const key = item?.key || getItemKey(child);
       map.set(key, child);
     }
 
@@ -269,9 +276,8 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   }, [routeKeys, stateMap]);
 
   const containerClassName = useMemo(() => {
-    const classes = ['screen-stack', type];
-    return classes.join(' ');
-  }, [type]);
+    return 'screen-stack';
+  }, []);
 
   /**
    * EFFECT 1: lifecycle — добавляем новые ключи, запускаем enter,
@@ -309,6 +315,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       devLog(`[ScreenStack] Entering item: ${key}`);
       toggle(key, true);
     }
+
 
     // Элементы, которых больше нет в стеке: запускаем exit
     for (const key of removedKeys) {
@@ -413,78 +420,165 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   const topKey = routeKeys[routeKeys.length - 1] ?? null;
   const routeKeySet = useMemo(() => new Set(routeKeys), [routeKeys]);
 
+  // Вычисляем items для контекста через useMemo
+  // ВАЖНО: включаем все routeKeys, даже если они еще не в stateMap (для первого рендера)
+  const itemsContextValue = useMemo(() => {
+    const items: { [key: string]: any } = {};
+
+    // Сначала обрабатываем элементы из keysToRender (те, что уже в stateMap)
+    for (let index = 0; index < keysToRender.length; index++) {
+      const key = keysToRender[index];
+      if (!key) continue;
+
+      const transitionState = stateMap.get(key);
+      const child = childMap.get(key);
+      if (!child) continue;
+
+      const item = child.props.item;
+      if (!item) continue;
+
+      const presentation = item.options?.stackPresentation ?? 'push';
+      const animated = item.options?.animated ?? true;
+      const isInStack = routeKeySet.has(key);
+      const isTop = isInStack && topKey !== null && key === topKey;
+
+      let phase: ScreenStackItemPhase;
+      if (!isInStack) {
+        phase = 'exiting';
+      } else if (isTop) {
+        phase = 'active';
+      } else {
+        phase = 'inactive';
+      }
+
+      // Если элемент еще не в stateMap, используем начальные значения
+      const rawStatus = transitionState?.status || 'preEnter';
+      const status =
+        isInitialPhase && (rawStatus === 'preEnter' || rawStatus === 'entering')
+          ? 'entered'
+          : rawStatus;
+
+      // Определяем zIndex на основе позиции в routeKeys
+      const routeIndex = routeKeys.indexOf(key);
+      const zIndex = routeIndex >= 0 ? routeIndex + 1 : keysToRender.length + index + 1;
+
+      const presentationType = getPresentationTypeClass(presentation);
+      const animationType = computeAnimationType(
+        key,
+        isInStack,
+        isTop,
+        direction,
+        presentation,
+        isInitialPhase,
+        animated
+      );
+
+      items[key] = {
+        presentationType,
+        animationType,
+        phase,
+        transitionStatus: status,
+        zIndex,
+      };
+    }
+
+    // Теперь добавляем элементы из routeKeys, которых еще нет в items (если они не в stateMap)
+    for (let index = 0; index < routeKeys.length; index++) {
+      const key = routeKeys[index];
+      if (!key || items[key]) continue; // Skip undefined keys или уже добавленные
+
+      const child = childMap.get(key);
+      if (!child) continue;
+
+      const item = child.props.item;
+      if (!item) continue;
+
+      const presentation = item.options?.stackPresentation ?? 'push';
+      const animated = item.options?.animated ?? true;
+      const isInStack = routeKeySet.has(key);
+      const isTop = isInStack && topKey !== null && key === topKey;
+
+      let phase: ScreenStackItemPhase;
+      if (isTop) {
+        phase = 'active';
+      } else {
+        phase = 'inactive';
+      }
+
+      const presentationType = getPresentationTypeClass(presentation);
+      // Для элементов без stateMap используем начальное состояние
+      const animationType = isInitialPhase
+        ? 'none'
+        : computeAnimationType(key, isInStack, isTop, direction, presentation, isInitialPhase, animated);
+
+      items[key] = {
+        presentationType,
+        animationType,
+        phase,
+        transitionStatus: 'preEnter' as const,
+        zIndex: index + 1,
+      };
+    }
+
+    return { items };
+  }, [
+    keysToRender,
+    routeKeys,
+    stateMap,
+    childMap,
+    routeKeySet,
+    topKey,
+    direction,
+    isInitialPhase,
+  ]);
+
+  // Вычисляем animating отдельно через useMemo
+  const animating = useMemo(() => {
+    return Array.from(stateMap.values()).some(
+      (state) =>
+        state.isMounted &&
+        (state.status === 'entering' ||
+          state.status === 'exiting' ||
+          state.status === 'preEnter' ||
+          state.status === 'preExit')
+    );
+  }, [stateMap]);
+
+
   return (
-    <div
-      ref={containerRef}
-      className={containerClassName}
-      data-animation={isInitialPhase ? 'none' : type}
-      data-direction={direction}
-    >
-      {/* Нестековые дети рендерим как есть */}
-      {otherChildren}
+    <ScreenStackItemsContext.Provider value={itemsContextValue}>
+      <ScreenStackAnimatingContext.Provider value={animating}>
+        <div
+          ref={containerRef}
+          className={containerClassName + (animating ? ' animating' : '')}
+        >
+          {/* Рендерим keysToRender (текущие + exiting) через childMap, как в старой версии */}
+          {/* Это позволяет exiting элементам оставаться в DOM для анимации */}
+          {keysToRender.map((key) => {
+            const transitionState = stateMap.get(key);
 
-      {/* Элементы стека с анимацией */}
-      {keysToRender.map((key, index) => {
-        const transitionState = stateMap.get(key);
+            if (!transitionState || !transitionState.isMounted) {
+              devLog(`[ScreenStack] Skipping ${key} - no state or not mounted`, {
+                hasState: !!transitionState,
+                isMounted: transitionState?.isMounted,
+              });
+              return null;
+            }
 
-        if (!transitionState || !transitionState.isMounted) {
-          devLog(`[ScreenStack] Skipping ${key} - no state or not mounted`, {
-            hasState: !!transitionState,
-            isMounted: transitionState?.isMounted,
-          });
-          return null;
-        }
+            const child = childMap.get(key);
+            if (!child) {
+              devLog(`[ScreenStack] No child element for ${key}`, {
+                availableKeys: Array.from(childMap.keys()),
+              });
+              return null;
+            }
 
-        const child = childMap.get(key);
-        if (!child) {
-          devLog(`[ScreenStack] No child element for ${key}`, {
-            availableKeys: Array.from(childMap.keys()),
-          });
-          return null;
-        }
-
-        const isInStack = routeKeySet.has(key);
-        const isTop = isInStack && key === topKey;
-
-        let phase: ScreenStackItemPhase;
-        if (!isInStack) {
-          phase = 'exiting';
-        } else if (isTop) {
-          phase = 'active';
-        } else {
-          phase = 'inactive';
-        }
-
-        const rawStatus = transitionState.status;
-        const status =
-          isInitialPhase &&
-          (rawStatus === 'preEnter' || rawStatus === 'entering')
-            ? 'entered'
-            : rawStatus;
-
-        const zIndex = index + 1;
-
-        devLog(`[ScreenStack] Rendering item ${key}:`, {
-          status,
-          phase,
-          isTop,
-          isInStack,
-          index,
-          zIndex,
-        });
-
-        const style: CSSProperties = {
-          ...(child.props.style ?? {}),
-          zIndex,
-        };
-
-        return cloneElement<ScreenStackItemProps>(child, {
-          key,
-          phase,
-          transitionStatus: status,
-          style,
-        });
-      })}
-    </div>
+            // Используем React key из child, но логический ключ для поиска в контексте - item.key
+            // Элемент найдет свои данные в контексте по item.key
+            return <Fragment key={child.key || key}>{child}</Fragment>;
+          })}
+        </div>
+      </ScreenStackAnimatingContext.Provider>
+    </ScreenStackItemsContext.Provider>
   );
 });

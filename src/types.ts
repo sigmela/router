@@ -44,6 +44,11 @@ export type ScreenOptions = Partial<
    * Tab bar icon source for this route (used on web renderer, optional on native).
    */
   tabBarIcon?: TabBarIcon;
+  /**
+   * Control animation for this specific screen (default: true).
+   * If false, screen appears/disappears without animation.
+   */
+  animated?: boolean;
 };
 
 export type HistoryItem = {

@@ -2,6 +2,10 @@ import type { ScreenStackItemProps } from './ScreenStackItem.types';
 import { RouteLocalContext } from '../RouterContext';
 import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
+import {
+  useScreenStackItemsContext,
+  useScreenStackAnimatingContext,
+} from '../ScreenStack/ScreenStackContext';
 
 const devLog = (_: string, __?: any) => {
   // if (false) {
@@ -17,34 +21,73 @@ const devLog = (_: string, __?: any) => {
 };
 
 export const ScreenStackItem = memo(
-  ({
-    phase = 'active',
-    transitionStatus,
-    item,
-    appearance,
-    style,
-  }: ScreenStackItemProps) => {
-    const value = {
-      presentation: item.options?.stackPresentation ?? 'push',
-      params: item.params,
-      query: item.query,
-      pattern: item.pattern,
-      path: item.path,
-    };
+  ({ item, appearance, style }: ScreenStackItemProps) => {
+    // Подписываемся только на itemsContext (по ключу) - оптимизация
+    const itemsContext = useScreenStackItemsContext();
+    const key = item.key; // Используем item.key напрямую
 
-    const isModal = value.presentation === 'modal';
+    const itemState = itemsContext.items[key];
+    if (!itemState) {
+      // Вариант A: return null если itemState отсутствует
+      // Это может происходить на первом рендере до того, как элементы добавлены в stateMap
+      return null;
+    }
+
+    // Получаем animating отдельно (может вызывать ререндер, но редко меняется)
+    // Используется для логики внутри компонента, если потребуется
+    useScreenStackAnimatingContext();
+
+    const {
+      presentationType,
+      animationType,
+      phase,
+      transitionStatus,
+      zIndex,
+    } = itemState;
+    const presentation = item.options?.stackPresentation ?? 'push';
+
+    // Определяем является ли модалкой (для overlay и контейнера)
+    const isModalLike = [
+      'modal',
+      'transparentModal',
+      'containedModal',
+      'containedTransparentModal',
+      'fullScreenModal',
+      'formSheet',
+      'pageSheet',
+      'sheet',
+    ].includes(presentation);
 
     const className = useMemo(() => {
       const classes = ['screen-stack-item'];
 
+      // Стабильный класс типа экрана (presentation)
+      // Например: 'push', 'modal', 'sheet', 'transparent-modal' и т.д.
+      if (presentationType) {
+        classes.push(presentationType);
+      }
+
+      // Динамический класс анимации
+      // Например: 'push-enter', 'pop-exit', 'modal-enter', 'sheet-exit' и т.д.
+      if (
+        animationType &&
+        animationType !== 'none' &&
+        animationType !== 'no-animate'
+      ) {
+        classes.push(animationType);
+      }
+
+      // Классы transition статуса
       if (transitionStatus) {
         classes.push(`transition-${transitionStatus}`);
       }
 
+      // Классы фазы
       if (phase) {
         classes.push(`phase-${phase}`);
       }
 
+      // Активный класс
       if (
         phase === 'active' ||
         transitionStatus === 'entered' ||
@@ -57,31 +100,49 @@ export const ScreenStackItem = memo(
       devLog('[ScreenStackItem] className', {
         key: item.key,
         path: item.path,
+        presentationType,
+        animationType,
         phase,
         transitionStatus,
         className: classes.join(' '),
       });
 
       return classes.join(' ');
-    }, [transitionStatus, phase, item.key, item.path]);
+    }, [presentationType, animationType, transitionStatus, phase, item.key, item.path]);
+
+    // Объединяем стили: базовый, переданный через props, и zIndex из контекста
+    const mergedStyle = useMemo(
+      () => ({
+        flex: 1,
+        ...style,
+        zIndex,
+      }),
+      [style, zIndex]
+    );
+
+    const value = {
+      presentation,
+      params: item.params,
+      query: item.query,
+      pattern: item.pattern,
+      path: item.path,
+    };
 
     return (
       <div
-        style={{ flex: 1, ...style }}
-        data-presentation={value.presentation}
-        className={className}
+        style={mergedStyle}
+        data-presentation={presentation}
+        data-animation-type={animationType}
         data-phase={phase}
         data-transition-status={transitionStatus}
+        className={className}
       >
-        {/* Overlay только для модалки */}
-        {isModal && <div className="stack-modal-overlay" />}
+        {/* Overlay для всех modal-типов (CSS решает видимость через data-presentation) */}
+        {isModalLike && <div className="stack-modal-overlay" />}
 
-        {/* Внутренний контейнер:
-            - для модалки: stack-modal-container (будет анимироваться)
-            - для обычного экрана: stack-screen-container (без спец. правил) */}
         <div
           className={
-            isModal ? 'stack-modal-container' : 'stack-screen-container'
+            isModalLike ? 'stack-modal-container' : 'stack-screen-container'
           }
         >
           <RouteLocalContext.Provider value={value}>
@@ -91,6 +152,15 @@ export const ScreenStackItem = memo(
           </RouteLocalContext.Provider>
         </div>
       </div>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Кастомная функция сравнения для memo - ререндер только если изменился key
+    return (
+      prevProps.item.key === nextProps.item.key &&
+      prevProps.item === nextProps.item &&
+      prevProps.appearance === nextProps.appearance &&
+      prevProps.style === nextProps.style
     );
   }
 );
