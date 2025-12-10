@@ -46,7 +46,7 @@
 }
 
 /* Показываем overlay только для модалок */
-.screen-stack-item:not([data-presentation='modal']) .stack-modal-overlay {
+.screen-stack-item:not(.modal) .stack-modal-overlay {
   display: none;
 }
 
@@ -72,7 +72,7 @@
 
 /* Overlay в начальном состоянии — прозрачный */
 .screen-stack-item.modal.transition-preEnter .stack-modal-overlay,
-.screen-stack-item[data-presentation='modal'].transition-preEnter .stack-modal-overlay {
+.screen-stack-item.modal.transition-preEnter .stack-modal-overlay {
   opacity: 0;
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
@@ -81,8 +81,8 @@
 /* Overlay при входе — запускаем анимацию */
 .screen-stack-item.modal.transition-entering .stack-modal-overlay,
 .screen-stack-item.modal.phase-active.transition-preEnter .stack-modal-overlay,
-.screen-stack-item[data-presentation='modal'].transition-entering .stack-modal-overlay,
-.screen-stack-item[data-presentation='modal'].phase-active.transition-preEnter .stack-modal-overlay {
+.screen-stack-item.modal.transition-entering .stack-modal-overlay,
+.screen-stack-item.modal.phase-active.transition-preEnter .stack-modal-overlay {
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
   animation: modal-overlay-enter 300ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
@@ -91,8 +91,8 @@
 /* Для модалок в активных / вошедших состояниях — полностью видимый */
 .screen-stack-item.modal.phase-active .stack-modal-overlay,
 .screen-stack-item.modal.transition-entered .stack-modal-overlay,
-.screen-stack-item[data-presentation='modal'].phase-active .stack-modal-overlay,
-.screen-stack-item[data-presentation='modal'].transition-entered .stack-modal-overlay {
+.screen-stack-item.modal.phase-active .stack-modal-overlay,
+.screen-stack-item.modal.transition-entered .stack-modal-overlay {
   opacity: 0.5;
   background: rgba(0, 0, 0, 0.5);
   pointer-events: auto;
@@ -101,36 +101,33 @@
 /* Overlay при закрытии модалки — анимация исчезновения */
 .screen-stack-item.modal.phase-exiting .stack-modal-overlay,
 .screen-stack-item.modal.transition-exiting .stack-modal-overlay,
-.screen-stack-item[data-presentation='modal'].phase-exiting .stack-modal-overlay,
-.screen-stack-item[data-presentation='modal'].transition-exiting .stack-modal-overlay {
+.screen-stack-item.modal.phase-exiting .stack-modal-overlay,
+.screen-stack-item.modal.transition-exiting .stack-modal-overlay {
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
   animation: modal-overlay-exit 250ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
 }
 
 /* Overlay для transparent-modal — прозрачный */
-.screen-stack-item.transparent-modal .stack-modal-overlay,
-.screen-stack-item[data-presentation='transparentModal'] .stack-modal-overlay {
+.screen-stack-item.transparent-modal .stack-modal-overlay {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
 /* Overlay для contained-transparent-modal — прозрачный */
-.screen-stack-item.contained-transparent-modal .stack-modal-overlay,
-.screen-stack-item[data-presentation='containedTransparentModal'] .stack-modal-overlay {
+.screen-stack-item.contained-transparent-modal .stack-modal-overlay {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
 /* Контейнер контента модалки всегда над overlay */
 .screen-stack-item.modal .stack-modal-container,
-.screen-stack-item[data-presentation='modal'] .stack-modal-container {
+.screen-stack-item.modal .stack-modal-container {
   position: relative;
   z-index: 2;
 }
 
 /* Показываем активные / входящие элементы */
-.screen-stack > .screen-stack-item.active,
 .screen-stack > .screen-stack-item.phase-active,
 .screen-stack > .screen-stack-item.transition-entered,
 .screen-stack > .screen-stack-item.transition-entering,
@@ -170,9 +167,7 @@
 
 /* ВАЖНО: модальные элементы не должны двигаться как обычные экраны */
 .screen-stack > .screen-stack-item.modal,
-.screen-stack > .screen-stack-item.sheet,
-.screen-stack > .screen-stack-item[data-presentation='modal'],
-.screen-stack > .screen-stack-item[data-presentation='sheet'] {
+.screen-stack > .screen-stack-item.sheet {
   transform: translate3d(0, 0, 0) !important;
 }
 
@@ -279,13 +274,13 @@
 /* ==================== MOBILE MODAL (<= 639px) — bottom sheet ==================== */
 @media (max-width: 639px) {
   /* Overlay для мобильной модалки — прозрачный */
-  .screen-stack-item[data-presentation='modal'] .stack-modal-overlay {
+  .screen-stack-item.modal .stack-modal-overlay {
     opacity: 0 !important;
     pointer-events: none !important;
   }
 
   /* Внутренний контейнер модалки — bottom sheet на всю ширину без скругления */
-  .screen-stack-item[data-presentation='modal'] .stack-modal-container {
+  .screen-stack-item.modal .stack-modal-container {
     width: 100%;
     margin: 0;
     border-radius: 0;
@@ -300,23 +295,19 @@
   }
 
   /* MODAL ENTER - модалка входит (снизу вверх) */
-  .screen-stack-item.modal.modal-enter.transition-preEnter
-    .stack-modal-container {
+  .screen-stack-item.modal.modal-enter.transition-preEnter .stack-modal-container {
     transform: translateY(100%);
     filter: none;
   }
 
-  .screen-stack-item.modal.modal-enter.transition-entering
-    .stack-modal-container,
-  .screen-stack-item.modal.modal-enter.transition-entered
-    .stack-modal-container {
+  .screen-stack-item.modal.modal-enter.transition-entering .stack-modal-container,
+  .screen-stack-item.modal.modal-enter.transition-entered .stack-modal-container {
     transform: translateY(0);
     filter: none;
   }
 
   /* MODAL EXIT - модалка закрывается (уезжает вниз) */
-  .screen-stack-item.modal.modal-exit.transition-exiting
-    .stack-modal-container {
+  .screen-stack-item.modal.modal-exit.transition-exiting .stack-modal-container {
     transform: translateY(100%);
     filter: none;
     transition:
@@ -325,23 +316,19 @@
   }
 
   /* SHEET ENTER - sheet входит (снизу вверх) */
-  .screen-stack-item.sheet.sheet-enter.transition-preEnter
-    .stack-modal-container {
+  .screen-stack-item.sheet.sheet-enter.transition-preEnter .stack-modal-container {
     transform: translateY(100%);
     filter: none;
   }
 
-  .screen-stack-item.sheet.sheet-enter.transition-entering
-    .stack-modal-container,
-  .screen-stack-item.sheet.sheet-enter.transition-entered
-    .stack-modal-container {
+  .screen-stack-item.sheet.sheet-enter.transition-entering .stack-modal-container,
+  .screen-stack-item.sheet.sheet-enter.transition-entered .stack-modal-container {
     transform: translateY(0);
     filter: none;
   }
 
   /* SHEET EXIT - sheet закрывается */
-  .screen-stack-item.sheet.sheet-exit.transition-exiting
-    .stack-modal-container {
+  .screen-stack-item.sheet.sheet-exit.transition-exiting .stack-modal-container {
     transform: translateY(100%);
     filter: none;
     transition:
@@ -353,7 +340,7 @@
 /* ==================== DESKTOP MODAL (>= 640px) — sheet справа ==================== */
 @media (min-width: 640px) {
   /* Внутренний контейнер модалки — правый sheet 393px, с margin и скруглением */
-  .screen-stack-item[data-presentation='modal'] .stack-modal-container {
+  .screen-stack-item.modal .stack-modal-container {
     width: 393px;
     max-width: calc(100% - 36px);
     height: calc(100% - 36px);
@@ -370,23 +357,19 @@
   }
 
   /* MODAL ENTER - модалка входит (справа налево) */
-  .screen-stack-item.modal.modal-enter.transition-preEnter
-    .stack-modal-container {
+  .screen-stack-item.modal.modal-enter.transition-preEnter .stack-modal-container {
     transform: translateX(100%);
     filter: none;
   }
 
-  .screen-stack-item.modal.modal-enter.transition-entering
-    .stack-modal-container,
-  .screen-stack-item.modal.modal-enter.transition-entered
-    .stack-modal-container {
+  .screen-stack-item.modal.modal-enter.transition-entering .stack-modal-container,
+  .screen-stack-item.modal.modal-enter.transition-entered .stack-modal-container {
     transform: translateX(0);
     filter: none;
   }
 
   /* MODAL EXIT - модалка закрывается (уезжает вправо) */
-  .screen-stack-item.modal.modal-exit.transition-exiting
-    .stack-modal-container {
+  .screen-stack-item.modal.modal-exit.transition-exiting .stack-modal-container {
     transform: translateX(100%);
     filter: none;
     transition:
@@ -443,13 +426,13 @@
 
 /* NO-ANIMATE - без анимации (screenOptions.animated === false) */
 /* ВАЖНО: это правило должно перебивать все остальные правила анимации */
-.screen-stack-item[data-animation-type="no-animate"],
-.screen-stack-item[data-animation-type="no-animate"].push-enter,
-.screen-stack-item[data-animation-type="no-animate"].push-exit,
-.screen-stack-item[data-animation-type="no-animate"].push-background,
-.screen-stack-item[data-animation-type="no-animate"].pop-enter,
-.screen-stack-item[data-animation-type="no-animate"].pop-exit,
-.screen-stack-item[data-animation-type="no-animate"].pop-background {
+.screen-stack-item.no-animate,
+.screen-stack-item.no-animate.push-enter,
+.screen-stack-item.no-animate.push-exit,
+.screen-stack-item.no-animate.push-background,
+.screen-stack-item.no-animate.pop-enter,
+.screen-stack-item.no-animate.pop-exit,
+.screen-stack-item.no-animate.pop-background {
   transform: translate3d(0, 0, 0) !important;
   transition: none !important;
   filter: none !important;
@@ -457,9 +440,10 @@
 
 /* NONE - без анимации (initial mount) */
 /* ВАЖНО: это правило НЕ должно применяться к pop-background элементам */
-.screen-stack-item[data-animation-type="none"]:not(.pop-background) {
+.screen-stack-item.none:not(.pop-background) {
   transform: translate3d(0, 0, 0) !important;
   transition: none !important;
+  filter: none !important;
 }
 
 

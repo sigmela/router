@@ -2,10 +2,7 @@ import type { ScreenStackItemProps } from './ScreenStackItem.types';
 import { RouteLocalContext } from '../RouterContext';
 import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import {
-  useScreenStackItemsContext,
-  useScreenStackAnimatingContext,
-} from '../ScreenStack/ScreenStackContext';
+import { useScreenStackItemsContext } from '../ScreenStack/ScreenStackContext';
 
 const devLog = (_: string, __?: any) => {
   // if (false) {
@@ -27,18 +24,11 @@ export const ScreenStackItem = memo(
     const key = item.key; // Используем item.key напрямую
 
     const itemState = itemsContext.items[key];
-    if (!itemState) {
-      // Вариант A: return null если itemState отсутствует
-      // Это может происходить на первом рендере до того, как элементы добавлены в stateMap
-      return null;
-    }
-
-    // Получаем animating отдельно (может вызывать ререндер, но редко меняется)
-    // Используется для логики внутри компонента, если потребуется
-    useScreenStackAnimatingContext();
-
-    const { presentationType, animationType, phase, transitionStatus, zIndex } =
-      itemState;
+    const presentationType = itemState?.presentationType;
+    const animationType = itemState?.animationType;
+    const phase = itemState?.phase;
+    const transitionStatus = itemState?.transitionStatus;
+    const zIndex = itemState?.zIndex ?? 0;
     const presentation = item.options?.stackPresentation ?? 'push';
 
     // Определяем является ли модалкой (для overlay и контейнера)
@@ -64,11 +54,7 @@ export const ScreenStackItem = memo(
 
       // Динамический класс анимации
       // Например: 'push-enter', 'pop-exit', 'modal-enter', 'sheet-exit' и т.д.
-      if (
-        animationType &&
-        animationType !== 'none' &&
-        animationType !== 'no-animate'
-      ) {
+      if (animationType) {
         classes.push(animationType);
       }
 
@@ -80,16 +66,6 @@ export const ScreenStackItem = memo(
       // Классы фазы
       if (phase) {
         classes.push(`phase-${phase}`);
-      }
-
-      // Активный класс
-      if (
-        phase === 'active' ||
-        transitionStatus === 'entered' ||
-        transitionStatus === 'entering' ||
-        transitionStatus === 'preEnter'
-      ) {
-        classes.push('active');
       }
 
       devLog('[ScreenStackItem] className', {
@@ -130,16 +106,14 @@ export const ScreenStackItem = memo(
       path: item.path,
     };
 
+    if (!itemState) {
+      // Нет данных в контексте — соблюдаем порядок хуков, но не рендерим элемент
+      return null;
+    }
+
     return (
-      <div
-        style={mergedStyle}
-        data-presentation={presentation}
-        data-animation-type={animationType}
-        data-phase={phase}
-        data-transition-status={transitionStatus}
-        className={className}
-      >
-        {/* Overlay для всех modal-типов (CSS решает видимость через data-presentation) */}
+      <div style={mergedStyle} className={className}>
+        {/* Overlay для всех modal-типов (CSS решает видимость по классам presentation) */}
         {isModalLike && <div className="stack-modal-overlay" />}
 
         <div

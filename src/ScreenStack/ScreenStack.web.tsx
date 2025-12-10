@@ -234,10 +234,19 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     }))
   );
 
+  // Снимок stateMap на текущем рендере (полезно, если Map мутируется по месту)
+  const stateMapEntries = Array.from(stateMap.entries());
+
   // Текущее направление навигации считается синхронно из prevKeysRef и routeKeys,
   // чтобы не было лагов (как раньше при pop на первом кадре).
   const direction: Direction = useMemo(
-    () => computeDirection(prevKeysRef.current, routeKeys),
+    () => {
+      const prevKeys = prevKeysRef.current;
+      const computed = computeDirection(prevKeys, routeKeys);
+      // Обновляем prevKeysRef синхронно, чтобы следующий рендер опирался на актуальный стек
+      prevKeysRef.current = routeKeys;
+      return computed;
+    },
     [routeKeys]
   );
 
@@ -256,7 +265,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     const routeKeySet = new Set(routeKeys);
     const exitingKeys: string[] = [];
 
-    for (const [key, state] of stateMap.entries()) {
+    for (const [key, state] of stateMapEntries) {
       if (!state.isMounted) continue;
       if (!routeKeySet.has(key)) {
         exitingKeys.push(key);
@@ -273,7 +282,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     });
 
     return result;
-  }, [routeKeys, stateMap]);
+  }, [routeKeys, stateMapEntries]);
 
   const containerClassName = useMemo(() => {
     return 'screen-stack';
@@ -294,7 +303,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
     // Какие ключи новые относительно stateMap
     const existingKeySet = new Set<string>();
-    for (const [key] of stateMap.entries()) {
+    for (const [key] of stateMapEntries) {
       existingKeySet.add(key);
     }
 
@@ -338,11 +347,10 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     }
 
     // Обновляем prevKeys и последнее направление
-    prevKeysRef.current = routeKeys;
     lastDirectionRef.current = direction;
 
     devLog('[ScreenStack] === LIFECYCLE EFFECT END ===');
-  }, [routeKeys, direction, setItem, toggle, stateMap]);
+  }, [routeKeys, direction, setItem, toggle, stateMapEntries]);
 
   /**
    * EFFECT 2: cleanup — удаляем из transitionMap и childMap
@@ -353,7 +361,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
     const routeKeySet = new Set(routeKeys);
 
-    for (const [key, state] of stateMap.entries()) {
+    for (const [key, state] of stateMapEntries) {
       // Если элемент не смонтирован, можно удалять из карты
       if (!state.isMounted) {
         devLog(`[ScreenStack] Cleanup unmounted item: ${key}`, {
@@ -381,7 +389,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     }
 
     devLog('[ScreenStack] === CLEANUP EFFECT END ===');
-  }, [routeKeys, stateMap, deleteItem]);
+  }, [routeKeys, stateMapEntries, deleteItem]);
 
   /**
    * EFFECT 3: завершение initial-фазы.
@@ -391,15 +399,13 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   useEffect(() => {
     if (!isInitialMountRef.current) return;
 
-    const hasMountedItem = Array.from(stateMap.values()).some(
-      (st) => st.isMounted
-    );
+    const hasMountedItem = stateMapEntries.some(([, st]) => st.isMounted);
 
     if (hasMountedItem) {
       isInitialMountRef.current = false;
       devLog('[ScreenStack] Initial mount completed');
     }
-  }, [stateMap]);
+  }, [stateMapEntries]);
 
   // Лог DOM-состояния после рендера (в деве)
   useEffect(() => {
@@ -524,7 +530,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   }, [
     keysToRender,
     routeKeys,
-    stateMap,
+    stateMapEntries,
     childMap,
     routeKeySet,
     topKey,
@@ -534,15 +540,15 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
   // Вычисляем animating отдельно через useMemo
   const animating = useMemo(() => {
-    return Array.from(stateMap.values()).some(
-      (state) =>
+    return stateMapEntries.some(
+      ([, state]) =>
         state.isMounted &&
         (state.status === 'entering' ||
           state.status === 'exiting' ||
           state.status === 'preEnter' ||
           state.status === 'preExit')
     );
-  }, [stateMap]);
+  }, [stateMapEntries]);
 
 
   return (
