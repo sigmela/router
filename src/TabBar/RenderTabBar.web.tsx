@@ -10,7 +10,6 @@ import {
   useCallback,
   useSyncExternalStore,
   memo,
-  useEffect,
   useMemo,
   type CSSProperties,
   type ComponentType,
@@ -53,10 +52,6 @@ export const RenderTabBar = memo<RenderTabBarProps>(
     );
     const { tabs, index, config } = snapshot;
 
-    useEffect(() => {
-      router.ensureTabSeed(index);
-    }, [index, router]);
-
     const focusedTab = tabs[index];
     const stack = focusedTab ? tabBar.stacks[focusedTab.tabKey] : undefined;
     const Screen = focusedTab ? tabBar.screens[focusedTab.tabKey] : undefined;
@@ -83,7 +78,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         }
 
         // Fallback: just switch tab index (no history push if there is no path)
-        router.onTabIndexChange(nextIndex);
+        tabBar.onIndexChange(nextIndex);
       },
       [router, tabBar, tabs, index]
     );

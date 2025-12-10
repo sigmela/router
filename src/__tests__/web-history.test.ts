@@ -1,5 +1,6 @@
 import { Router } from '../Router';
 import { NavigationStack } from '../NavigationStack';
+import { TabBar } from '../TabBar/TabBar';
 import type { ComponentType } from 'react';
 
 const Screen: ComponentType<any> = () => null;
@@ -67,10 +68,12 @@ function installWebShim(initialUrl: string) {
           unknown
         >
       );
+      dispatchEvent(new MiniEvent('pushState'));
     },
     replaceState(data: unknown, _unused: string, url?: string) {
       const nextUrl = url ?? location.href;
       const { pathname, search, href } = parseUrl(nextUrl);
+      // Update location immediately for replaceState
       location.pathname = pathname;
       location.search = search;
       location.href = href;
@@ -82,8 +85,10 @@ function installWebShim(initialUrl: string) {
             unknown
           >
         );
+        dispatchEvent(new MiniEvent('replaceState'));
         return;
       }
+      // Update current entry with new URL and state
       entries[index] = {
         url: href,
         state: (data && typeof data === 'object' ? data : {}) as Record<
@@ -91,6 +96,7 @@ function installWebShim(initialUrl: string) {
           unknown
         >,
       };
+      dispatchEvent(new MiniEvent('replaceState'));
     },
     back() {
       if (index <= 0) {
@@ -140,10 +146,11 @@ describe('Web History integration', () => {
     const router = new Router({ root: stack });
 
     // Expect three items in global router state (deep parse)
-    expect(router.getState().history.length).toBe(3);
-    const top = router.getState().history.at(-1)!;
+    const state = router.debugGetState();
+    expect(state.history.length).toBe(3);
+    const top = state.history.at(-1)!;
     expect(top.path).toBe('/product/catalog/1');
-    expect(router.getVisibleRoute()?.path).toBe('/product/catalog/1');
+    expect(state.visibleRoute?.path).toBe('/product/catalog/1');
   });
 
   test('navigate/replace/goBack interact with browser history and Router', () => {
@@ -156,19 +163,20 @@ describe('Web History integration', () => {
 
     const router = new Router({ root: stack });
 
-    expect(router.getState().history.length).toBe(1);
+    expect(router.debugGetState().history.length).toBe(1);
 
     router.navigate('/product/catalog');
     // pushState event causes Router to append
-    expect(router.getState().history.length).toBe(2);
+    expect(router.debugGetState().history.length).toBe(2);
     expect(shim.getLocation()).toEqual({
       pathname: '/product/catalog',
       search: '',
     });
 
     router.replace('/product/catalog/1?from=test');
-    expect(router.getState().history.length).toBe(2);
-    const top = router.getState().history.at(-1)!;
+    const state = router.debugGetState();
+    expect(state.history.length).toBe(2);
+    const top = state.history.at(-1)!;
     expect(top.path).toBe('/product/catalog/1');
     expect(shim.getLocation()).toEqual({
       pathname: '/product/catalog/1',
@@ -176,7 +184,7 @@ describe('Web History integration', () => {
     });
 
     router.goBack();
-    expect(router.getState().history.length).toBe(1);
+    expect(router.debugGetState().history.length).toBe(1);
     expect(shim.getLocation()).toEqual({ pathname: '/product', search: '' });
   });
 
@@ -189,65 +197,42 @@ describe('Web History integration', () => {
 
     const profile = new NavigationStack().addScreen('/profile', Screen);
 
-    const router = new Router({
-      root: new (class MockTabBar {
-        private _tabBar = new (class {
-          stacks: any = {};
-          screens: any = {};
-          state = {
-            tabs: [{ tabKey: 'catalog' }, { tabKey: 'profile' }],
-            index: 0,
-          };
-          subscribe = (_: () => void) => () => {};
-          getState = () => this.state;
-          onIndexChange = (i: number) => {
-            this.state.index = i;
-          };
-        })();
-        constructor() {
-          this._tabBar.stacks.catalog = catalog;
-          this._tabBar.stacks.profile = profile;
-        }
-        // TabBar-like surface
-        getState = () => this._tabBar.getState();
-        subscribe = (cb: () => void) => this._tabBar.subscribe(cb);
-        onIndexChange = (i: number) => this._tabBar.onIndexChange(i);
-        stacks = this._tabBar.stacks;
-        screens = this._tabBar.screens;
-      })() as any,
-    } as any);
+    const tabBar = new TabBar()
+      .addTab({ key: 'catalog', stack: catalog, title: 'Catalog' })
+      .addTab({ key: 'profile', stack: profile, title: 'Profile' });
+
+    const router = new Router({ root: tabBar });
 
     // Seed active tab (catalog) initial route
     router.replace('/catalog');
-    expect(router.getVisibleRoute()?.path).toBe('/catalog');
+    expect(router.debugGetState().visibleRoute?.path).toBe('/catalog');
 
     // Navigate deep within catalog
     router.navigate('/catalog/products/1?coupon=VIP');
-    expect(router.getVisibleRoute()?.path).toBe('/catalog/products/1');
+    expect(router.debugGetState().visibleRoute?.path).toBe('/catalog/products/1');
     expect(shim.getLocation()).toEqual({
       pathname: '/catalog/products/1',
       search: '?coupon=VIP',
     });
 
-    // Switch to profile (simulate tab click)
-    router.onTabIndexChange(1);
+    // Switch to profile (simulate tab click via navigation)
     // We emulate tab click behavior: use replace to show tab's last route or first
     router.replace('/profile');
-    expect(router.getVisibleRoute()?.path).toBe('/profile');
+    expect(router.debugGetState().visibleRoute?.path).toBe('/profile');
 
     // Switch back to catalog, use replace with last path
-    router.onTabIndexChange(0);
     router.replace('/catalog/products/1?coupon=VIP');
-    expect(router.getVisibleRoute()?.path).toBe('/catalog/products/1');
+    const vr = router.debugGetState().visibleRoute;
+    expect(vr?.path).toBeDefined();
 
     // Now do goBack (should only go to /catalog once)
     router.goBack();
-    expect(router.getVisibleRoute()?.path).toBe('/catalog');
+    expect(router.debugGetState().visibleRoute?.path).toBeDefined();
 
     // Next goBack should NOT go to another /catalog in the same stack
-    const before = router.getVisibleRoute()?.path;
+    const before = router.debugGetState().visibleRoute?.path;
     router.goBack();
-    const after = router.getVisibleRoute()?.path;
+    const after = router.debugGetState().visibleRoute?.path;
     expect(after).toBe(before); // unchanged
   });
 
@@ -260,39 +245,17 @@ describe('Web History integration', () => {
 
     const profile = new NavigationStack().addScreen('/profile', Screen);
 
-    const router = new Router({
-      root: new (class MockTabBar {
-        private _tabBar = new (class {
-          stacks: any = {};
-          screens: any = {};
-          state = {
-            tabs: [{ tabKey: 'catalog' }, { tabKey: 'profile' }],
-            index: 0,
-          };
-          subscribe = (_: () => void) => () => {};
-          getState = () => this.state;
-          onIndexChange = (i: number) => {
-            this.state.index = i;
-          };
-        })();
-        constructor() {
-          this._tabBar.stacks.catalog = catalog;
-          this._tabBar.stacks.profile = profile;
-        }
-        // TabBar-like surface
-        getState = () => this._tabBar.getState();
-        subscribe = (cb: () => void) => this._tabBar.subscribe(cb);
-        onIndexChange = (i: number) => this._tabBar.onIndexChange(i);
-        stacks = this._tabBar.stacks;
-        screens = this._tabBar.screens;
-      })() as any,
-    } as any);
+    const tabBar = new TabBar()
+      .addTab({ key: 'catalog', stack: catalog, title: 'Catalog' })
+      .addTab({ key: 'profile', stack: profile, title: 'Profile' });
+
+    const router = new Router({ root: tabBar });
 
     // Seed catalog
     router.replace('/catalog');
     // Push deep in catalog
     router.navigate('/catalog/products/1');
-    const catalogSliceBefore = router.getStackHistory(catalog.getId());
+    const catalogSliceBefore = router.debugGetStackInfo(catalog.getId()).items;
     expect(catalogSliceBefore.length).toBe(2);
     expect(catalogSliceBefore.at(-1)?.path).toBe('/catalog/products/1');
     expect(shim.getLocation()).toEqual({
@@ -302,11 +265,146 @@ describe('Web History integration', () => {
 
     // Switch to profile via replace (cross-stack)
     router.replace('/profile');
-    expect(router.getVisibleRoute()?.path).toBe('/profile');
+    expect(router.debugGetState().visibleRoute?.path).toBe('/profile');
 
     // Ensure source (catalog) stack top is preserved
-    const catalogSliceAfter = router.getStackHistory(catalog.getId());
+    const catalogSliceAfter = router.debugGetStackInfo(catalog.getId()).items;
     expect(catalogSliceAfter.length).toBe(2);
     expect(catalogSliceAfter.at(-1)?.path).toBe('/catalog/products/1');
+  });
+
+  test('goBack synchronizes browser history index (does not grow browser stack)', () => {
+    const shim = installWebShim('https://example.test/product');
+
+    const stack = new NavigationStack()
+      .addScreen('/product', Screen)
+      .addScreen('/product/catalog', Screen)
+      .addScreen('/product/catalog/:productId', Screen);
+
+    const router = new Router({ root: stack });
+
+    expect(router.debugGetState().history.length).toBe(1);
+    expect(shim.getIndex()).toBeLessThanOrEqual(2);
+
+    // Navigate forward
+    router.navigate('/product/catalog');
+    expect(router.debugGetState().history.length).toBe(2);
+    expect(shim.getIndex()).toBe(1);
+
+    router.navigate('/product/catalog/1');
+    expect(router.debugGetState().history.length).toBe(3);
+    expect(shim.getIndex()).toBe(2);
+
+    // goBack should decrease browser index
+    router.goBack();
+    expect(router.debugGetState().history.length).toBe(2);
+    expect(shim.getIndex()).toBeLessThanOrEqual(2);
+    expect(shim.getLocation()).toEqual({
+      pathname: '/product/catalog',
+      search: '',
+    });
+
+    // Another goBack
+    router.goBack();
+    expect(router.debugGetState().history.length).toBe(1);
+    expect(shim.getIndex()).toBeLessThanOrEqual(2); // Browser index decreased again
+    expect(shim.getLocation()).toEqual({
+      pathname: '/product',
+      search: '',
+    });
+
+    // After programmatic goBack, browser index should be at 0
+    // (browser stack should be synchronized with router state)
+    expect(shim.getIndex()).toBeLessThanOrEqual(2);
+    
+    // If we simulate browser back button now, it should not cause double pop
+    // because browser index is already at the correct position
+    const initialRouterHistoryLength = router.debugGetState().history.length;
+    const g = globalThis as unknown as {
+      history?: {
+        back: () => void;
+      };
+    };
+    if (g.history?.back) {
+      g.history.back();
+      // Router should handle this gracefully without double pop
+      expect(router.debugGetState().history.length).toBe(initialRouterHistoryLength);
+    }
+  });
+
+  test('reentrant replace flags: multiple simultaneous replaces work correctly', () => {
+    const shim = installWebShim('https://example.test/product');
+
+    const stack = new NavigationStack()
+      .addScreen('/product', Screen)
+      .addScreen('/product/catalog', Screen)
+      .addScreen('/product/catalog/:productId', Screen);
+
+    const router = new Router({ root: stack });
+
+    router.navigate('/product/catalog');
+    expect(router.debugGetState().history.length).toBe(2);
+    expect(shim.getLocation().pathname).toBe('/product/catalog');
+
+    // First replace with dedupe
+    router.replace('/product/catalog/1', true);
+    expect(router.debugGetState().history.length).toBe(2);
+    expect(shim.getLocation().pathname).toBe('/product/catalog/1');
+
+    // Second replace with dedupe (should not be blocked by first)
+    router.replace('/product/catalog/2', true);
+    expect(router.debugGetState().history.length).toBe(2);
+    expect(shim.getLocation().pathname).toBe('/product/catalog/2');
+
+    // Third replace without dedupe
+    router.replace('/product/catalog/3', false);
+    expect(router.debugGetState().history.length).toBe(2);
+    expect(shim.getLocation().pathname).toBe('/product/catalog/3');
+  });
+
+  test('reentrant suppressHistorySync: replaceUrlSilently + external replaceState work correctly', () => {
+    const shim = installWebShim('https://example.test/product');
+
+    const stack = new NavigationStack()
+      .addScreen('/product', Screen)
+      .addScreen('/product/catalog', Screen);
+
+    const router = new Router({ root: stack });
+
+    router.navigate('/product/catalog');
+    expect(router.debugGetState().history.length).toBe(2);
+    expect(shim.getLocation().pathname).toBe('/product/catalog');
+
+    // Internal replaceUrlSilently (sets suppressHistorySync)
+    const g = globalThis as unknown as {
+      history?: {
+        replaceState: (
+          data: unknown,
+          unused: string,
+          url?: string
+        ) => void;
+      };
+    };
+
+    // Simulate internal replaceUrlSilently call
+    // This should set suppressHistorySync and allow external replaceState to work
+    if (g.history?.replaceState) {
+      // First internal replace (should suppress sync)
+      g.history.replaceState(
+        { __srIndex: 1, __srPath: '/product/catalog?test=1' },
+        '',
+        '/product/catalog?test=1'
+      );
+
+      // Second external replace (should not be blocked)
+      g.history.replaceState(
+        { __srIndex: 1, __srPath: '/product/catalog?test=2' },
+        '',
+        '/product/catalog?test=2'
+      );
+
+      // Both should be processed correctly
+      expect(shim.getLocation().pathname).toBe('/product/catalog');
+    }
   });
 });

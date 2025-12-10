@@ -3,6 +3,8 @@ import { NavigationStack } from '../NavigationStack';
 import type { ComponentType } from 'react';
 import type { TabItem } from '../types';
 import React from 'react';
+import { RenderTabBar } from './RenderTabBar';
+import type { NavigationNode, NodeChild, NodeRoute } from '../navigationNode';
 
 type IOSIconShape =
   | { sfSymbolName: string }
@@ -24,6 +26,10 @@ export type TabBarProps = {
   activeIndex: number;
 };
 
+export type TabBarDescriptor = {
+  renderer?: ComponentType<TabBarProps>;
+};
+
 type TabBarConfig = Omit<InternalTabItem, 'tabKey' | 'key'> & {
   stack?: NavigationStack;
   screen?: React.ComponentType<any>;
@@ -36,7 +42,8 @@ type TabBarOptions = {
   initialIndex?: number;
 };
 
-export class TabBar {
+export class TabBar implements NavigationNode {
+  private readonly tabBarId: string;
   public screens: Record<string, React.ComponentType<any>> = {};
   public stacks: Record<string, NavigationStack> = {};
   private listeners: Set<() => void> = new Set();
@@ -48,6 +55,7 @@ export class TabBar {
   };
 
   constructor(options: TabBarOptions = {}) {
+    this.tabBarId = `tabbar-${Math.random().toString(36).slice(2)}`;
     this.state = {
       tabs: [],
       index: options.initialIndex ?? 0,
@@ -55,15 +63,24 @@ export class TabBar {
     };
   }
 
+  public getId(): string {
+    return this.tabBarId;
+  }
+
   public addTab(tab: Omit<TabBarConfig, 'tabKey'> & { key: string }): TabBar {
     const { key, ...rest } = tab;
     const nextIndex = this.state.tabs.length;
     const tabKey = key ?? `tab-${nextIndex}`;
 
-    this.state.tabs.push({
-      tabKey,
-      ...rest,
-    });
+    const nextTabs = [
+      ...this.state.tabs,
+      {
+        tabKey,
+        ...rest,
+      },
+    ];
+
+    this.setState({ tabs: nextTabs });
 
     if (tab.stack) {
       this.stacks[tabKey] = tab.stack;
@@ -118,5 +135,90 @@ export class TabBar {
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  public getTabs() {
+    return this.state.tabs.slice();
+  }
+
+  public getInitialIndex(): number {
+    return this.state.index ?? 0;
+  }
+
+  public getActiveChildId(): string | undefined {
+    const activeTab = this.state.tabs[this.state.index];
+    if (!activeTab) return undefined;
+    const stack = this.stacks[activeTab.tabKey];
+    return stack?.getId();
+  }
+
+  public setActiveChildByRoute(routeId: string): void {
+    const idx = this.findTabIndexByRoute(routeId);
+    if (idx === -1) return;
+    if (idx === this.state.index) return;
+    this.setState({ index: idx });
+  }
+
+  public getNodeRoutes(): NodeRoute[] {
+    // TabBar itself doesn't add standalone routes; it's intended to be used as childNode of a screen.
+    return [];
+  }
+
+  public getNodeChildren(): NodeChild[] {
+    const children: NodeChild[] = [];
+    for (let idx = 0; idx < this.state.tabs.length; idx++) {
+      const tab = this.state.tabs[idx];
+      const stack = tab ? this.stacks[tab.tabKey] : undefined;
+      if (stack) {
+        children.push({
+          prefix: '',
+          node: stack as NavigationNode,
+          onMatch: () => this.onIndexChange(idx),
+        });
+      }
+    }
+    return children;
+  }
+
+  public getRenderer(): React.ComponentType<any> {
+    const tabBarInstance = this;
+    return function TabBarScreen() {
+      return React.createElement(RenderTabBar, { tabBar: tabBarInstance });
+    };
+  }
+
+  public seed(): {
+    routeId: string;
+    params?: Record<string, unknown>;
+    path: string;
+    stackId?: string;
+  } | null {
+    const activeTab = this.state.tabs[this.state.index];
+    if (!activeTab) return null;
+
+    const stack = this.stacks[activeTab.tabKey];
+    if (!stack) return null;
+
+    const firstRoute = stack.getFirstRoute();
+    if (!firstRoute) return null;
+
+    return {
+      routeId: firstRoute.routeId,
+      path: firstRoute.path,
+      stackId: stack.getId(),
+    };
+  }
+
+  private findTabIndexByRoute(routeId: string): number {
+    for (let i = 0; i < this.state.tabs.length; i++) {
+      const tab = this.state.tabs[i];
+      const stack = tab && this.stacks[tab.tabKey];
+      if (!stack) continue;
+      const hasRoute = stack.getRoutes().some(r => r.routeId === routeId);
+      if (hasRoute) {
+        return i;
+      }
+    }
+    return -1;
   }
 }

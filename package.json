@@ -109,7 +109,7 @@
       "<rootDir>/lib/"
     ],
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native|react-native-screens|nanoid|query-string|decode-uri-component|split-on-first|filter-obj)/)"
+      "node_modules/(?!((jest-)?react-native|@react-native|react-native-screens|@sigmela/native-sheet|nanoid|query-string|decode-uri-component|split-on-first|filter-obj)/)"
     ]
   },
   "commitlint": {

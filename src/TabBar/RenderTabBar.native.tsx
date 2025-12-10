@@ -2,7 +2,6 @@ import type { InternalTabItem, TabBar } from './TabBar';
 import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
-import { useRouter } from '../RouterContext';
 import type { TabBarProps } from './TabBar';
 import {
   type NativeFocusChangeEvent,
@@ -78,7 +77,6 @@ const getTabIcon = (tab: InternalTabItem) => {
 
 export const RenderTabBar = memo<RenderTabBarProps>(
   ({ tabBar, appearance = {} }) => {
-    const router = useRouter();
     const subscribe = useCallback(
       (cb: () => void) => tabBar.subscribe(cb),
       [tabBar]
@@ -103,24 +101,20 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       iOSShadowColor,
     } = appearance?.tabBar ?? {};
 
-    useEffect(() => {
-      router.ensureTabSeed(index);
-    }, [index, router]);
-
     const onNativeFocusChange = useCallback(
       (event: NativeSyntheticEvent<NativeFocusChangeEvent>) => {
         const tabKey = event.nativeEvent.tabKey;
         const tabIndex = tabs.findIndex((route) => route.tabKey === tabKey);
-        router.onTabIndexChange(tabIndex);
+        tabBar.onIndexChange(tabIndex);
       },
-      [tabs, router]
+      [tabs, tabBar]
     );
 
     const onTabPress = useCallback(
       (nextIndex: number) => {
-        router.onTabIndexChange(nextIndex);
+        tabBar.onIndexChange(nextIndex);
       },
-      [router]
+      [tabBar]
     );
 
     const containerProps = {

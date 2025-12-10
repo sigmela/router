@@ -16,6 +16,7 @@ export type Controller<
 export type ComponentWithController = {
   controller?: Controller<any, any>;
   component: React.ComponentType<any>;
+  childNode?: import('./navigationNode').NavigationNode;
 };
 
 export type MixedComponent = ComponentWithController | React.ComponentType<any>;

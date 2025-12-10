@@ -1,12 +1,10 @@
-import { NavigationStack } from './NavigationStack';
 import { nanoid } from 'nanoid/non-secure';
-import { TabBar } from './TabBar/TabBar';
 import { Platform } from 'react-native';
 import qs from 'query-string';
+import type { NavigationNode, NodeRoute, NodeChild } from './navigationNode';
 import type {
   CompiledRoute,
   HistoryItem,
-  Scope,
   ScreenOptions,
   VisibleRoute,
   QueryPattern,
@@ -15,62 +13,36 @@ import type {
 type Listener = () => void;
 
 export interface RouterConfig {
-  root: TabBar | NavigationStack;
-  global?: NavigationStack;
+  root: NavigationNode;
   screenOptions?: ScreenOptions;
   debug?: boolean;
 }
 
 export type RootTransition = ScreenOptions['stackAnimation'];
 
-function isTabBarLike(obj: any): obj is TabBar {
-  return (
-    obj != null &&
-    typeof obj === 'object' &&
-    'onIndexChange' in obj &&
-    'getState' in obj &&
-    'subscribe' in obj &&
-    'stacks' in obj
-  );
-}
-
-function isNavigationStackLike(obj: any): obj is NavigationStack {
-  return (
-    obj != null &&
-    typeof obj === 'object' &&
-    'getRoutes' in obj &&
-    'getId' in obj
-  );
-}
-
-type RouterState = { history: HistoryItem[]; activeTabIndex?: number };
+type RouterState = { history: HistoryItem[] };
 
 const EMPTY_ARRAY: HistoryItem[] = [];
 
 export class Router {
-  public tabBar: TabBar | null = null;
-  public root: NavigationStack | TabBar | null = null;
-  public global: NavigationStack | null = null;
+  public root: NavigationNode | null = null;
 
   private readonly listeners: Set<Listener> = new Set();
   private readonly registry: CompiledRoute[] = [];
   private state: RouterState = {
     history: [],
-    activeTabIndex: undefined,
   };
 
   private readonly routerScreenOptions: ScreenOptions | undefined;
   private readonly debugEnabled: boolean = false;
   private sheetDismissers = new Map<string, () => void>();
 
-  private stackSlices = new Map<string, HistoryItem[]>();
   private stackListeners = new Map<string, Set<Listener>>();
-  private activeTabListeners = new Set<Listener>();
-  private stackById = new Map<string, NavigationStack>();
-  private routeById = new Map<
-    string,
-    { path: string; stackId: string; tabIndex?: number; scope: Scope }
-  >();
+  private stackById = new Map<string, NavigationNode>();
+  private routeById = new Map<string, { path: string; stackId: string }>();
+  private stackActivators = new Map<string, () => void>();
+  private historyVersion: number = 0;
+  private stackHistoryCache = new Map<string, { version: number; slice: HistoryItem[] }>();
   private visibleRoute: VisibleRoute = null;
   private rootListeners: Set<Listener> = new Set();
   private rootTransition?: RootTransition = undefined;
@@ -85,21 +57,7 @@ export class Router {
 
     this.log('ctor');
 
-    if (isTabBarLike(config.root)) {
-      this.tabBar = config.root as TabBar;
-    }
-    if (config.global) {
-      this.global = config.global;
-    }
-
     this.root = config.root;
-
-    if (this.tabBar) {
-      this.state = {
-        history: [],
-        activeTabIndex: this.tabBar.getState().index,
-      };
-    }
 
     this.buildRegistry();
 
@@ -167,46 +125,6 @@ export class Router {
     this.popOnce();
   };
 
-  public onTabIndexChange = (index: number): void => {
-    if (this.tabBar) {
-      this.tabBar.onIndexChange(index);
-      this.setState({ activeTabIndex: index });
-      this.emit(this.activeTabListeners);
-      this.recomputeVisibleRoute();
-      this.emit(this.listeners);
-    }
-  };
-
-  public setActiveTabIndex = (index: number): void => {
-    this.onTabIndexChange(index);
-  };
-
-  public ensureTabSeed = (index: number): void => {
-    if (!this.tabBar) return;
-    const state = this.tabBar.getState();
-    const route = state.tabs[index];
-    if (!route) return;
-    const key = route.tabKey;
-    const stack = this.tabBar.stacks[key];
-    if (!stack) return;
-    const hasAny = this.getStackHistory(stack.getId()).length > 0;
-    if (hasAny) return;
-    const first = stack.getFirstRoute();
-    if (!first) return;
-
-    const newItem: HistoryItem = {
-      key: this.generateKey(),
-      scope: 'tab',
-      routeId: first.routeId,
-      component: first.component,
-      options: this.mergeOptions(first.options, stack.getId()),
-      params: {},
-      tabIndex: index,
-      stackId: stack.getId(),
-    };
-    this.applyHistoryChange('push', newItem);
-  };
-
   public getState = () => {
     return this.state;
   };
@@ -218,8 +136,19 @@ export class Router {
     };
   }
 
-  public getStackHistory = (stackId: string): HistoryItem[] => {
-    return this.stackSlices.get(stackId) ?? EMPTY_ARRAY;
+  private getStackSlice(stackId: string): HistoryItem[] {
+    const cached = this.stackHistoryCache.get(stackId);
+    if (cached && cached.version === this.historyVersion) {
+      return cached.slice;
+    }
+    const slice = this.state.history.filter(item => item.stackId === stackId);
+    this.stackHistoryCache.set(stackId, { version: this.historyVersion, slice });
+    return slice;
+  }
+
+  public getStackHistory = (stackId?: string): HistoryItem[] => {
+    if (!stackId) return EMPTY_ARRAY;
+    return this.getStackSlice(stackId);
   };
 
   public subscribeStack = (stackId: string, cb: Listener): (() => void) => {
@@ -235,25 +164,12 @@ export class Router {
     };
   };
 
-  public getActiveTabIndex = (): number => {
-    return this.state.activeTabIndex ?? 0;
-  };
-
-  public subscribeActiveTab = (cb: Listener): (() => void) => {
-    this.activeTabListeners.add(cb);
-    return () => this.activeTabListeners.delete(cb);
-  };
-
   public getRootStackId(): string | undefined {
-    return isNavigationStackLike(this.root) ? this.root.getId() : undefined;
+    return this.root?.getId();
   }
 
   public getGlobalStackId(): string | undefined {
-    return this.global?.getId();
-  }
-
-  public hasTabBar(): boolean {
-    return !!this.tabBar;
+    return undefined;
   }
 
   public subscribeRoot(listener: Listener): () => void {
@@ -270,34 +186,24 @@ export class Router {
   }
 
   public setRoot(
-    nextRoot: TabBar | NavigationStack,
+    nextRoot: NavigationNode,
     options?: { transition?: RootTransition }
   ): void {
-    this.tabBar = isTabBarLike(nextRoot) ? (nextRoot as TabBar) : null;
     this.root = nextRoot;
 
     this.rootTransition = options?.transition ?? undefined;
 
-    if (this.tabBar) {
-      this.tabBar.onIndexChange(0);
-    }
-
     this.registry.length = 0;
-    this.stackSlices.clear();
     this.stackById.clear();
     this.routeById.clear();
+    this.stackActivators.clear();
 
     this.state = {
       history: [],
-      activeTabIndex: this.tabBar ? this.tabBar.getState().index : undefined,
     };
 
     this.buildRegistry();
     this.seedInitialHistory();
-
-    const url = this.getCurrentUrl();
-    const { pathname, query } = this.parsePath(url);
-    this.syncGlobalStackForUrl(pathname, query);
 
     this.recomputeVisibleRoute();
     this.emitRootChange();
@@ -308,77 +214,122 @@ export class Router {
     return this.visibleRoute;
   };
 
+  // DEBUG METHODS - временные методы для отладки
+  public debugGetState() {
+    return {
+      history: this.state.history.map(h => ({
+        key: h.key,
+        routeId: h.routeId,
+        stackId: h.stackId,
+        path: h.path,
+        params: h.params,
+        query: h.query,
+        stackPresentation: h.options?.stackPresentation,
+      })),
+      stackSlices: Array.from(new Set(this.state.history.map(h => h.stackId).filter(Boolean) as string[])).map(stackId => ({
+        stackId,
+        items: this.getStackSlice(stackId).map(i => ({
+          key: i.key,
+          routeId: i.routeId,
+          path: i.path,
+          params: i.params,
+          query: i.query,
+          stackPresentation: i.options?.stackPresentation,
+        })),
+      })),
+      visibleRoute: this.visibleRoute,
+      registry: this.registry.map(r => ({
+        routeId: r.routeId,
+        path: r.path,
+        pathnamePattern: r.pathnamePattern,
+        stackId: r.stackId,
+        isWildcardPath: r.isWildcardPath,
+        baseSpecificity: r.baseSpecificity,
+        queryPattern: r.queryPattern,
+        options: r.options,
+      })),
+    };
+  }
+
+  public debugMatchRoute(path: string) {
+    const { pathname, query } = this.parsePath(path);
+    const matches: Array<{
+      routeId: string;
+      path: string;
+      pathnamePattern: string;
+      stackId?: string;
+      isWildcardPath: boolean;
+      baseSpecificity: number;
+      pathMatch: boolean;
+      queryMatch: boolean;
+      options?: ScreenOptions;
+    }> = [];
+
+    for (const r of this.registry) {
+      if (!r.stackId) continue;
+      let pathMatch: false | { params: Record<string, any> };
+      if (r.isWildcardPath) {
+        pathMatch = { params: {} };
+      } else {
+        pathMatch = r.matchPath(pathname);
+      }
+      const queryMatch = this.matchQueryPattern(r.queryPattern, query);
+
+      matches.push({
+        routeId: r.routeId,
+        path: r.path,
+        pathnamePattern: r.pathnamePattern,
+        stackId: r.stackId,
+        isWildcardPath: r.isWildcardPath,
+        baseSpecificity: r.baseSpecificity,
+        pathMatch: !!pathMatch,
+        queryMatch,
+        options: r.options,
+      });
+    }
+
+    const best = this.matchBaseRoute(pathname, query);
+    return {
+      input: { path, pathname, query },
+      matches,
+      best: best ? {
+        routeId: best.routeId,
+        path: best.path,
+        stackId: best.stackId,
+        options: best.options,
+      } : null,
+    };
+  }
+
+  public debugGetStackInfo(stackId: string) {
+    const slice = this.getStackHistory(stackId);
+    return {
+      stackId,
+      historyLength: slice.length,
+      items: slice.map(i => ({
+        key: i.key,
+        routeId: i.routeId,
+        path: i.path,
+        params: i.params,
+        query: i.query,
+        stackPresentation: i.options?.stackPresentation,
+      })),
+    };
+  }
+
+  public debugGetAllStacks() {
+    const stackIds = Array.from(new Set(this.state.history.map(h => h.stackId).filter(Boolean) as string[]));
+    return stackIds.map(stackId => 
+      this.debugGetStackInfo(stackId)
+    );
+  }
+
   private recomputeVisibleRoute(): void {
-    if (this.global) {
-      const gid = this.global.getId();
-      const gslice = this.getStackHistory(gid);
-      const gtop = gslice.length ? gslice[gslice.length - 1] : undefined;
-      if (gtop) {
-        const meta = this.routeById.get(gtop.routeId);
-        this.visibleRoute = meta
-          ? {
-              ...meta,
-              routeId: gtop.routeId,
-              params: gtop.params,
-              query: gtop.query,
-              path: gtop.path,
-            }
-          : {
-              routeId: gtop.routeId,
-              stackId: gtop.stackId,
-              params: gtop.params,
-              query: gtop.query,
-              scope: 'global',
-            };
-        return;
-      }
-    }
-
-    if (this.tabBar) {
-      const idx = this.getActiveTabIndex();
-      const state = this.tabBar.getState();
-      const route = state.tabs[idx];
-      if (route) {
-        const stack = this.tabBar.stacks[route.tabKey];
-        if (stack) {
-          const sid = stack.getId();
-          const slice = this.getStackHistory(sid);
-          const top = slice.length ? slice[slice.length - 1] : undefined;
-          if (top) {
-            const meta = this.routeById.get(top.routeId);
-            this.visibleRoute = meta
-              ? {
-                  ...meta,
-                  routeId: top.routeId,
-                  params: top.params,
-                  query: top.query,
-                  path: top.path,
-                }
-              : {
-                  routeId: top.routeId,
-                  stackId: sid,
-                  tabIndex: idx,
-                  params: top.params,
-                  query: top.query,
-                  scope: 'tab',
-                };
-            return;
-          }
-        } else {
-          this.visibleRoute = {
-            routeId: `tab-screen-${idx}`,
-            tabIndex: idx,
-            scope: 'tab',
-          };
-          return;
-        }
-      }
-    }
-
-    if (this.root && isNavigationStackLike(this.root)) {
-      const sid = this.root.getId();
-      const slice = this.getStackHistory(sid);
-      const top = slice.length ? slice[slice.length - 1] : undefined;
+    // Find the topmost item in history (the currently visible route)
+    // This works for both NavigationStack and TabBar roots
+    const history = this.state.history;
+    if (history.length > 0) {
+      const top = history[history.length - 1];
       if (top) {
         const meta = this.routeById.get(top.routeId);
         this.visibleRoute = meta
@@ -391,10 +342,10 @@ export class Router {
             }
           : {
               routeId: top.routeId,
-              stackId: sid,
+              stackId: top.stackId,
               params: top.params,
               query: top.query,
-              scope: 'root',
+              path: top.path,
             };
         return;
       }
@@ -418,151 +369,324 @@ export class Router {
     });
 
     const base = this.matchBaseRoute(pathname, query);
-    const globalMatch = this.matchGlobalRoute(pathname, query);
 
     this.log('resolveNavigation', {
       base: base
         ? {
             routeId: base.routeId,
-            scope: base.scope,
             path: base.path,
             stackId: base.stackId,
           }
         : null,
-      global: globalMatch
-        ? {
-            routeId: globalMatch.routeId,
-            scope: globalMatch.scope,
-            path: globalMatch.path,
-            stackId: globalMatch.stackId,
-          }
-        : null,
     });
 
-    if (!base && !globalMatch) {
+    if (!base) {
       if (__DEV__) {
         throw new Error(`Route not found: "${pathname}"`);
       }
       return;
     }
 
-    if (base) {
-      if (base.scope === 'tab' && this.tabBar && base.tabIndex !== undefined) {
-        this.onTabIndexChange(base.tabIndex);
-      }
+    const activator = base.stackId
+      ? this.stackActivators.get(base.stackId)
+      : undefined;
+    if (activator) {
+      activator();
+    }
 
-      const matchResult = base.matchPath(pathname);
-      const params = matchResult ? matchResult.params : undefined;
+    const matchResult = base.matchPath(pathname);
+    const params = matchResult ? matchResult.params : undefined;
 
-      if (action === 'push') {
-        const top = this.getTopForTarget(base.stackId);
-        if (top && top.routeId === base.routeId) {
-          const samePath = (top.path ?? '') === pathname;
-          const sameParams = this.areShallowEqual(
-            (top.params ?? {}) as Record<string, any>,
-            (params ?? {}) as Record<string, any>
+    if (action === 'push') {
+      if (base.stackId) {
+        // Сначала проверяем точное совпадение (routeId + pathname + params)
+        let existing = this.findExistingRoute(
+          base.stackId,
+          base.routeId,
+          pathname,
+          params ?? {}
+        );
+        
+        // Если не найдено, проверяем по pathname + params (для обновления query с сохранением ключа)
+        // Это нужно для случаев, когда query паттерн меняется, но pathname и params одинаковые
+        if (!existing) {
+          existing = this.findExistingRouteByPathname(
+            base.stackId,
+            pathname,
+            params ?? {}
           );
-
-          if (samePath && sameParams) {
-            this.log(
-              'push: same identity as top, updating query instead of pushing'
-            );
-            const updatedTop: HistoryItem = {
-              ...top,
-              params,
-              query: query as any,
-              path: pathname,
-            };
-            this.applyHistoryChange('replace', updatedTop);
-            this.syncGlobalStackForUrl(pathname, query);
-            return;
-          }
+        }
+        
+        if (existing) {
+          this.log('push: found existing item in stack history, using popTo', {
+            key: existing.key,
+            routeId: existing.routeId,
+            path: existing.path,
+          });
+          // ⚠️ КРИТИЧНО: Сохраняем ключ существующего маршрута!
+          // Обновляем существующий маршрут с сохранением ключа
+          const normalizedParams = params && Object.keys(params).length > 0 ? params : undefined;
+          const updatedExisting: HistoryItem = {
+            ...existing, // existing.key сохраняется автоматически
+            routeId: base.routeId, // Обновляем routeId на новый (может отличаться из-за query паттерна)
+            params: normalizedParams,
+            query: query as any,
+            path: pathname, // Only pathname, without query
+            component: base.component, // Обновляем компонент на новый
+            options: this.mergeOptions(base.options, base.stackId), // Обновляем опции
+            pattern: base.path, // Обновляем паттерн
+          };
+          this.applyHistoryChange('popTo', updatedExisting);
+          return;
         }
       }
+    }
 
-      if (action === 'replace' && opts?.dedupe) {
-        const top = this.getTopForTarget(base.stackId);
+    if (action === 'replace' && opts?.dedupe) {
+      const top = this.getTopForTarget(base.stackId);
 
-        this.log('dedupe: checking top of stack', {
-          top: top
-            ? { key: top.key, routeId: top.routeId, path: top.path }
-            : null,
-          matched: { routeId: base.routeId, pathname },
-        });
+      this.log('dedupe: checking top of stack', {
+        top: top
+          ? { key: top.key, routeId: top.routeId, path: top.path }
+          : null,
+        matched: { routeId: base.routeId, pathname },
+      });
 
-        if (top && top.routeId === base.routeId) {
-          const sameParams = this.areShallowEqual(
-            (top.params ?? {}) as Record<string, any>,
-            (params ?? {}) as Record<string, any>
-          );
-          const samePath = (top.path ?? '') === pathname;
-          const sameIdentity = sameParams && samePath;
+      if (top && top.routeId === base.routeId) {
+        const sameParams = this.areShallowEqual(
+          (top.params ?? {}) as Record<string, any>,
+          (params ?? {}) as Record<string, any>
+        );
+        const samePath = (top.path ?? '') === pathname;
+        const sameIdentity = sameParams && samePath;
 
-          const sameQuery = this.areShallowEqual(
-            (top.query ?? {}) as Record<string, any>,
-            (query ?? {}) as Record<string, any>
-          );
+        const sameQuery = this.areShallowEqual(
+          (top.query ?? {}) as Record<string, any>,
+          (query ?? {}) as Record<string, any>
+        );
 
-          this.log(
-            'dedupe: top matches routeId, checking identity (params+path) and query',
-            {
-              sameParams,
-              samePath,
-              sameIdentity,
-              sameQuery,
+        this.log(
+          'dedupe: top matches routeId, checking identity (params+path) and query',
+          {
+            sameParams,
+            samePath,
+            sameIdentity,
+            sameQuery,
+          }
+        );
+
+        if (sameIdentity && sameQuery) {
+          this.log('dedupe: already at target, no-op');
+          
+          // Даже при no-op нужно активировать правильный childNode (например, TabBar)
+          // и обновить видимый маршрут, так как мы можем переключаться между табами
+          if (base.stackId) {
+            
+            // Определяем targetStackId и targetRouteId для активации TabBar
+            // Если matchBaseRoute выбрал root stack, но pathname === '/',
+            // и текущий видимый маршрут не является home tab,
+            // ищем дочерний стек (таб) с таким же pathname и используем его
+            const rootStackId = this.root?.getId();
+            let targetStackId = base.stackId;
+            let targetRouteId = base.routeId;
+            const currentVisiblePath = this.visibleRoute?.path;
+            const currentVisiblePathname = currentVisiblePath ? this.parsePath(currentVisiblePath).pathname : '';
+            if (base.stackId === rootStackId && pathname === '/' && currentVisiblePathname !== '/') {
+              // Ищем дочерний стек (таб) с pathname === '/'
+              for (const route of this.registry) {
+                if (route.stackId !== rootStackId && 
+                    route.pathnamePattern === '/' && 
+                    !route.queryPattern) {
+                  const stackNode = this.stackById.get(route.stackId!);
+                  if (stackNode) {
+                    // Проверяем, является ли этот стек табом TabBar
+                    const rootStackRouteWithTabBar = this.registry.find(r => 
+                      r.stackId === rootStackId && 
+                      r.childNode && 
+                      typeof (r.childNode as any).setActiveChildByRoute === 'function'
+                    );
+                    if (rootStackRouteWithTabBar) {
+                      const tabBar = rootStackRouteWithTabBar.childNode as any;
+                      if (tabBar && typeof tabBar.findTabIndexByRoute === 'function') {
+                        const tabIndex = tabBar.findTabIndexByRoute(route.routeId);
+                        if (tabIndex !== -1) {
+                          targetStackId = route.stackId!;
+                          targetRouteId = route.routeId;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
-          );
-
-          if (sameIdentity && sameQuery) {
-            this.log('dedupe: already at target, no-op');
-            this.syncGlobalStackForUrl(pathname, query);
-            return;
+            
+            // Активируем childNode (например, TabBar) для переключения на правильный таб
+            // Сначала ищем в истории root stack элемент, который имеет childNode (TabBar)
+            let tabBarFound = false;
+            
+            if (rootStackId) {
+              const rootStackHistory = this.getStackSlice(rootStackId);
+              // Ищем последний элемент в root stack, который имеет childNode
+              for (let i = rootStackHistory.length - 1; i >= 0; i--) {
+                const item = rootStackHistory[i];
+                if (item) {
+                  const compiled = this.registry.find(r => r.routeId === item.routeId);
+                  if (compiled?.childNode && typeof (compiled.childNode as any).setActiveChildByRoute === 'function') {
+                    (compiled.childNode as any).setActiveChildByRoute(targetRouteId);
+                    tabBarFound = true;
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // Если не нашли в истории, ищем в registry напрямую (для случая initial render на дочернем табе)
+            if (!tabBarFound) {
+              // Ищем все маршруты в root stack, которые имеют childNode (TabBar)
+              for (const route of this.registry) {
+                if (route.stackId === rootStackId && 
+                    route.childNode && 
+                    typeof (route.childNode as any).setActiveChildByRoute === 'function') {
+                  (route.childNode as any).setActiveChildByRoute(targetRouteId);
+                  break;
+                }
+              }
+            }
+            
+            // Активируем стек (если нужно)
+            // Используем targetStackId, если он отличается от base.stackId
+            const stackIdToActivate = targetStackId !== base.stackId ? targetStackId : base.stackId;
+            const activator = this.stackActivators.get(stackIdToActivate);
+            if (activator) {
+              activator();
+            }
+            
+            // Берем последний элемент из выбранного стека, а не из всей истории
+            let stackHistory = this.getStackSlice(targetStackId);
+            
+            // Если в истории стека нет элементов, добавляем seed для него
+            // Это может произойти при initial render на другом табе
+            if (stackHistory.length === 0) {
+              const stackNode = this.stackById.get(targetStackId);
+              if (stackNode) {
+                const seed = this.getAutoSeed(stackNode);
+                if (seed) {
+                  const compiled = this.registry.find((r) => r.routeId === seed.routeId);
+                  const meta = this.routeById.get(seed.routeId);
+                  const path = compiled?.path ?? meta?.path ?? seed.path;
+                  const seedStackId = seed.stackId ?? stackNode.getId();
+                  const item: HistoryItem = {
+                    key: this.generateKey(),
+                    routeId: seed.routeId,
+                    component: compiled?.component ?? (() => null),
+                    options: this.mergeOptions(compiled?.options, seedStackId),
+                    params: seed.params ?? {},
+                    stackId: seedStackId,
+                    path,
+                    pattern: compiled?.path ?? seed.path,
+                  };
+                  this.applyHistoryChange('push', item);
+                  stackHistory = this.getStackSlice(targetStackId);
+                  
+                  // Если мы добавили seed для дочернего стека (таба), активируем TabBar
+                  if (targetStackId !== base.stackId && rootStackId) {
+                    const rootStackRouteWithTabBar = this.registry.find(r => 
+                      r.stackId === rootStackId && 
+                      r.childNode && 
+                      typeof (r.childNode as any).setActiveChildByRoute === 'function'
+                    );
+                    if (rootStackRouteWithTabBar) {
+                      (rootStackRouteWithTabBar.childNode as any).setActiveChildByRoute(seed.routeId);
+                    }
+                  }
+                }
+              }
+            }
+            
+            if (stackHistory.length > 0) {
+              const topOfStack = stackHistory[stackHistory.length - 1];
+              if (topOfStack) {
+                const meta = this.routeById.get(topOfStack.routeId);
+                this.visibleRoute = meta
+                  ? {
+                      ...meta,
+                      routeId: topOfStack.routeId,
+                      params: topOfStack.params,
+                      query: topOfStack.query,
+                      path: topOfStack.path,
+                    }
+                  : {
+                      routeId: topOfStack.routeId,
+                      stackId: topOfStack.stackId,
+                      params: topOfStack.params,
+                      query: topOfStack.query,
+                      path: topOfStack.path,
+                    };
+              }
+            } else if (targetStackId !== base.stackId) {
+              // Если мы нашли дочерний стек, но в его истории нет элементов,
+              // используем routeId из дочернего стека для обновления видимого маршрута
+              const targetRoute = this.registry.find(r => r.stackId === targetStackId && r.pathnamePattern === pathname);
+              if (targetRoute) {
+                const meta = this.routeById.get(targetRoute.routeId);
+                this.visibleRoute = meta
+                  ? {
+                      ...meta,
+                      routeId: targetRoute.routeId,
+                      params: {},
+                      query: {},
+                      path: targetRoute.path,
+                    }
+                  : {
+                      routeId: targetRoute.routeId,
+                      stackId: targetStackId,
+                      params: {},
+                      query: {},
+                      path: targetRoute.path,
+                    };
+              }
+            }
+          } else {
+            // Если нет stackId, используем стандартную логику
+            this.recomputeVisibleRoute();
           }
-
-          if (sameIdentity && !sameQuery) {
-            this.log(
-              'dedupe: same identity, updating query on top via replace'
-            );
-            const updatedTop: HistoryItem = {
-              ...top,
-              params,
-              query: query as any,
-              path: pathname,
-            };
-            this.applyHistoryChange('replace', updatedTop);
-            this.syncGlobalStackForUrl(pathname, query);
-            return;
-          }
+          this.emit(this.listeners);
+          return;
         }
 
-        const stackHistory = this.getStackHistory(base.stackId!);
+        if (sameIdentity && !sameQuery) {
+          this.log('dedupe: same identity, updating query on top via replace');
+          // ⚠️ КРИТИЧНО: Сохраняем ключ существующего маршрута!
+          const normalizedParams = params && Object.keys(params).length > 0 ? params : undefined;
+          const updatedTop: HistoryItem = {
+            ...top, // top.key сохраняется автоматически
+            params: normalizedParams,
+            query: query as any,
+            path: pathname, // Only pathname, without query
+          };
+          this.applyHistoryChange('replace', updatedTop);
+          return;
+        }
+      }
 
-        this.log('dedupe: searching in stack history', {
-          stackId: base.stackId,
-          stackHistory: stackHistory.map((h) => ({
-            key: h.key,
-            routeId: h.routeId,
-            path: h.path,
-          })),
-          looking: { routeId: base.routeId, pathname, params, query },
-        });
-
-        const existing = stackHistory.find((item) => {
-          const sameRoute = item.routeId === base.routeId;
-          const sameParams = this.areShallowEqual(
-            (item.params ?? {}) as Record<string, any>,
-            (params ?? {}) as Record<string, any>
-          );
-          const samePath = (item.path ?? '') === pathname;
-          return sameRoute && sameParams && samePath;
-        });
+      // Ищем существующий маршрут в стеке
+      if (base.stackId) {
+        const existing = this.findExistingRoute(
+          base.stackId,
+          base.routeId,
+          pathname,
+          params ?? {}
+        );
 
         if (existing) {
+          // ⚠️ КРИТИЧНО: Сохраняем ключ существующего маршрута!
+          const normalizedParams = params && Object.keys(params).length > 0 ? params : undefined;
           const updatedExisting: HistoryItem = {
-            ...existing,
-            params,
+            ...existing, // existing.key сохраняется автоматически
+            params: normalizedParams,
             query: query as any,
-            path: pathname,
+            path: pathname, // Only pathname, without query
           };
 
           this.log('dedupe: found existing item, calling popTo', {
@@ -570,40 +694,30 @@ export class Router {
           });
 
           this.applyHistoryChange('popTo', updatedExisting);
-          this.syncGlobalStackForUrl(pathname, query);
           return;
-        } else {
-          this.log('dedupe: no existing item found, will create new');
         }
       }
-
-      if (base.controller) {
-        const controllerInput = { params, query };
-        const present = (passProps?: Record<string, unknown>) => {
-          const newItem = this.createHistoryItem(
-            base,
-            params,
-            query,
-            pathname,
-            passProps
-          );
-          this.applyHistoryChange(action, newItem);
-          this.syncGlobalStackForUrl(pathname, query);
-        };
-
-        base.controller(controllerInput, present);
-        return;
-      }
-
-      const newItem = this.createHistoryItem(base, params, query, pathname);
-      this.applyHistoryChange(action, newItem);
-    } else {
-      this.log(
-        'performNavigation: no base route, relying only on global stack sync'
-      );
     }
 
-    this.syncGlobalStackForUrl(pathname, query);
+    if (base.controller) {
+      const controllerInput = { params, query };
+      const present = (passProps?: Record<string, unknown>) => {
+        const newItem = this.createHistoryItem(
+          base,
+          params,
+          query,
+          pathname,
+          passProps
+        );
+        this.applyHistoryChange(action, newItem);
+      };
+
+      base.controller(controllerInput, present);
+      return;
+    }
+
+    const newItem = this.createHistoryItem(base, params, query, pathname);
+    this.applyHistoryChange(action, newItem);
   }
 
   private createHistoryItem(
@@ -613,19 +727,22 @@ export class Router {
     pathname: string,
     passProps?: any
   ): HistoryItem {
+    // Normalize params: use undefined instead of empty object
+    const normalizedParams = params && Object.keys(params).length > 0 ? params : undefined;
+
+    // path should contain only pathname (without query)
+    // query is stored separately in the query field
     return {
       key: this.generateKey(),
-      scope: matched.scope,
       routeId: matched.routeId,
       component: matched.component,
       options: this.mergeOptions(matched.options, matched.stackId),
-      params,
+      params: normalizedParams,
       query: query as any,
       passProps,
-      tabIndex: matched.tabIndex,
       stackId: matched.stackId,
       pattern: matched.path,
-      path: pathname,
+      path: pathname, // Only pathname, without query
     };
   }
 
@@ -646,7 +763,6 @@ export class Router {
         key: item.key,
         routeId: item.routeId,
         path: item.path,
-        scope: item.scope,
       },
     });
 
@@ -689,7 +805,9 @@ export class Router {
       const targetKey = item.key;
       const keysToRemove = new Set<string>();
       let foundIndex = -1;
+      let foundItem: HistoryItem | null = null;
 
+      // Find the target item in history
       for (let i = prevHist.length - 1; i >= 0; i--) {
         const h = prevHist[i]!;
         if (h.stackId !== stackId) {
@@ -697,30 +815,41 @@ export class Router {
         }
         if (h.key === targetKey) {
           foundIndex = i;
+          foundItem = h;
           break;
         }
+        // Mark items from the same stack after target for removal
         keysToRemove.add(h.key);
       }
 
-      if (foundIndex === -1) {
+      if (foundIndex === -1 || !foundItem) {
         return;
       }
 
-      const copy = [...prevHist];
-
-      copy[foundIndex] = {
-        ...copy[foundIndex],
+      // Remove items from the same stack that are after the target
+      const copy = prevHist.filter((h) => !keysToRemove.has(h.key));
+      
+      // Update the found item with new data
+      const updatedItem: HistoryItem = {
+        ...foundItem,
         ...item,
         key: targetKey,
       };
 
-      nextHist = copy.filter((h) => !keysToRemove.has(h.key));
+      // Remove the old instance and add the updated one at the end
+      const itemIndex = copy.findIndex(h => h.key === targetKey);
+      if (itemIndex >= 0) {
+        copy.splice(itemIndex, 1);
+      }
+      copy.push(updatedItem);
+
+      nextHist = copy;
     }
 
     this.setState({ history: nextHist });
 
-    const newSlice = nextHist.filter((h) => h.stackId === stackId);
-    this.stackSlices.set(stackId, newSlice);
+    // stackSlices вычисляется на лету, ничего перестраивать не нужно
+    
     this.emit(this.stackListeners.get(stackId));
 
     this.recomputeVisibleRoute();
@@ -731,9 +860,12 @@ export class Router {
     const prev = this.state;
     const nextState: RouterState = {
       history: next.history ?? prev.history,
-      activeTabIndex: next.activeTabIndex ?? prev.activeTabIndex,
     };
     this.state = nextState;
+    if (nextState.history !== prev.history) {
+      this.historyVersion += 1;
+      this.stackHistoryCache.clear();
+    }
 
     this.log('setState', nextState);
   }
@@ -745,120 +877,413 @@ export class Router {
 
   private getTopForTarget(stackId?: string): HistoryItem | undefined {
     if (!stackId) return undefined;
-    const slice = this.stackSlices.get(stackId) ?? EMPTY_ARRAY;
-    return slice.length ? slice[slice.length - 1] : undefined;
+    const slice = this.getStackSlice(stackId);
+    return slice.length > 0 ? slice[slice.length - 1] : undefined;
   }
+
+  private findExistingRoute(
+    stackId: string,
+    routeId: string,
+    pathname: string,
+    params: Record<string, any>
+  ): HistoryItem | undefined {
+    // Ищем в истории стека
+    const stackHistory = this.getStackSlice(stackId);
+    
+    // Проверяем по routeId + pathname + params
+    return stackHistory.find(item => {
+      if (item.routeId !== routeId) return false;
+      
+      const itemPathname = item.path ? this.parsePath(item.path).pathname : '';
+      if (itemPathname !== pathname) return false;
+      
+      return this.areShallowEqual(
+        (item.params ?? {}) as Record<string, any>,
+        params
+      );
+    });
+  }
+
+  private findExistingRouteByPathname(
+    stackId: string,
+    pathname: string,
+    params: Record<string, any>
+  ): HistoryItem | undefined {
+    // Ищем в истории стека по pathname + params (без учета routeId и query)
+    // Это используется для обновления query параметров с сохранением ключа
+    const stackHistory = this.getStackSlice(stackId);
+    
+    return stackHistory.find(item => {
+      const itemPathname = item.path ? this.parsePath(item.path).pathname : '';
+      if (itemPathname !== pathname) return false;
+      
+      return this.areShallowEqual(
+        (item.params ?? {}) as Record<string, any>,
+        params
+      );
+    });
+  }
+
 
   private buildRegistry(): void {
     this.registry.length = 0;
 
-    const addFromStack = (
-      stack: NavigationStack,
-      scope: Scope,
-      extras: { tabIndex?: number }
-    ) => {
-      const stackId = stack.getId();
-      this.stackById.set(stackId, stack);
-      for (const r of stack.getRoutes() as any[]) {
+    const addFromNode = (node: NavigationNode, basePath: string) => {
+      const normalizedBasePath = this.normalizeBasePath(basePath);
+      const baseSpecificity =
+        this.computeBasePathSpecificity(normalizedBasePath);
+
+      const routes: NodeRoute[] = node.getNodeRoutes();
+
+      // Try to get stackId - nodes that manage their own history should provide it
+      // This is determined by checking if the node has routes (stacks typically do)
+      const stackId = routes.length > 0 ? node.getId() : undefined;
+      if (stackId) {
+        this.stackById.set(stackId, node);
+      }
+
+      for (const r of routes) {
         const compiled: CompiledRoute = {
           routeId: r.routeId,
-          scope,
-          path: r.path,
-          pathnamePattern: r.pathnamePattern,
+          path: this.combinePathWithBase(r.path, normalizedBasePath),
+          pathnamePattern:
+            r.pathnamePattern === '*'
+              ? '*'
+              : this.joinPaths(normalizedBasePath, r.pathnamePattern),
           isWildcardPath: r.isWildcardPath,
           queryPattern: r.queryPattern,
-          baseSpecificity: r.baseSpecificity,
-          matchPath: r.matchPath,
+          baseSpecificity: r.baseSpecificity + baseSpecificity,
+          matchPath: (pathname: string) => {
+            const stripped = this.stripBasePath(normalizedBasePath, pathname);
+            if (stripped === null) return false;
+            if (r.isWildcardPath) {
+              return { params: {} };
+            }
+            const target = stripped === '' ? '/' : stripped;
+            return r.matchPath(target);
+          },
           component: r.component,
           controller: r.controller,
           options: r.options,
-          tabIndex: extras.tabIndex,
           stackId,
+          childNode: r.childNode, // Сохраняем childNode для использования в seed
         };
 
         this.registry.push(compiled);
-        this.routeById.set(r.routeId, {
-          path: r.path,
-          stackId,
-          tabIndex: extras.tabIndex,
-          scope,
-        });
+        if (stackId) {
+          this.routeById.set(r.routeId, {
+            path: compiled.path,
+            stackId,
+          });
+        }
 
         this.log('buildRegistry route', {
           routeId: compiled.routeId,
-          scope: compiled.scope,
           path: compiled.path,
           pathnamePattern: compiled.pathnamePattern,
           isWildcardPath: compiled.isWildcardPath,
           baseSpecificity: compiled.baseSpecificity,
           stackId,
-          tabIndex: extras.tabIndex,
         });
+
+        if (r.childNode) {
+          const nextBaseForChild = r.isWildcardPath
+            ? normalizedBasePath
+            : this.joinPaths(normalizedBasePath, r.pathnamePattern);
+          addFromNode(r.childNode, nextBaseForChild);
+        }
       }
-      if (!this.stackSlices.has(stackId)) {
-        this.stackSlices.set(stackId, EMPTY_ARRAY);
+
+      const children: NodeChild[] = node.getNodeChildren();
+
+      for (const child of children) {
+        // If prefix is empty, use the current basePath as-is (don't join with '/')
+        const nextBase = child.prefix === '' ? normalizedBasePath : this.joinPaths(normalizedBasePath, child.prefix);
+        const childId = child.node.getId();
+        if (child.onMatch) {
+          this.stackActivators.set(childId, child.onMatch);
+        }
+        addFromNode(child.node, nextBase);
       }
     };
 
-    if (isNavigationStackLike(this.root)) {
-      addFromStack(this.root, 'root', {});
-    } else if (this.tabBar) {
-      const state = this.tabBar.getState();
-      state.tabs.forEach((tab, idx) => {
-        const stack = this.tabBar!.stacks[tab.tabKey];
-        if (stack) {
-          addFromStack(stack, 'tab', { tabIndex: idx });
-        }
-      });
+    if (this.root) {
+      addFromNode(this.root, '');
+    }
+  }
+
+  private normalizeBasePath(input: string): string {
+    if (!input || input === '/') {
+      return '';
+    }
+    let normalized = input.startsWith('/') ? input : `/${input}`;
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1);
+    }
+    return normalized;
+  }
+
+  private joinPaths(basePath: string, childPath: string): string {
+    if (childPath === '*') return '*';
+
+    const base = this.normalizeBasePath(basePath);
+    const child = this.normalizeBasePath(childPath || '/');
+
+    if (!base && !child) return '/';
+    if (!base) return child || '/';
+    if (!child) return base || '/';
+
+    const joined = `${base}${child.startsWith('/') ? child : `/${child}`}`;
+    return joined || '/';
+  }
+
+  private stripBasePath(basePath: string, pathname: string): string | null {
+    const normalizedBase = this.normalizeBasePath(basePath);
+    if (!normalizedBase) {
+      return pathname || '/';
     }
 
-    if (this.global) {
-      addFromStack(this.global, 'global', {});
+    // Special case: if basePath is '/', return pathname as-is
+    if (normalizedBase === '/') {
+      return pathname || '/';
     }
+
+    if (pathname === normalizedBase) {
+      return '/';
+    }
+
+    if (pathname.startsWith(`${normalizedBase}/`)) {
+      const rest = pathname.slice(normalizedBase.length);
+      return rest.length ? rest : '/';
+    }
+
+    return null;
+  }
+
+  private combinePathWithBase(path: string, basePath: string): string {
+    const parsed = qs.parseUrl(path);
+    const urlPart = parsed.url || '/';
+    const query = parsed.query;
+
+    const isWildcard = urlPart === '*';
+    const combinedPathname = isWildcard
+      ? `${this.normalizeBasePath(basePath)}*`
+      : this.joinPaths(basePath, urlPart);
+
+    const hasQuery = query && Object.keys(query).length > 0;
+    if (!hasQuery) {
+      return combinedPathname || '/';
+    }
+
+    return `${combinedPathname}?${qs.stringify(query)}`;
+  }
+
+  private computeBasePathSpecificity(basePath: string): number {
+    if (!basePath) return 0;
+    const segments = basePath.split('/').filter(Boolean);
+    return segments.length * 2;
+  }
+
+
+  /**
+   * Автоматически определяет seed для узла, если он не реализован.
+   * Логика:
+   * 1. Если у узла есть seed() и он возвращает значение - используем его
+   * 2. Если у узла есть getActiveChildId() (например, TabBar) - берем первый маршрут активного дочернего узла
+   * 3. Иначе - берем первый маршрут из getNodeRoutes()
+   * 
+   * Примечание: не рекурсивно ищем в дочерних узлах, если у узла нет маршрутов,
+   * чтобы избежать создания неожиданных записей в истории.
+   */
+  private getAutoSeed(node: NavigationNode): {
+    routeId: string;
+    params?: Record<string, unknown>;
+    path: string;
+    stackId?: string;
+  } | null {
+    // Сначала пробуем вызвать явный seed()
+    const explicitSeed = node.seed?.();
+    if (explicitSeed) {
+      return explicitSeed;
+    }
+
+    // Если у узла есть активный дочерний узел (например, TabBar с активной вкладкой)
+    const activeChildId = node.getActiveChildId?.();
+    if (activeChildId) {
+      const activeChild = node.getNodeChildren().find(
+        (child) => child.node.getId() === activeChildId
+      );
+      if (activeChild) {
+        const childSeed = this.getAutoSeed(activeChild.node);
+        if (childSeed) {
+          return childSeed;
+        }
+      }
+    }
+
+    // Берем первый маршрут из getNodeRoutes()
+    const routes = node.getNodeRoutes();
+    if (routes.length > 0 && routes[0]) {
+      const firstRoute = routes[0];
+      return {
+        routeId: firstRoute.routeId,
+        params: {},
+        path: firstRoute.path,
+        stackId: node.getId(),
+      };
+    }
+
+    // Не ищем рекурсивно в дочерних узлах, если у узла нет маршрутов,
+    // чтобы избежать создания неожиданных записей в истории
+    return null;
   }
 
   private seedInitialHistory(): void {
     if (this.state.history.length > 0) return;
 
-    if (this.tabBar) {
-      const state = this.tabBar.getState();
-      const activeIdx = state.index ?? 0;
-      const route = state.tabs[activeIdx];
-      if (!route) return;
-      const stack = this.tabBar.stacks[route.tabKey];
-      if (stack) {
-        const first = stack.getFirstRoute();
-        if (first) {
-          const newItem: HistoryItem = {
-            key: this.generateKey(),
-            scope: 'tab',
-            routeId: first.routeId,
-            component: first.component,
-            options: this.mergeOptions(first.options, stack.getId()),
-            params: {},
-            tabIndex: activeIdx,
-            stackId: stack.getId(),
-          };
-          this.applyHistoryChange('push', newItem);
-        }
+    if (this.root) {
+      const seed = this.getAutoSeed(this.root);
+      if (seed) {
+        const compiled = this.registry.find((r) => r.routeId === seed.routeId);
+        const meta = this.routeById.get(seed.routeId);
+        const path = compiled?.path ?? meta?.path ?? seed.path;
+        const stackId = seed.stackId ?? this.root.getId();
+        const item: HistoryItem = {
+          key: this.generateKey(),
+          routeId: seed.routeId,
+          component: compiled?.component ?? (() => null),
+          options: this.mergeOptions(compiled?.options, stackId),
+          params: seed.params ?? {},
+          stackId,
+          path,
+          pattern: compiled?.path ?? seed.path,
+        };
+        this.applyHistoryChange('push', item);
+        
+        // Рекурсивно вызываем seed для childNode маршрута (например, TabBar)
+        this.seedChildNodes(seed.routeId);
       }
       return;
     }
+  }
 
-    if (isNavigationStackLike(this.root)) {
-      const first = this.root.getFirstRoute();
-      if (first) {
-        const newItem: HistoryItem = {
-          key: this.generateKey(),
-          scope: 'root',
-          routeId: first.routeId,
-          component: first.component,
-          options: this.mergeOptions(first.options, this.root.getId()),
-          params: {},
-          stackId: this.root.getId(),
-        };
-        this.applyHistoryChange('push', newItem);
-      }
+  private addChildNodeSeeds(routeId: string, items: HistoryItem[], finalRouteId?: string): void {
+    this.log('addChildNodeSeeds: called', {
+      routeId,
+      finalRouteId,
+      itemsLength: items.length,
+      items: items.map(i => ({ routeId: i.routeId, stackId: i.stackId, path: i.path })),
+    });
+    
+    // Находим маршрут в registry и проверяем, есть ли у него childNode
+    const compiled = this.registry.find((r) => r.routeId === routeId);
+    if (!compiled || !compiled.childNode) {
+      this.log('addChildNodeSeeds: no childNode', { routeId });
+      return;
+    }
+
+    // Автоматически определяем seed для childNode (например, TabBar)
+    const childNode = compiled.childNode;
+    
+    // Если есть finalRouteId и childNode поддерживает setActiveChildByRoute, 
+    // устанавливаем активный дочерний элемент на основе конечного маршрута
+    if (finalRouteId && typeof (childNode as any).setActiveChildByRoute === 'function') {
+      this.log('addChildNodeSeeds: setting active child', { finalRouteId });
+      (childNode as any).setActiveChildByRoute(finalRouteId);
+    }
+    
+    const childSeed = this.getAutoSeed(childNode);
+    if (!childSeed) {
+      this.log('addChildNodeSeeds: no seed returned', { routeId });
+      return;
+    }
+    
+    this.log('addChildNodeSeeds: got seed', {
+      routeId: childSeed.routeId,
+      stackId: childSeed.stackId,
+      path: childSeed.path,
+    });
+
+    const childCompiled = this.registry.find((r) => r.routeId === childSeed.routeId);
+    const childMeta = this.routeById.get(childSeed.routeId);
+    const childPath = childCompiled?.path ?? childMeta?.path ?? childSeed.path;
+    const childStackId = childSeed.stackId ?? childNode.getId();
+    
+    // Проверяем, не существует ли уже элемент с таким routeId и stackId в items
+    // Это предотвращает дублирование маршрутов при парсинге URL
+    const existingItem = items.find(
+      (item) => item.routeId === childSeed.routeId && item.stackId === childStackId
+    );
+    
+    if (existingItem) {
+      this.log('addChildNodeSeeds: skipping duplicate', {
+        routeId: childSeed.routeId,
+        stackId: childStackId,
+        path: childPath,
+        existingItem: {
+          key: existingItem.key,
+          routeId: existingItem.routeId,
+          stackId: existingItem.stackId,
+          path: existingItem.path,
+        },
+      });
+      return;
+    }
+    
+    this.log('addChildNodeSeeds: adding child item', {
+      routeId: childSeed.routeId,
+      stackId: childStackId,
+      path: childPath,
+      itemsLength: items.length,
+    });
+    
+    const childItem: HistoryItem = {
+      key: this.generateKey(),
+      routeId: childSeed.routeId,
+      component: childCompiled?.component ?? (() => null),
+      options: this.mergeOptions(childCompiled?.options, childStackId),
+      params: childSeed.params ?? {},
+      stackId: childStackId,
+      path: childPath,
+      pattern: childCompiled?.path ?? childSeed.path,
+    };
+    items.push(childItem);
+    
+    // Рекурсивно добавляем seed для дочерних узлов дочернего узла
+    if (childSeed.routeId) {
+      this.addChildNodeSeeds(childSeed.routeId, items, finalRouteId);
+    }
+  }
+
+  private seedChildNodes(routeId: string): void {
+    // Находим маршрут в registry и проверяем, есть ли у него childNode
+    const compiled = this.registry.find((r) => r.routeId === routeId);
+    if (!compiled || !compiled.childNode) return;
+
+    // Автоматически определяем seed для childNode (например, TabBar)
+    const childNode = compiled.childNode;
+    const childSeed = this.getAutoSeed(childNode);
+    if (!childSeed) return;
+
+    const childCompiled = this.registry.find((r) => r.routeId === childSeed.routeId);
+    const childMeta = this.routeById.get(childSeed.routeId);
+    const childPath = childCompiled?.path ?? childMeta?.path ?? childSeed.path;
+    const childStackId = childSeed.stackId ?? childNode.getId();
+    const childItem: HistoryItem = {
+      key: this.generateKey(),
+      routeId: childSeed.routeId,
+      component: childCompiled?.component ?? (() => null),
+      options: this.mergeOptions(childCompiled?.options, childStackId),
+      params: childSeed.params ?? {},
+      stackId: childStackId,
+      path: childPath,
+      pattern: childCompiled?.path ?? childSeed.path,
+    };
+    this.applyHistoryChange('push', childItem);
+    
+    // Рекурсивно вызываем seed для дочерних узлов дочернего узла
+    if (childSeed.routeId) {
+      this.seedChildNodes(childSeed.routeId);
     }
   }
 
@@ -874,10 +1299,14 @@ export class Router {
           specificity: number;
         }
       | undefined;
+    
+    const candidates: Array<{
+      route: CompiledRoute;
+      specificity: number;
+    }> = [];
 
     for (const r of this.registry) {
-      if (r.scope === 'global') continue;
-
+      if (!r.stackId) continue;
       let pathMatch: false | { params: Record<string, any> };
       if (r.isWildcardPath) {
         pathMatch = { params: {} };
@@ -888,87 +1317,130 @@ export class Router {
 
       if (!this.matchQueryPattern(r.queryPattern, query)) continue;
 
-      const spec = r.baseSpecificity;
+      // Boost specificity for routes with query patterns to prioritize them
+      // This ensures overlay routes like *?modal=promo or /auth?kind=email are chosen over regular routes
+      let spec = r.baseSpecificity;
+      const hasQueryPattern = r.queryPattern && Object.keys(r.queryPattern).length > 0;
+      
+      if (hasQueryPattern) {
+        // Boost route with query pattern by a large amount to ensure priority
+        // This works for any overlay route (modal, sheet, or regular screen with query params)
+        spec += 1000;
+      }
 
       this.log('matchBaseRoute candidate', {
         routeId: r.routeId,
-        scope: r.scope,
         path: r.path,
         baseSpecificity: r.baseSpecificity,
+        adjustedSpecificity: spec,
+        hasQueryPattern,
+        stackId: r.stackId,
       });
 
       if (!best || spec > best.specificity) {
+        // Нашли более специфичный маршрут - сбрасываем кандидатов
         best = { route: r, specificity: spec };
+        candidates.length = 0;
+        candidates.push(best);
+      } else if (spec === best.specificity) {
+        // Если специфичность одинаковая, добавляем в кандидаты
+        candidates.push({ route: r, specificity: spec });
+      }
+    }
+
+    // Если есть несколько кандидатов с одинаковой специфичностью, 
+    // выбираем тот, у которого уже есть элемент в истории с таким же path
+    // Приоритет отдаем дочерним стекам (например, табам), а не root stack
+    if (candidates.length > 1) {
+      this.log('matchBaseRoute: multiple candidates with same specificity', {
+        candidatesCount: candidates.length,
+        candidates: candidates.map(c => ({
+          routeId: c.route.routeId,
+          stackId: c.route.stackId,
+          path: c.route.path,
+        })),
+      });
+      
+      const rootStackId = this.root?.getId();
+      let bestFromHistory: CompiledRoute | undefined;
+      let bestChildStack: CompiledRoute | undefined;
+      let bestChildStackWithHistory: CompiledRoute | undefined;
+      
+      for (const candidate of candidates) {
+        const candidateStackId = candidate.route.stackId;
+        const stackHistory = this.getStackSlice(candidateStackId!);
+        const hasMatchingItem = stackHistory.some(item => {
+          const itemPathname = item.path ? this.parsePath(item.path).pathname : '';
+          return itemPathname === pathname;
+        });
+        
+        this.log('matchBaseRoute: checking candidate', {
+          routeId: candidate.route.routeId,
+          stackId: candidateStackId,
+          isRootStack: candidateStackId === rootStackId,
+          stackHistoryLength: stackHistory.length,
+          hasMatchingItem,
+        });
+        
+        if (hasMatchingItem) {
+          // Если это не root stack, приоритет выше
+          if (candidateStackId !== rootStackId) {
+            bestChildStack = candidate.route;
+            this.log('matchBaseRoute: found child stack candidate with matching item', {
+              routeId: candidate.route.routeId,
+              stackId: candidateStackId,
+            });
+            // Прерываем поиск, так как нашли дочерний стек с точным совпадением
+            break;
+          } else if (!bestFromHistory) {
+            bestFromHistory = candidate.route;
+          }
+        } else if (candidateStackId !== rootStackId && stackHistory.length > 0) {
+          // Если это дочерний стек с историей (даже без точного совпадения pathname),
+          // сохраняем его как кандидата (приоритет над root stack)
+          if (!bestChildStackWithHistory) {
+            bestChildStackWithHistory = candidate.route;
+            this.log('matchBaseRoute: found child stack candidate with history', {
+              routeId: candidate.route.routeId,
+              stackId: candidateStackId,
+              stackHistoryLength: stackHistory.length,
+            });
+          }
+        }
+      }
+      
+      // Приоритет: дочерний стек с точным совпадением > дочерний стек с историей > root stack с историей
+      if (bestChildStack && best) {
+        best = { route: bestChildStack, specificity: best.specificity };
+        this.log('matchBaseRoute: selected child stack with matching item', {
+          routeId: bestChildStack.routeId,
+          stackId: bestChildStack.stackId,
+        });
+      } else if (bestChildStackWithHistory && best) {
+        best = { route: bestChildStackWithHistory, specificity: best.specificity };
+        this.log('matchBaseRoute: selected child stack', {
+          routeId: bestChildStackWithHistory.routeId,
+          stackId: bestChildStackWithHistory.stackId,
+        });
+      } else if (bestFromHistory && best) {
+        best = { route: bestFromHistory, specificity: best.specificity };
+        this.log('matchBaseRoute: selected root stack with history', {
+          routeId: bestFromHistory.routeId,
+          stackId: bestFromHistory.stackId,
+        });
       }
     }
 
     if (best) {
       this.log('matchBaseRoute winner', {
         routeId: best.route.routeId,
-        scope: best.route.scope,
         path: best.route.path,
+        stackId: best.route.stackId,
         specificity: best.specificity,
+        candidatesCount: candidates.length,
       });
     } else {
       this.log('matchBaseRoute no match');
-    }
-
-    return best?.route;
-  }
-
-  private matchGlobalRoute(
-    pathname: string,
-    query: Record<string, unknown>
-  ): CompiledRoute | undefined {
-    if (!this.global) {
-      return undefined;
-    }
-
-    this.log('matchGlobalRoute', { pathname, query });
-
-    let best:
-      | {
-          route: CompiledRoute;
-          specificity: number;
-        }
-      | undefined;
-
-    for (const r of this.registry) {
-      if (r.scope !== 'global') continue;
-
-      let pathMatch: false | { params: Record<string, any> };
-      if (r.isWildcardPath) {
-        pathMatch = { params: {} };
-      } else {
-        pathMatch = r.matchPath(pathname);
-      }
-      if (!pathMatch) continue;
-
-      if (!this.matchQueryPattern(r.queryPattern, query)) continue;
-
-      const spec = r.baseSpecificity;
-
-      this.log('matchGlobalRoute candidate', {
-        routeId: r.routeId,
-        scope: r.scope,
-        path: r.path,
-        baseSpecificity: r.baseSpecificity,
-      });
-
-      if (!best || spec > best.specificity) {
-        best = { route: r, specificity: spec };
-      }
-    }
-
-    if (best) {
-      this.log('matchGlobalRoute winner', {
-        routeId: best.route.routeId,
-        scope: best.route.scope,
-        path: best.route.path,
-        specificity: best.specificity,
-      });
-    } else {
-      this.log('matchGlobalRoute no match');
     }
 
     return best?.route;
@@ -1000,10 +1472,9 @@ export class Router {
     routeOptions?: ScreenOptions,
     stackId?: string
   ): ScreenOptions | undefined {
-    const stackDefaults = stackId
-      ? (this.findStackById(stackId)?.getDefaultOptions() as any)
-      : undefined;
-    const routerDefaults = this.routerScreenOptions as any;
+    const stackNode = stackId ? this.findStackById(stackId) : undefined;
+    const stackDefaults = stackNode?.getDefaultOptions?.();
+    const routerDefaults = this.routerScreenOptions;
     if (!routerDefaults && !stackDefaults && !routeOptions) return undefined;
 
     const merged: any = {
@@ -1023,7 +1494,7 @@ export class Router {
     return merged;
   }
 
-  private findStackById(stackId: string): NavigationStack | undefined {
+  private findStackById(stackId: string): NavigationNode | undefined {
     return this.stackById.get(stackId);
   }
 
@@ -1175,7 +1646,7 @@ export class Router {
     if (!base) return true;
 
     const mergedOptions = this.mergeOptions(base.options, base.stackId);
-    const rawsyncWithUrl = mergedOptions && (mergedOptions as any).syncWithUrl;
+    const rawsyncWithUrl = mergedOptions?.syncWithUrl;
 
     if (typeof rawsyncWithUrl === 'boolean') {
       return rawsyncWithUrl;
@@ -1253,7 +1724,7 @@ export class Router {
     }
 
     const path = vr.path;
-    const query = (vr as any).query as Record<string, unknown> | undefined;
+    const query = vr.query;
 
     if (!query || Object.keys(query).length === 0) {
       return path;
@@ -1296,27 +1767,6 @@ export class Router {
       };
     }
     g[key] = true;
-  }
-
-  private tryPopGlobalForWebBack(): boolean {
-    if (!this.global) return false;
-
-    const gid = this.global.getId();
-    const gslice = this.getStackHistory(gid);
-    if (!gslice.length) {
-      return false;
-    }
-
-    const top = gslice[gslice.length - 1]!;
-
-    this.log('web back: popping global top', {
-      key: top.key,
-      routeId: top.routeId,
-      path: top.path,
-    });
-
-    this.applyHistoryChange('pop', top);
-    return true;
   }
 
   private setupBrowserHistory(): void {
@@ -1365,16 +1815,6 @@ export class Router {
         });
 
         if (delta < 0) {
-          const poppedGlobal = this.tryPopGlobalForWebBack();
-
-          if (poppedGlobal) {
-            this.log(
-              'popstate: global popped, syncing stack with URL via replace+dedupe'
-            );
-          } else {
-            this.log('popstate: no global to pop, using replace+dedupe');
-          }
-
           this.performNavigation(url, 'replace', { dedupe: true });
         } else if (delta > 0) {
           this.log('popstate: forward history step, treat as push', { url });
@@ -1393,88 +1833,17 @@ export class Router {
     g.addEventListener?.('popstate', onHistory);
   }
 
-  private syncGlobalStackForUrl(
-    pathname: string,
-    query: Record<string, unknown>
-  ): void {
-    if (!this.global) {
-      return;
-    }
-
-    const globalStackId = this.global.getId();
-    const globalSlice = this.getStackHistory(globalStackId);
-    const currentTop = globalSlice.length
-      ? globalSlice[globalSlice.length - 1]
-      : undefined;
-
-    const desired = this.matchGlobalRoute(pathname, query);
-
-    if (!desired) {
-      if (currentTop) {
-        this.log(
-          'syncGlobalStackForUrl: no desired global route, popping existing top',
-          {
-            key: currentTop.key,
-            routeId: currentTop.routeId,
-            path: currentTop.path,
-          }
-        );
-        this.applyHistoryChange('pop', currentTop);
-      } else {
-        this.log(
-          'syncGlobalStackForUrl: no desired global route and no current global top'
-        );
-      }
-      return;
-    }
-
-    if (currentTop && currentTop.routeId === desired.routeId) {
-      const samePath = (currentTop.path ?? '') === pathname;
-      const sameQuery = this.areShallowEqual(
-        (currentTop.query ?? {}) as Record<string, any>,
-        (query ?? {}) as Record<string, any>
-      );
-
-      if (samePath && sameQuery) {
-        this.log(
-          'syncGlobalStackForUrl: desired global already on top, no-op',
-          {
-            routeId: desired.routeId,
-            path: desired.path,
-          }
-        );
-        return;
-      }
-    }
-
-    const matchResult = desired.matchPath(pathname);
-    const params = matchResult ? matchResult.params : undefined;
-
-    const newItem = this.createHistoryItem(desired, params, query, pathname);
-
-    this.log('syncGlobalStackForUrl: pushing desired global item', {
-      routeId: desired.routeId,
-      path: desired.path,
-      stackId: desired.stackId,
-      pathname,
-      query,
-    });
-
-    this.applyHistoryChange('push', newItem);
-  }
-
   private syncUrlWithStateAfterInternalPop(popped: HistoryItem): void {
     if (!this.isWebEnv()) return;
 
     const compiled = this.registry.find((r) => r.routeId === popped.routeId);
 
-    const isQueryGlobal =
+    const isQueryRoute =
       compiled &&
-      compiled.scope === 'global' &&
       compiled.queryPattern &&
       Object.keys(compiled.queryPattern).length > 0;
 
-    if (isQueryGlobal) {
+    if (isQueryRoute) {
       const currentUrl = this.getCurrentUrl();
       const { pathname, query } = this.parsePath(currentUrl);
 
@@ -1490,7 +1859,7 @@ export class Router {
 
       const nextUrl = `${pathname}${newSearch}`;
 
-      this.log('syncUrlWithStateAfterInternalPop (query-global)', {
+      this.log('syncUrlWithStateAfterInternalPop (query)', {
         poppedRouteId: popped.routeId,
         from: currentUrl,
         to: nextUrl,
@@ -1511,7 +1880,7 @@ export class Router {
       return;
     }
 
-    this.log('syncUrlWithStateAfterInternalPop (base/global)', {
+    this.log('syncUrlWithStateAfterInternalPop (base)', {
       poppedRouteId: popped.routeId,
       from,
       to: nextUrl,
@@ -1521,63 +1890,71 @@ export class Router {
   }
 
   private popOnce(): HistoryItem | null {
-    return this.tryPopActiveStack();
-  }
-
-  private tryPopActiveStack(): HistoryItem | null {
-    const handlePop = (item: HistoryItem): HistoryItem => {
-      if ((item.options?.stackPresentation as any) === 'sheet') {
-        const dismisser = this.sheetDismissers.get(item.key);
-        if (dismisser) {
-          this.unregisterSheetDismisser(item.key);
-          dismisser();
-          return item;
-        }
-      }
-
-      this.applyHistoryChange('pop', item);
-      return item;
-    };
-
-    if (this.global) {
-      const gid = this.global.getId();
-      const gslice = this.getStackHistory(gid);
-      const gtop = gslice.length ? gslice[gslice.length - 1] : undefined;
-      if (gtop) {
-        return handlePop(gtop);
-      }
-    }
-
-    if (this.tabBar) {
-      const idx = this.getActiveTabIndex();
-      const state = this.tabBar.getState();
-      const route = state.tabs[idx];
-      if (!route) return null;
-      const stack = this.tabBar.stacks[route.tabKey];
-      if (!stack) return null;
-      const sid = stack.getId();
-      const slice = this.getStackHistory(sid);
-      if (slice.length > 1) {
-        const top = slice[slice.length - 1];
-        if (top) {
-          return handlePop(top);
+    const visible = this.visibleRoute;
+    if (!visible || !visible.stackId) {
+      // Fallback: try root stack
+      if (this.root) {
+        const sid = this.root.getId();
+        if (sid) {
+          const stackHistory = this.getStackSlice(sid);
+          if (stackHistory.length > 0) {
+            const top = stackHistory[stackHistory.length - 1]!;
+            const isModalOrSheet = top.options?.stackPresentation === 'modal' || 
+                                   top.options?.stackPresentation === 'sheet';
+            if (stackHistory.length > 1 || isModalOrSheet) {
+              // Обработка sheet с dismisser
+              if (top.options?.stackPresentation === 'sheet') {
+                const dismisser = this.sheetDismissers.get(top.key);
+                if (dismisser) {
+                  this.unregisterSheetDismisser(top.key);
+                  dismisser();
+                  return top;
+                }
+              }
+              this.applyHistoryChange('pop', top);
+              return top;
+            }
+          }
         }
       }
       return null;
     }
 
-    if (isNavigationStackLike(this.root)) {
-      const sid = this.root.getId();
-      const slice = this.getStackHistory(sid);
-      if (slice.length > 1) {
-        const top = slice[slice.length - 1];
-        if (top) {
-          return handlePop(top);
-        }
+    // Находим видимый элемент в истории
+    // Ищем последний элемент с таким же stackId в истории (может быть не последним в общей истории)
+    let visibleItem: HistoryItem | undefined;
+    for (let i = this.state.history.length - 1; i >= 0; i--) {
+      const h = this.state.history[i];
+      if (h && h.stackId === visible.stackId) {
+        visibleItem = h;
+        break;
       }
     }
-
-    return null;
+    
+    if (!visibleItem || !visibleItem.stackId) return null;
+    
+    const stackHistory = this.getStackSlice(visibleItem.stackId);
+    
+    // Нельзя уйти ниже корня стека (кроме модалов и sheet)
+    const isModalOrSheet = visibleItem.options?.stackPresentation === 'modal' || 
+                           visibleItem.options?.stackPresentation === 'sheet';
+    
+    if (stackHistory.length <= 1 && !isModalOrSheet) return null;
+    
+    // Обработка sheet с dismisser
+    if (visibleItem.options?.stackPresentation === 'sheet') {
+      const dismisser = this.sheetDismissers.get(visibleItem.key);
+      if (dismisser) {
+        this.unregisterSheetDismisser(visibleItem.key);
+        dismisser();
+        return visibleItem;
+      }
+    }
+    
+    // Удаляем последний элемент активного стека
+    const top = stackHistory[stackHistory.length - 1]!;
+    this.applyHistoryChange('pop', top);
+    return top;
   }
 
   private parse(url: string): void {
@@ -1585,63 +1962,63 @@ export class Router {
 
     this.log('parse', { url, pathname, query });
 
+    // Сначала находим базовый маршрут для pathname (без query-параметров модалки)
+    // Это нужно, чтобы базовый маршрут был в истории перед модалкой
+    const baseRoute = this.matchBaseRoute(pathname, {});
+    
+    // Затем находим deepest route с учетом query-параметров (может быть overlay route с query pattern)
     const deepest = this.matchBaseRoute(pathname, query);
+    
+    // Проверяем, имеет ли deepest query pattern (это может быть модалка, sheet, или любой overlay route)
+    const hasDeepestQueryPattern = deepest && 
+      deepest.queryPattern && 
+      Object.keys(deepest.queryPattern).length > 0;
+    
+    // Проверяем, отличается ли deepest от baseRoute (если отличается, значит это overlay route)
+    const isDeepestOverlay = hasDeepestQueryPattern && 
+      deepest && 
+      baseRoute && 
+      deepest.routeId !== baseRoute.routeId;
 
-    if (!deepest) {
+    // Если deepest не найден, или если deepest является overlay route, но baseRoute не найден,
+    // используем seed для создания начальной истории
+    if (!deepest || (isDeepestOverlay && !baseRoute)) {
       if (__DEV__) {
         console.warn(
-          `[Router] parse: no base route found for "${pathname}", seeding initial history and syncing global stack if any`
+          `[Router] parse: no base route found for "${pathname}", seeding initial history`
         );
       }
 
       this.seedInitialHistory();
-      this.syncGlobalStackForUrl(pathname, query);
 
       this.recomputeVisibleRoute();
       this.emit(this.listeners);
       return;
-    }
-
-    if (
-      deepest.scope === 'tab' &&
-      this.tabBar &&
-      deepest.tabIndex !== undefined
-    ) {
-      this.onTabIndexChange(deepest.tabIndex);
     }
 
     const segments = pathname.split('/').filter(Boolean);
-    const stackId = deepest.stackId;
-    const scope = deepest.scope;
-
-    if (!stackId) {
-      if (__DEV__) {
-        console.warn(
-          '[Router] parse: deepest route has no stackId, seeding initial history and syncing global stack'
-        );
-      }
-
-      this.seedInitialHistory();
-      this.syncGlobalStackForUrl(pathname, query);
-      this.recomputeVisibleRoute();
-      this.emit(this.listeners);
-      return;
+    const prefixes: string[] =
+      segments.length > 0
+        ? segments.map((_, i) => '/' + segments.slice(0, i + 1).join('/'))
+        : ['/'];
+    if (!prefixes.includes('/')) {
+      prefixes.unshift('/');
     }
 
     const items: HistoryItem[] = [];
 
-    for (let i = 0; i < segments.length; i++) {
-      const prefixPath = '/' + segments.slice(0, i + 1).join('/');
-
+    prefixes.forEach((prefixPath, index) => {
       this.log('parse prefix', {
-        index: i,
+        index,
         prefixPath,
       });
 
       let routeForPrefix: CompiledRoute | undefined;
 
-      if (i === segments.length - 1) {
-        routeForPrefix = deepest;
+      if (index === prefixes.length - 1) {
+        // Для последнего префикса используем базовый маршрут (не модалку)
+        // Модалка будет добавлена отдельно после всех префиксов
+        routeForPrefix = baseRoute || deepest;
       } else {
         let best:
           | {
@@ -1651,8 +2028,6 @@ export class Router {
           | undefined;
 
         for (const route of this.registry) {
-          if (route.stackId !== stackId || route.scope !== scope) continue;
-
           if (route.queryPattern) continue;
 
           const matchResult = route.matchPath(prefixPath);
@@ -1677,15 +2052,17 @@ export class Router {
 
       if (!routeForPrefix) {
         this.log('parse: no route for prefix', {
-          index: i,
+          index,
           prefixPath,
         });
-        continue;
+        return;
       }
 
       const matchResult = routeForPrefix.matchPath(prefixPath);
       const params = matchResult ? matchResult.params : undefined;
-      const itemQuery = i === segments.length - 1 ? query : {};
+      // Для последнего префикса не добавляем query, если deepest является overlay route с query pattern
+      // Query будет добавлен к overlay route отдельно
+      const itemQuery = index === prefixes.length - 1 && !isDeepestOverlay ? query : {};
 
       const item = this.createHistoryItem(
         routeForPrefix,
@@ -1695,7 +2072,7 @@ export class Router {
       );
 
       this.log('parse: push item', {
-        index: i,
+        index,
         routeId: routeForPrefix.routeId,
         path: routeForPrefix.path,
         prefixPath,
@@ -1704,17 +2081,78 @@ export class Router {
       });
 
       items.push(item);
+    });
+    
+    // Если deepest является overlay route с query pattern, добавляем его поверх базового маршрута
+    let overlayItem: HistoryItem | undefined;
+    if (isDeepestOverlay && deepest && baseRoute) {
+      overlayItem = this.createHistoryItem(
+        deepest,
+        undefined, // params для overlay route обычно не нужны
+        query, // query-параметры overlay route
+        pathname // pathname для overlay route
+      );
+      
+      this.log('parse: push overlay item', {
+        routeId: deepest.routeId,
+        path: deepest.path,
+        pathname,
+        query,
+      });
+      
+      items.push(overlayItem);
+    }
+    
+    // После создания истории для всех префиксов, проверяем элементы в обратном порядке
+    // чтобы найти первый элемент с childNode (например, TabBar) и вызвать seed для него
+    if (items.length > 0) {
+      // Находим routeId конечного маршрута (для определения активного таба)
+      // Если последний элемент - overlay route с query pattern, используем предпоследний для определения активного таба
+      const lastItem = items[items.length - 1];
+      const lastItemCompiled = lastItem ? this.registry.find((r) => r.routeId === lastItem.routeId) : undefined;
+      const isLastItemOverlay = lastItem && lastItemCompiled && 
+        lastItemCompiled.queryPattern && 
+        Object.keys(lastItemCompiled.queryPattern).length > 0;
+      const finalRouteId = isLastItemOverlay && items.length > 1
+        ? items[items.length - 2]?.routeId
+        : lastItem?.routeId;
+      
+      // Ищем первый элемент с childNode, начиная с конца (последний элемент может быть конечным маршрутом без childNode)
+      // Пропускаем overlay route с query pattern, если он последний
+      const searchStartIndex = isLastItemOverlay ? items.length - 2 : items.length - 1;
+      for (let i = searchStartIndex; i >= 0; i--) {
+        const item = items[i];
+        if (item && item.routeId) {
+          const compiled = this.registry.find((r) => r.routeId === item.routeId);
+          if (compiled && compiled.childNode) {
+            // Найден элемент с childNode - вызываем seed для него
+            // Передаем finalRouteId для правильного определения активного таба
+            this.addChildNodeSeeds(item.routeId, items, finalRouteId);
+            break;
+          }
+        }
+      }
+      
+      // Если был добавлен overlay route с query pattern, убеждаемся, что он остается последним в истории
+      // (childNode seeds могли добавить элементы после него)
+      if (overlayItem) {
+        const overlayIndex = items.findIndex(item => item.key === overlayItem!.key);
+        if (overlayIndex >= 0 && overlayIndex < items.length - 1) {
+          // Перемещаем overlay route в конец
+          items.splice(overlayIndex, 1);
+          items.push(overlayItem);
+        }
+      }
     }
 
     if (!items.length) {
       if (__DEV__) {
         console.warn(
-          '[Router] parse: no items built for URL, seeding initial history and syncing global stack'
+          '[Router] parse: no items built for URL, seeding initial history'
         );
       }
 
       this.seedInitialHistory();
-      this.syncGlobalStackForUrl(pathname, query);
       this.recomputeVisibleRoute();
       this.emit(this.listeners);
       return;
@@ -1722,11 +2160,8 @@ export class Router {
 
     this.setState({ history: items });
 
-    const slice = items.filter((h) => h.stackId === stackId);
-    this.stackSlices.set(stackId, slice);
-    this.emit(this.stackListeners.get(stackId));
-
-    this.syncGlobalStackForUrl(pathname, query);
+    // stackSlices вычисляется на лету, ничего перестраивать не нужно
+    this.stackListeners.forEach((set) => this.emit(set));
 
     this.recomputeVisibleRoute();
     this.emit(this.listeners);

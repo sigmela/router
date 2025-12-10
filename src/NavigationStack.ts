@@ -6,23 +6,16 @@ import {
   type ComponentWithController,
   type MixedComponent,
 } from './createController';
+import type { NavigationNode, NodeRoute, NodeChild } from './navigationNode';
 
-type BuiltRoute = {
-  routeId: string;
-  path: string;
-  pathnamePattern: string;
-  isWildcardPath: boolean;
-  queryPattern: QueryPattern | null;
-  baseSpecificity: number;
-  matchPath: (path: string) => false | { params: Record<string, any> };
-  component: React.ComponentType<any>;
-  controller?: ComponentWithController['controller'];
-  options?: ScreenOptions;
-};
+type BuiltRoute = NodeRoute;
 
-export class NavigationStack {
+type ChildNode = NodeChild;
+
+export class NavigationStack implements NavigationNode {
   private readonly stackId: string;
   private readonly routes: BuiltRoute[] = [];
+  private readonly children: ChildNode[] = [];
   private readonly defaultOptions: ScreenOptions | undefined;
   private readonly debugEnabled: boolean = false;
 
@@ -63,10 +56,11 @@ export class NavigationStack {
 
   public addScreen(
     pathPattern: string,
-    mixedComponent: MixedComponent,
+    mixedComponent: MixedComponent | NavigationNode,
     options?: ScreenOptions
   ): NavigationStack {
-    const { component, controller } = this.extractComponent(mixedComponent);
+    const { component, controller, childNode } =
+      this.extractComponent(mixedComponent);
 
     const parsed = qs.parseUrl(pathPattern);
     const pathnamePattern = parsed.url || '/';
@@ -106,6 +100,7 @@ export class NavigationStack {
       component,
       controller,
       options,
+      childNode,
     };
 
     this.routes.push(builtRoute);
@@ -145,6 +140,35 @@ export class NavigationStack {
     });
   }
 
+  public addStack(
+    prefixOrStack: string | NavigationStack,
+    maybeStack?: NavigationStack
+  ): NavigationStack {
+    const hasExplicitPrefix = typeof prefixOrStack === 'string';
+    const prefixRaw = hasExplicitPrefix ? prefixOrStack : '';
+    const stack = hasExplicitPrefix ? maybeStack : prefixOrStack;
+
+    if (!stack) {
+      throw new Error('NavigationStack.addStack: child stack is required');
+    }
+
+    const prefix = this.normalizePrefix(prefixRaw ?? '');
+
+    this.children.push({ prefix, node: stack });
+
+    this.log('addStack', {
+      stackId: this.stackId,
+      childId: stack.getId(),
+      prefix,
+    });
+
+    return this;
+  }
+
+  public getChildren(): ChildNode[] {
+    return this.children.slice();
+  }
+
   public getRoutes(): BuiltRoute[] {
     return this.routes.slice();
   }
@@ -157,19 +181,70 @@ export class NavigationStack {
     return this.defaultOptions;
   }
 
-  private extractComponent(component: MixedComponent) {
-    const componentWithController = component as ComponentWithController;
+  public getNodeRoutes(): BuiltRoute[] {
+    return this.getRoutes();
+  }
+
+  public getNodeChildren(): ChildNode[] {
+    return this.children.slice();
+  }
+
+  public getRenderer(): React.ComponentType<any> {
+    // NavigationStack is not directly renderable; renderer is provided via routes.
+    return () => null;
+  }
+
+  public seed?(): {
+    routeId: string;
+    params?: Record<string, unknown>;
+    path: string;
+    stackId?: string;
+  } | null {
+    const first = this.getFirstRoute();
+    if (!first) return null;
+    return {
+      routeId: first.routeId,
+      params: {},
+      path: first.path,
+      stackId: this.stackId,
+    };
+  }
+
+  private extractComponent(component: MixedComponent | NavigationNode) {
+    if (this.isNavigationNode(component)) {
+      return {
+        controller: undefined,
+        component: component.getRenderer(),
+        childNode: component,
+      };
+    }
+
+    const componentWithController = component as ComponentWithController & {
+      childNode?: NavigationNode;
+    };
     if (componentWithController?.component) {
       return {
         controller: componentWithController.controller,
         component: componentWithController.component,
+        childNode: componentWithController.childNode,
       };
     }
 
     return {
       component: component as React.ComponentType<any>,
       controller: undefined,
+      childNode: undefined,
     };
+  }
+
+  private isNavigationNode(obj: any): obj is NavigationNode {
+    return (
+      obj &&
+      typeof obj === 'object' &&
+      typeof (obj as NavigationNode).getNodeRoutes === 'function' &&
+      typeof (obj as NavigationNode).getNodeChildren === 'function' &&
+      typeof (obj as NavigationNode).getRenderer === 'function'
+    );
   }
 
   private buildQueryPattern(
@@ -226,5 +301,18 @@ export class NavigationStack {
     }
 
     return pathScore + queryScore;
+  }
+
+  private normalizePrefix(input: string): string {
+    if (!input || input === '/') {
+      return '';
+    }
+
+    let normalized = input.startsWith('/') ? input : `/${input}`;
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1);
+    }
+
+    return normalized;
   }
 }

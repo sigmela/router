@@ -30,9 +30,6 @@ export type NavigationState<Route extends TabItem> = {
   routes: Route[];
 };
 
-// Navigation core types
-export type Scope = 'global' | 'tab' | 'root';
-
 // Map ScreenOptions to native ScreenStackItem props
 export type TabBarIcon = { sfSymbolName?: string } | string;
 
@@ -51,14 +48,12 @@ export type ScreenOptions = Partial<
 
 export type HistoryItem = {
   key: string;
-  scope: Scope;
   routeId: string;
   component: React.ComponentType<any>;
   options?: ScreenOptions;
   params?: Record<string, unknown>;
   query?: Record<string, unknown>;
   passProps?: any; // Props passed from controller to component
-  tabIndex?: number;
   stackId?: string;
   pattern?: string;
   path?: string;
@@ -68,7 +63,6 @@ export type VisibleRoute = {
   routeId: string;
   stackId?: string;
   tabIndex?: number;
-  scope: Scope;
   path?: string;
   params?: Record<string, unknown>;
   query?: Record<string, unknown>;
@@ -90,8 +84,6 @@ export type QueryPattern = Record<string, QueryToken>;
 
 export type CompiledRoute = {
   routeId: string;
-  scope: Scope;
-
   /**
    * Original pattern string as passed to NavigationStack (may include query),
    * e.g. "/auth", "/auth?kind=email", "*?modal=promo"
@@ -130,8 +122,12 @@ export type CompiledRoute = {
   component: React.ComponentType<any>;
   controller?: import('./createController').Controller<any, any>;
   options?: ScreenOptions;
-  tabIndex?: number;
   stackId?: string;
+  /**
+   * Optional child node (e.g., TabBar) for nested navigation.
+   * Used for seed initialization.
+   */
+  childNode?: import('./navigationNode').NavigationNode;
 };
 
 // =====================

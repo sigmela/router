@@ -1,6 +1,5 @@
 // import { ScreenStackItem as RNNScreenStackItem } from 'react-native-screens';
 import type { NavigationAppearance } from './types';
-import { RenderTabBar } from './TabBar/RenderTabBar';
 import { ScreenStackItem } from './ScreenStackItem';
 import { RouterContext } from './RouterContext';
 import { ScreenStack } from './ScreenStack';
@@ -12,7 +11,6 @@ import {
   useCallback,
   useEffect,
   useState,
-  useMemo,
 } from 'react';
 
 interface NavigationProps {
@@ -37,64 +35,26 @@ function useStackHistory(router: Router, stackId?: string) {
 
 export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
   const [root, setRoot] = useState(() => ({
-    hasTabBar: router.hasTabBar(),
     rootId: router.getRootStackId(),
   }));
 
   useEffect(() => {
     return router.subscribeRoot(() => {
       setRoot({
-        hasTabBar: router.hasTabBar(),
         rootId: router.getRootStackId(),
       });
     });
   }, [router]);
 
-  const { hasTabBar, rootId } = root;
+  const { rootId } = root;
   const rootTransition = router.getRootTransition();
   const globalId = router.getGlobalStackId();
   const rootItems = useStackHistory(router, rootId);
   const globalItems = useStackHistory(router, globalId);
 
-  // Create a component wrapper for the tab bar
-  const TabBarComponent = useMemo(() => {
-    if (!hasTabBar || !router.tabBar) return null;
-    const tabBarInstance = router.tabBar;
-    const tabBarAppearance = appearance;
-
-    return () => (
-      <RenderTabBar tabBar={tabBarInstance} appearance={tabBarAppearance} />
-    );
-  }, [hasTabBar, router.tabBar, appearance]);
-
-  // Create a HistoryItem for the tab bar
-  const tabBarItem = useMemo(() => {
-    if (!hasTabBar || !TabBarComponent) return null;
-    return {
-      key: 'root-tabbar',
-      scope: 'tab' as const,
-      routeId: 'root-tabbar',
-      component: TabBarComponent,
-      options: {
-        stackPresentation: 'push' as const,
-        header: { hidden: true },
-        stackAnimation: 'slide_from_right' as const,
-      },
-    };
-  }, [hasTabBar, TabBarComponent]);
-
   return (
     <RouterContext.Provider value={router}>
       <ScreenStack style={styles.flex}>
-        {hasTabBar && tabBarItem && (
-          <ScreenStackItem
-            key="root-tabbar-screen-item"
-            item={tabBarItem}
-            stackId="root"
-            stackAnimation="slide_from_right"
-            appearance={appearance}
-          />
-        )}
         {rootItems.map((item) => (
           <ScreenStackItem
             key={`root-${item.key}`}

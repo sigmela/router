@@ -12,6 +12,7 @@ import { SmsAuthModal } from '../screens/SmsAuthModal';
 import { GenericAuthModal } from '../screens/GenericAuthModal';
 import { PromoModal } from '../screens/PromoModal';
 import { AuthScreen } from '../screens/AuthScreen';
+import { TabBar } from '@sigmela/router';
 
 export const homeStack = new NavigationStack().addScreen('/', HomeScreen, {
   header: { title: 'Home' },
@@ -45,20 +46,6 @@ export const authStack = new NavigationStack()
   })
   .addModal('/auth?kind=:kind', GenericAuthModal);
 
-export const globalStack = new NavigationStack()
-  .addScreen('/auth', AuthScreen, {
-    header: { title: 'Login', hidden: true },
-  })
-  .addModal('/auth?kind=email', EmailAuthModal, {
-    header: { title: 'Email login' },
-  })
-  .addModal('/auth?kind=sms', SmsAuthModal, {
-    // syncWithUrl: true,
-    header: { title: 'SMS login' },
-  })
-  .addModal('/auth?kind=:kind', GenericAuthModal)
-  .addModal('*?modal=promo', PromoModal);
-
 export const ordersStack = new NavigationStack()
   .addScreen('/orders', OrdersScreen, {
     header: { title: 'Orders' },
@@ -72,3 +59,44 @@ export const userStack = new NavigationStack()
   .addScreen('/users/:userId/details', UserDetailsScreen, {
     header: { title: 'Details' },
   });
+
+export const tabBar = new TabBar({ component: undefined })
+  .addTab({
+    key: 'home',
+    stack: homeStack,
+    title: 'Home',
+    icon: require('../../assets/icons/ic-more-h-circle-24.png'),
+  })
+  .addTab({
+    key: 'catalog',
+    stack: catalogStack,
+    title: 'Catalog',
+    icon: require('../../assets/icons/ic-products-outline-24.png'),
+  })
+  .addTab({
+    key: 'orders',
+    stack: ordersStack,
+    title: 'Orders',
+    icon: require('../../assets/icons/ic-orders-24.png'),
+  })
+  .addTab({
+    key: 'settings',
+    stack: settingsStack,
+    title: 'Settings',
+    icon: require('../../assets/icons/ic-settings-outline-24.png'),
+  });
+
+export const rootStack = new NavigationStack()
+  .addScreen('/', tabBar)
+  .addScreen('/auth', AuthScreen, {
+    header: { title: 'Login', hidden: true },
+  })
+  .addModal('/auth?kind=email', EmailAuthModal, {
+    header: { title: 'Email login' },
+  })
+  .addModal('/auth?kind=sms', SmsAuthModal, {
+    // syncWithUrl: true,
+    header: { title: 'SMS login' },
+  })
+  .addModal('/auth?kind=:kind', GenericAuthModal)
+  .addModal('*?modal=promo', PromoModal);
