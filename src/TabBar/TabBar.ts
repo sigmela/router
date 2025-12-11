@@ -128,7 +128,18 @@ export class TabBar implements NavigationNode {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach((listener) => listener());
+    // Do not allow one listener to break all others.
+    for (const listener of Array.from(this.listeners)) {
+      try {
+        listener();
+      } catch (e) {
+        // TabBar has no debug flag; keep behavior quiet in production.
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.error('[TabBar] listener error', e);
+        }
+      }
+    }
   }
 
   public subscribe(listener: () => void): () => void {

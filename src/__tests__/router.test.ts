@@ -162,6 +162,22 @@ describe('Router slices', () => {
     router.goBack();
     expect(tabBar.getState().index).toBe(0);
   });
+
+  test('listener errors do not prevent other listeners from running', () => {
+    const stack = new NavigationStack().addScreen('/a', ScreenA);
+    const router = new Router({ root: stack });
+
+    let goodCalls = 0;
+    router.subscribe(() => {
+      throw new Error('listener boom');
+    });
+    router.subscribe(() => {
+      goodCalls += 1;
+    });
+
+    router.navigate('/a');
+    expect(goodCalls).toBeGreaterThanOrEqual(1);
+  });
 });
 
 describe('Router controllers', () => {

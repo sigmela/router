@@ -59,8 +59,10 @@ export class Router {
   private rootTransition?: RootTransition = undefined;
 
   private lastBrowserIndex: number = 0;
-  private pendingReplaceDedupe: boolean = false;
-  private suppressHistorySync: boolean = false;
+  private suppressHistorySyncCount: number = 0;
+
+  // Used to prevent stale controller-driven navigations (controller calls present later).
+  private navigationToken: number = 0;
 
   constructor(config: RouterConfig) {
     this.debugEnabled = config.debug ?? false;
@@ -104,9 +106,8 @@ export class Router {
 
   public replace = (path: string, dedupe?: boolean): void => {
     if (this.isWebEnv()) {
-      this.pendingReplaceDedupe = !!dedupe;
       const syncWithUrl = this.shouldSyncPathWithUrl(path);
-      this.replaceUrl(path, { syncWithUrl });
+      this.replaceUrl(path, { syncWithUrl, dedupe: !!dedupe });
       return;
     }
     this.performNavigation(path, 'replace', { dedupe: !!dedupe });
@@ -125,8 +126,11 @@ export class Router {
 
   public goBack = (): void => {
     if (this.isWebEnv()) {
+      const prevHistoryRef = this.state.history;
       const popped = this.popFromActiveStack();
-      if (popped) {
+      // Sync URL only if Router state actually changed (avoid syncing URL when
+      // a UI-level dismisser is used and the history pop will happen later).
+      if (popped && this.state.history !== prevHistoryRef) {
         this.syncUrlAfterInternalPop(popped);
       }
 
@@ -169,6 +173,9 @@ export class Router {
     set.add(cb);
     return () => {
       set!.delete(cb);
+      if (set!.size === 0) {
+        this.stackListeners.delete(stackId);
+      }
     };
   };
 
@@ -372,6 +379,7 @@ export class Router {
     opts?: { dedupe?: boolean }
   ): void {
     const { pathname, query } = this.parsePath(path);
+    const navigationToken = ++this.navigationToken;
 
     this.log('performNavigation', {
       path,
@@ -535,7 +543,17 @@ export class Router {
 
     if (base.controller) {
       const controllerInput = { params, query };
+      let didPresent = false;
       const present = (passProps?: Record<string, unknown>) => {
+        if (didPresent) return;
+        didPresent = true;
+        if (navigationToken !== this.navigationToken) {
+          this.log('controller: present ignored (stale navigation)', {
+            navigationToken,
+            current: this.navigationToken,
+          });
+          return;
+        }
         const newItem = this.createHistoryItem(
           base,
           params,
@@ -979,7 +997,16 @@ export class Router {
 
   private emit(set?: Set<Listener> | null): void {
     if (!set) return;
-    set.forEach((l) => l());
+    // Do not allow one listener to break all others.
+    for (const l of Array.from(set)) {
+      try {
+        l();
+      } catch (e) {
+        if (this.debugEnabled) {
+          console.error('[Router] listener error', e);
+        }
+      }
+    }
   }
 
   private getTopOfStack(stackId?: string): HistoryItem | undefined {
@@ -1603,9 +1630,30 @@ export class Router {
     b?: Record<string, any>
   ): boolean {
     if (a === b) return true;
-    const prev = a ? JSON.stringify(a) : '';
-    const next = b ? JSON.stringify(b) : '';
-    return prev === next;
+    if (!a || !b) return false;
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+    for (const k of aKeys) {
+      if (!(k in b)) return false;
+      const av = a[k];
+      const bv = b[k];
+      if (av === bv) continue;
+
+      const aArr = Array.isArray(av);
+      const bArr = Array.isArray(bv);
+      if (aArr || bArr) {
+        if (!aArr || !bArr) return false;
+        if (av.length !== bv.length) return false;
+        for (let i = 0; i < av.length; i++) {
+          if (av[i] !== bv[i]) return false;
+        }
+        continue;
+      }
+
+      return false;
+    }
+    return true;
   }
 
   private matchQueryPattern(
@@ -1690,6 +1738,20 @@ export class Router {
     return 0;
   }
 
+  private getHistoryIndexOrNull(): number | null {
+    const g = globalThis as unknown as { history?: { state: unknown } };
+    const st = g.history?.state;
+    if (
+      st &&
+      typeof st === 'object' &&
+      '__srIndex' in (st as Record<string, unknown>)
+    ) {
+      const idx = (st as { __srIndex?: unknown }).__srIndex;
+      return typeof idx === 'number' ? idx : null;
+    }
+    return null;
+  }
+
   private getHistoryIndex(): number {
     const g = globalThis as unknown as { history?: { state: unknown } };
     return this.readHistoryIndex(g.history?.state);
@@ -1740,6 +1802,20 @@ export class Router {
     return this.getCurrentUrl();
   }
 
+  private getReplaceDedupeFromHistory(): boolean {
+    const g = globalThis as unknown as { history?: { state: unknown } };
+    const st = g.history?.state;
+    if (
+      st &&
+      typeof st === 'object' &&
+      '__srReplaceDedupe' in (st as Record<string, unknown>)
+    ) {
+      const v = (st as { __srReplaceDedupe?: unknown }).__srReplaceDedupe;
+      return typeof v === 'boolean' ? v : false;
+    }
+    return false;
+  }
+
   private shouldSyncPathWithUrl(path: string): boolean {
     const { pathname, query } = this.parsePath(path);
     const base = this.matchBaseRoute(pathname, query);
@@ -1788,6 +1864,7 @@ export class Router {
     to: string,
     opts?: {
       syncWithUrl?: boolean;
+      dedupe?: boolean;
     }
   ): void {
     const g = globalThis as unknown as {
@@ -1806,6 +1883,7 @@ export class Router {
     const next = {
       ...base,
       __srPath: routerPath,
+      __srReplaceDedupe: !!opts?.dedupe,
     };
 
     g.history?.replaceState(next, '', visualUrl);
@@ -1813,7 +1891,7 @@ export class Router {
 
   private replaceUrlSilently(to: string): void {
     if (!this.isWebEnv()) return;
-    this.suppressHistorySync = true;
+    this.suppressHistorySyncCount += 1;
     this.replaceUrl(to, { syncWithUrl: true });
   }
 
@@ -1873,39 +1951,48 @@ export class Router {
     const g = globalThis as unknown as {
       addEventListener?: (type: string, cb: (ev: Event) => void) => void;
     };
+    const gAny = g as unknown as Record<PropertyKey, unknown>;
+    const activeKey = Symbol.for('sigmela_router_active_instance');
     this.patchBrowserHistoryOnce();
     this.ensureHistoryIndex();
     this.lastBrowserIndex = this.getHistoryIndex();
 
+    // If a new Router instance is created (e.g. Fast Refresh / HMR), ensure only the latest
+    // instance reacts to browser history events to avoid duplicate navigation updates.
+    gAny[activeKey] = this;
+
     const onHistory = (ev: Event): void => {
+      if (gAny[activeKey] !== this) return;
       if (ev.type === 'pushState') {
         const path = this.getRouterPathFromHistory();
-        this.lastBrowserIndex = this.getHistoryIndex();
+        const idx = this.getHistoryIndexOrNull();
+        this.lastBrowserIndex =
+          idx !== null ? idx : Math.max(0, this.lastBrowserIndex + 1);
         this.performNavigation(path, 'push');
         return;
       }
 
       if (ev.type === 'replaceState') {
-        if (this.suppressHistorySync) {
+        if (this.suppressHistorySyncCount > 0) {
           this.log('onHistory: replaceState suppressed (internal URL sync)');
-          this.suppressHistorySync = false;
-          this.lastBrowserIndex = this.getHistoryIndex();
-          this.pendingReplaceDedupe = false;
+          this.suppressHistorySyncCount -= 1;
+          const idx = this.getHistoryIndexOrNull();
+          this.lastBrowserIndex = idx !== null ? idx : this.lastBrowserIndex;
           return;
         }
 
         const path = this.getRouterPathFromHistory();
-        const dedupe = this.pendingReplaceDedupe === true;
+        const dedupe = this.getReplaceDedupeFromHistory();
         this.performNavigation(path, 'replace', { dedupe });
-        this.lastBrowserIndex = this.getHistoryIndex();
-        this.pendingReplaceDedupe = false;
+        const idx = this.getHistoryIndexOrNull();
+        this.lastBrowserIndex = idx !== null ? idx : this.lastBrowserIndex;
         return;
       }
 
       if (ev.type === 'popstate') {
-        const url = this.getCurrentUrl();
-        const idx = this.getHistoryIndex();
-        const delta = idx - this.lastBrowserIndex;
+        const url = this.getRouterPathFromHistory();
+        const idx = this.getHistoryIndexOrNull();
+        const delta = idx !== null ? idx - this.lastBrowserIndex : 0;
 
         this.log('popstate event', {
           url,
@@ -1913,6 +2000,13 @@ export class Router {
           prevIndex: this.lastBrowserIndex,
           delta,
         });
+
+        // If browser history index isn't available (external history manipulations),
+        // treat popstate as a soft replace. The route path still comes from __srPath when present.
+        if (idx === null) {
+          this.performNavigation(url, 'replace', { dedupe: true });
+          return;
+        }
 
         if (delta < 0) {
           this.performNavigation(url, 'replace', { dedupe: true });

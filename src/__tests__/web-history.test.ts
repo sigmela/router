@@ -107,6 +107,19 @@ function installWebShim(initialUrl: string) {
       location.href = href;
       dispatchEvent(new MiniEvent('popstate'));
     },
+    forward() {
+      if (index >= entries.length - 1) {
+        dispatchEvent(new MiniEvent('popstate'));
+        return;
+      }
+      index += 1;
+      const entry = entries[index]!;
+      const { pathname, search, href } = parseUrl(entry.url);
+      location.pathname = pathname;
+      location.search = search;
+      location.href = href;
+      dispatchEvent(new MiniEvent('popstate'));
+    },
   };
 
   seedFrom(location.href, {});
@@ -313,6 +326,72 @@ describe('Web History integration', () => {
     }
   });
 
+  test('programmatic goBack closes Router screen without stepping browser history', () => {
+    const shim = installWebShim('https://example.test/product');
+
+    const stack = new NavigationStack()
+      .addScreen('/product', Screen)
+      .addScreen('/product/catalog', Screen)
+      .addScreen('/product/catalog/:productId', Screen);
+
+    const router = new Router({ root: stack });
+
+    router.navigate('/product/catalog');
+    router.navigate('/product/catalog/1');
+    expect(router.debugGetState().activeRoute?.path).toBe('/product/catalog/1');
+    const idxBefore = shim.getIndex();
+
+    router.goBack();
+
+    // We closed the top screen, but browser history index should not move.
+    expect(router.debugGetState().activeRoute?.path).toBe('/product/catalog');
+    expect(shim.getIndex()).toBe(idxBefore);
+    expect(shim.getLocation()).toEqual({ pathname: '/product/catalog', search: '' });
+  });
+
+  test('browser back button traverses browser history (popstate), not Router.goBack()', () => {
+    const shim = installWebShim('https://example.test/product');
+
+    const stack = new NavigationStack()
+      .addScreen('/product', Screen)
+      .addScreen('/product/catalog', Screen)
+      .addScreen('/product/catalog/:productId', Screen);
+
+    const router = new Router({ root: stack });
+
+    router.navigate('/product/catalog');
+    router.navigate('/product/catalog/1');
+    expect(router.debugGetState().activeRoute?.path).toBe('/product/catalog/1');
+
+    const idxBefore = shim.getIndex();
+    const g = globalThis as unknown as { history?: { back?: () => void } };
+    g.history?.back?.();
+
+    expect(shim.getIndex()).toBe(idxBefore - 1);
+    expect(router.debugGetState().activeRoute?.path).toBe('/product/catalog');
+  });
+
+  test('query-overlay: programmatic goBack closes overlay via replaceState (no history step)', () => {
+    const shim = installWebShim('https://example.test/catalog?modal=promo');
+
+    const stack = new NavigationStack()
+      .addScreen('/catalog', Screen)
+      .addModal('*?modal=promo', Screen);
+
+    const router = new Router({ root: stack });
+
+    expect(router.debugGetState().activeRoute?.path).toBe('/catalog');
+    expect(router.debugGetState().activeRoute?.query?.modal).toBe('promo');
+
+    const idxBefore = shim.getIndex();
+    router.goBack();
+
+    expect(shim.getIndex()).toBe(idxBefore);
+    expect(router.debugGetState().activeRoute?.path).toBe('/catalog');
+    expect(router.debugGetState().activeRoute?.query?.modal).toBeUndefined();
+    expect(shim.getLocation()).toEqual({ pathname: '/catalog', search: '' });
+  });
+
   test('reentrant replace flags: multiple simultaneous replaces work correctly', () => {
     const shim = installWebShim('https://example.test/product');
 
@@ -424,5 +503,52 @@ describe('Web History integration', () => {
     const before = router.debugGetState().activeRoute?.path;
     router.goBack();
     expect(router.debugGetState().activeRoute?.path).toBe(before);
+  });
+
+  test('popstate uses __srPath (not location) when syncWithUrl=false', () => {
+    const shim = installWebShim('https://example.test/product');
+
+    const stack = new NavigationStack()
+      .addScreen('/product', Screen)
+      .addScreen('/product/catalog', Screen, { syncWithUrl: false });
+
+    const router = new Router({ root: stack });
+
+    // Navigate with syncWithUrl=false should keep location as-is, but store router path in history state.
+    router.navigate('/product/catalog');
+
+    expect(router.debugGetState().activeRoute?.path).toBe('/product/catalog');
+    expect(shim.getLocation()).toEqual({ pathname: '/product', search: '' });
+
+    const g = globalThis as unknown as { history?: { back?: () => void; forward?: () => void } };
+
+    g.history?.back?.();
+    expect(router.debugGetState().activeRoute?.path).toBe('/product');
+    expect(shim.getLocation()).toEqual({ pathname: '/product', search: '' });
+
+    // Forward should restore router path even though location stays unchanged.
+    g.history?.forward?.();
+    expect(router.debugGetState().activeRoute?.path).toBe('/product/catalog');
+    expect(shim.getLocation()).toEqual({ pathname: '/product', search: '' });
+  });
+
+  test('dedupe handles query arrays (repeated query keys) without duplicating', () => {
+    installWebShim('https://example.test/catalog');
+
+    const stack = new NavigationStack()
+      .addScreen('/catalog', Screen)
+      // route expects any query, we care about Router dedupe on replace
+      .addScreen('/catalog?tag=:tag', Screen);
+
+    const router = new Router({ root: stack });
+
+    router.navigate('/catalog?tag=a&tag=b');
+    const before = router.debugGetState().history.length;
+
+    // Same query array should dedupe (replace+dedupe path)
+    router.replace('/catalog?tag=a&tag=b', true);
+    const after = router.debugGetState().history.length;
+
+    expect(after).toBe(before);
   });
 });
