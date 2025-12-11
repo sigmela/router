@@ -4,10 +4,6 @@ export type { TabBarProps } from './TabBar/TabBar';
 
 export type { NavigationAppearance } from './types';
 
-/**
- * Navigation System
- */
-
 export { Router } from './Router';
 export { Navigation } from './Navigation';
 export { createController } from './createController';

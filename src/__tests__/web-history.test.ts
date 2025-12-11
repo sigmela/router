@@ -5,10 +5,7 @@ import type { ComponentType } from 'react';
 
 const Screen: ComponentType<any> = () => null;
 
-// DOM globals are provided by lib.dom; the shim installs runtime overrides.
-
 function installWebShim(initialUrl: string) {
-  // Minimal Event impl
   class MiniEvent {
     constructor(public type: string) {}
   }
@@ -28,7 +25,6 @@ function installWebShim(initialUrl: string) {
     return true;
   };
 
-  // Simple URL parser
   const parseUrl = (url: string) => {
     const u = new URL(url, 'https://example.test');
     return { pathname: u.pathname, search: u.search, href: u.href };
@@ -38,7 +34,6 @@ function installWebShim(initialUrl: string) {
   let index = -1;
 
   const seedFrom = (url: string, state: Record<string, unknown>) => {
-    // truncate forward if any
     entries.splice(index + 1);
     entries.push({ url, state });
     index = entries.length - 1;
@@ -73,7 +68,7 @@ function installWebShim(initialUrl: string) {
     replaceState(data: unknown, _unused: string, url?: string) {
       const nextUrl = url ?? location.href;
       const { pathname, search, href } = parseUrl(nextUrl);
-      // Update location immediately for replaceState
+
       location.pathname = pathname;
       location.search = search;
       location.href = href;
@@ -88,7 +83,7 @@ function installWebShim(initialUrl: string) {
         dispatchEvent(new MiniEvent('replaceState'));
         return;
       }
-      // Update current entry with new URL and state
+
       entries[index] = {
         url: href,
         state: (data && typeof data === 'object' ? data : {}) as Record<
@@ -113,7 +108,6 @@ function installWebShim(initialUrl: string) {
     },
   };
 
-  // Seed initial entry
   seedFrom(location.href, {});
 
   Object.defineProperties(globalThis, {
@@ -145,7 +139,6 @@ describe('Web History integration', () => {
 
     const router = new Router({ root: stack });
 
-    // Expect three items in global router state (deep parse)
     const state = router.debugGetState();
     expect(state.history.length).toBe(3);
     const top = state.history.at(-1)!;
@@ -166,7 +159,7 @@ describe('Web History integration', () => {
     expect(router.debugGetState().history.length).toBe(1);
 
     router.navigate('/product/catalog');
-    // pushState event causes Router to append
+
     expect(router.debugGetState().history.length).toBe(2);
     expect(shim.getLocation()).toEqual({
       pathname: '/product/catalog',
@@ -203,11 +196,9 @@ describe('Web History integration', () => {
 
     const router = new Router({ root: tabBar });
 
-    // Seed active tab (catalog) initial route
     router.replace('/catalog');
     expect(router.debugGetState().activeRoute?.path).toBe('/catalog');
 
-    // Navigate deep within catalog
     router.navigate('/catalog/products/1?coupon=VIP');
     expect(router.debugGetState().activeRoute?.path).toBe(
       '/catalog/products/1'
@@ -217,25 +208,20 @@ describe('Web History integration', () => {
       search: '?coupon=VIP',
     });
 
-    // Switch to profile (simulate tab click via navigation)
-    // We emulate tab click behavior: use replace to show tab's last route or first
     router.replace('/profile');
     expect(router.debugGetState().activeRoute?.path).toBe('/profile');
 
-    // Switch back to catalog, use replace with last path
     router.replace('/catalog/products/1?coupon=VIP');
     const vr = router.debugGetState().activeRoute;
     expect(vr?.path).toBeDefined();
 
-    // Now do goBack (should only go to /catalog once)
     router.goBack();
     expect(router.debugGetState().activeRoute?.path).toBeDefined();
 
-    // Next goBack should NOT go to another /catalog in the same stack
     const before = router.debugGetState().activeRoute?.path;
     router.goBack();
     const after = router.debugGetState().activeRoute?.path;
-    expect(after).toBe(before); // unchanged
+    expect(after).toBe(before);
   });
 
   test('cross-stack replace preserves source stack top', () => {
@@ -253,9 +239,8 @@ describe('Web History integration', () => {
 
     const router = new Router({ root: tabBar });
 
-    // Seed catalog
     router.replace('/catalog');
-    // Push deep in catalog
+
     router.navigate('/catalog/products/1');
     const catalogSliceBefore = router.debugGetStackInfo(catalog.getId()).items;
     expect(catalogSliceBefore.length).toBe(2);
@@ -265,11 +250,9 @@ describe('Web History integration', () => {
       search: '',
     });
 
-    // Switch to profile via replace (cross-stack)
     router.replace('/profile');
     expect(router.debugGetState().activeRoute?.path).toBe('/profile');
 
-    // Ensure source (catalog) stack top is preserved
     const catalogSliceAfter = router.debugGetStackInfo(catalog.getId()).items;
     expect(catalogSliceAfter.length).toBe(2);
     expect(catalogSliceAfter.at(-1)?.path).toBe('/catalog/products/1');
@@ -288,7 +271,6 @@ describe('Web History integration', () => {
     expect(router.debugGetState().history.length).toBe(1);
     expect(shim.getIndex()).toBeLessThanOrEqual(2);
 
-    // Navigate forward
     router.navigate('/product/catalog');
     expect(router.debugGetState().history.length).toBe(2);
     expect(shim.getIndex()).toBe(1);
@@ -297,7 +279,6 @@ describe('Web History integration', () => {
     expect(router.debugGetState().history.length).toBe(3);
     expect(shim.getIndex()).toBe(2);
 
-    // goBack should decrease browser index
     router.goBack();
     expect(router.debugGetState().history.length).toBe(2);
     expect(shim.getIndex()).toBeLessThanOrEqual(2);
@@ -306,21 +287,16 @@ describe('Web History integration', () => {
       search: '',
     });
 
-    // Another goBack
     router.goBack();
     expect(router.debugGetState().history.length).toBe(1);
-    expect(shim.getIndex()).toBeLessThanOrEqual(2); // Browser index decreased again
+    expect(shim.getIndex()).toBeLessThanOrEqual(2);
     expect(shim.getLocation()).toEqual({
       pathname: '/product',
       search: '',
     });
 
-    // After programmatic goBack, browser index should be at 0
-    // (browser stack should be synchronized with router state)
     expect(shim.getIndex()).toBeLessThanOrEqual(2);
 
-    // If we simulate browser back button now, it should not cause double pop
-    // because browser index is already at the correct position
     const initialRouterHistoryLength = router.debugGetState().history.length;
     const g = globalThis as unknown as {
       history?: {
@@ -329,7 +305,7 @@ describe('Web History integration', () => {
     };
     if (g.history?.back) {
       g.history.back();
-      // Router should handle this gracefully without double pop
+
       expect(router.debugGetState().history.length).toBe(
         initialRouterHistoryLength
       );
@@ -350,17 +326,14 @@ describe('Web History integration', () => {
     expect(router.debugGetState().history.length).toBe(2);
     expect(shim.getLocation().pathname).toBe('/product/catalog');
 
-    // First replace with dedupe
     router.replace('/product/catalog/1', true);
     expect(router.debugGetState().history.length).toBe(2);
     expect(shim.getLocation().pathname).toBe('/product/catalog/1');
 
-    // Second replace with dedupe (should not be blocked by first)
     router.replace('/product/catalog/2', true);
     expect(router.debugGetState().history.length).toBe(2);
     expect(shim.getLocation().pathname).toBe('/product/catalog/2');
 
-    // Third replace without dedupe
     router.replace('/product/catalog/3', false);
     expect(router.debugGetState().history.length).toBe(2);
     expect(shim.getLocation().pathname).toBe('/product/catalog/3');
@@ -379,31 +352,25 @@ describe('Web History integration', () => {
     expect(router.debugGetState().history.length).toBe(2);
     expect(shim.getLocation().pathname).toBe('/product/catalog');
 
-    // Internal replaceUrlSilently (sets suppressHistorySync)
     const g = globalThis as unknown as {
       history?: {
         replaceState: (data: unknown, unused: string, url?: string) => void;
       };
     };
 
-    // Simulate internal replaceUrlSilently call
-    // This should set suppressHistorySync and allow external replaceState to work
     if (g.history?.replaceState) {
-      // First internal replace (should suppress sync)
       g.history.replaceState(
         { __srIndex: 1, __srPath: '/product/catalog?test=1' },
         '',
         '/product/catalog?test=1'
       );
 
-      // Second external replace (should not be blocked)
       g.history.replaceState(
         { __srIndex: 1, __srPath: '/product/catalog?test=2' },
         '',
         '/product/catalog?test=2'
       );
 
-      // Both should be processed correctly
       expect(shim.getLocation().pathname).toBe('/product/catalog');
     }
   });

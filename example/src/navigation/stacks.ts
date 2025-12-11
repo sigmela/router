@@ -106,8 +106,3 @@ export function getRootStack() {
 
   return rootStack;
 }
-
-// Ensure exported stacks are considered used by TypeScript
-// These are used in other files (ProfileScreen.tsx, tabBar.ts)
-void authStack;
-void userStack;

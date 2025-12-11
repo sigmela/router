@@ -12,20 +12,12 @@ import type {
 
 type Listener = () => void;
 
-/**
- * Type guard to check if a NavigationNode can switch to a route.
- * This ensures type safety when calling optional methods.
- */
 function canSwitchToRoute(
   node: NavigationNode | undefined
 ): node is NavigationNode & { switchToRoute: (routeId: string) => void } {
   return node !== undefined && typeof node.switchToRoute === 'function';
 }
 
-/**
- * Type guard to check if a NavigationNode can lookup routes.
- * This ensures type safety when calling optional methods.
- */
 function canLookupRoutes(
   node: NavigationNode | undefined
 ): node is NavigationNode & { hasRoute: (routeId: string) => boolean } {
@@ -157,14 +149,10 @@ export class Router {
 
   public getStackHistory = (stackId?: string): HistoryItem[] => {
     if (!stackId) return EMPTY_ARRAY;
-    // Просто читаем готовый массив (O(1))
-    // Если массив еще не инициализирован, вычисляем его (может произойти до первого setState)
-    // Это fallback для случаев, когда getStackHistory вызывается до updateStackHistories
     if (!this.stackHistories.has(stackId)) {
       const current = this.state.history.filter(
         (item) => item.stackId === stackId
       );
-      // Сохраняем в кеш, чтобы updateStackHistories мог его использовать
       this.stackHistories.set(stackId, current);
       return current;
     }
@@ -234,7 +222,6 @@ export class Router {
     return this.activeRoute;
   };
 
-  // DEBUG METHODS - временные методы для отладки
   public debugGetState() {
     return {
       history: this.state.history.map((h) => ({
@@ -353,8 +340,6 @@ export class Router {
   }
 
   private recomputeActiveRoute(): void {
-    // Find the topmost item in history (the currently active route)
-    // This works for both NavigationStack and container nodes (TabBar, Drawer, etc.)
     const history = this.state.history;
     if (history.length > 0) {
       const top = history[history.length - 1];
@@ -427,7 +412,6 @@ export class Router {
 
     if (action === 'push') {
       if (base.stackId) {
-        // Сначала проверяем точное совпадение (routeId + pathname + params)
         let existing = this.findExistingRoute(
           base.stackId,
           base.routeId,
@@ -435,8 +419,6 @@ export class Router {
           params ?? {}
         );
 
-        // Если не найдено, проверяем по pathname + params (для обновления query с сохранением ключа)
-        // Это нужно для случаев, когда query паттерн меняется, но pathname и params одинаковые
         if (!existing) {
           existing = this.findExistingRouteByPathname(
             base.stackId,
@@ -451,19 +433,17 @@ export class Router {
             routeId: existing.routeId,
             path: existing.path,
           });
-          // ⚠️ КРИТИЧНО: Сохраняем ключ существующего маршрута!
-          // Обновляем существующий маршрут с сохранением ключа
           const normalizedParams =
             params && Object.keys(params).length > 0 ? params : undefined;
           const updatedExisting: HistoryItem = {
-            ...existing, // existing.key сохраняется автоматически
-            routeId: base.routeId, // Обновляем routeId на новый (может отличаться из-за query паттерна)
+            ...existing,
+            routeId: base.routeId,
             params: normalizedParams,
             query: query as any,
-            path: pathname, // Only pathname, without query
-            component: base.component, // Обновляем компонент на новый
-            options: this.mergeOptions(base.options, base.stackId), // Обновляем опции
-            pattern: base.path, // Обновляем паттерн
+            path: pathname,
+            component: base.component,
+            options: this.mergeOptions(base.options, base.stackId),
+            pattern: base.path,
           };
           this.applyHistoryChange('popTo', updatedExisting);
           return;
@@ -506,28 +486,25 @@ export class Router {
 
         if (sameIdentity && sameQuery) {
           this.log('dedupe: already at target, syncing state');
-          // Синхронизируем состояние: активируем правильный таб и обновляем видимый маршрут
           this.syncStateForSameRoute(base, pathname, params, query);
           return;
         }
 
         if (sameIdentity && !sameQuery) {
           this.log('dedupe: same identity, updating query on top via replace');
-          // ⚠️ КРИТИЧНО: Сохраняем ключ существующего маршрута!
           const normalizedParams =
             params && Object.keys(params).length > 0 ? params : undefined;
           const updatedTop: HistoryItem = {
-            ...top, // top.key сохраняется автоматически
+            ...top,
             params: normalizedParams,
             query: query as any,
-            path: pathname, // Only pathname, without query
+            path: pathname,
           };
           this.applyHistoryChange('replace', updatedTop);
           return;
         }
       }
 
-      // Ищем существующий маршрут в стеке
       if (base.stackId) {
         const existing = this.findExistingRoute(
           base.stackId,
@@ -537,14 +514,13 @@ export class Router {
         );
 
         if (existing) {
-          // ⚠️ КРИТИЧНО: Сохраняем ключ существующего маршрута!
           const normalizedParams =
             params && Object.keys(params).length > 0 ? params : undefined;
           const updatedExisting: HistoryItem = {
-            ...existing, // existing.key сохраняется автоматически
+            ...existing,
             params: normalizedParams,
             query: query as any,
-            path: pathname, // Only pathname, without query
+            path: pathname,
           };
 
           this.log('dedupe: found existing item, calling popTo', {
@@ -585,12 +561,9 @@ export class Router {
     pathname: string,
     passProps?: any
   ): HistoryItem {
-    // Normalize params: use undefined instead of empty object
     const normalizedParams =
       params && Object.keys(params).length > 0 ? params : undefined;
 
-    // path should contain only pathname (without query)
-    // query is stored separately in the query field
     return {
       key: this.generateKey(),
       routeId: matched.routeId,
@@ -601,7 +574,7 @@ export class Router {
       passProps,
       stackId: matched.stackId,
       pattern: matched.path,
-      path: pathname, // Only pathname, without query
+      path: pathname,
     };
   }
 
@@ -666,7 +639,6 @@ export class Router {
       let foundIndex = -1;
       let foundItem: HistoryItem | null = null;
 
-      // Find the target item in history
       for (let i = prevHist.length - 1; i >= 0; i--) {
         const h = prevHist[i]!;
         if (h.stackId !== stackId) {
@@ -677,7 +649,6 @@ export class Router {
           foundItem = h;
           break;
         }
-        // Mark items from the same stack after target for removal
         keysToRemove.add(h.key);
       }
 
@@ -685,17 +656,14 @@ export class Router {
         return;
       }
 
-      // Remove items from the same stack that are after the target
       const copy = prevHist.filter((h) => !keysToRemove.has(h.key));
 
-      // Update the found item with new data
       const updatedItem: HistoryItem = {
         ...foundItem,
         ...item,
         key: targetKey,
       };
 
-      // Remove the old instance and add the updated one at the end
       const itemIndex = copy.findIndex((h) => h.key === targetKey);
       if (itemIndex >= 0) {
         copy.splice(itemIndex, 1);
@@ -707,9 +675,6 @@ export class Router {
 
     this.setState({ history: nextHist });
 
-    // updateStackHistories уже эмитит события для подписчиков стека
-    // Не нужно эмитить здесь, чтобы избежать двойных уведомлений
-
     this.recomputeActiveRoute();
     this.emit(this.listeners);
   }
@@ -720,8 +685,6 @@ export class Router {
       history: next.history ?? prev.history,
     };
     this.state = nextState;
-    // Всегда обновляем stackHistories при изменении истории
-    // Это гарантирует, что массивы всегда актуальны
     if (nextState.history !== prev.history) {
       this.updateStackHistories();
     }
@@ -730,51 +693,36 @@ export class Router {
   }
 
   private updateStackHistories(): void {
-    // Получаем все уникальные stackId из истории
     const stackIds = new Set<string>();
     this.state.history.forEach((item) => {
       if (item.stackId) stackIds.add(item.stackId);
     });
 
-    // Собираем стеки, которые изменились, для эмита событий
     const changedStackIds = new Set<string>();
 
-    // Обновляем массивы для каждого стека, который есть в истории
     stackIds.forEach((stackId) => {
       const current = this.state.history.filter(
         (item) => item.stackId === stackId
       );
       const previous = this.stackHistories.get(stackId);
 
-      // Если содержимое не изменилось → сохраняем старую ссылку
       if (previous && this.areArraysEqual(previous, current)) {
-        // Не обновляем - старая ссылка останется → нет ререндера!
         return;
       }
 
-      // Содержимое изменилось → сохраняем новый массив и помечаем для эмита
       this.stackHistories.set(stackId, current);
       changedStackIds.add(stackId);
     });
 
-    // Удаляем массивы для стеков, которых больше нет в истории
-    // Но только если они были инициализированы ранее и имели элементы
     const currentStackIds = new Set(stackIds);
     this.stackHistories.forEach((history, stackId) => {
       if (!currentStackIds.has(stackId) && history.length > 0) {
-        // Удаляем только если стек был инициализирован и имел элементы
-        // Пустые стеки не удаляем, чтобы не ломать тесты
         this.stackHistories.delete(stackId);
-        // Помечаем удаленный стек для эмита (если были подписчики)
         changedStackIds.add(stackId);
       } else if (!currentStackIds.has(stackId) && history.length === 0) {
-        // Если стек был запрошен через getStackHistory() но пустой, оставляем его
-        // Это нужно для тестов, которые проверяют неинициализированные стеки
       }
     });
 
-    // Эмитим события только для стеков, которые действительно изменились
-    // Это обеспечивает "одно действие — одно событие"
     changedStackIds.forEach((stackId) => {
       this.emit(this.stackListeners.get(stackId));
     });
@@ -782,18 +730,12 @@ export class Router {
 
   private areArraysEqual(a: HistoryItem[], b: HistoryItem[]): boolean {
     if (a.length !== b.length) return false;
-    // Сравниваем ссылки на объекты (элементы истории immutable)
     for (let i = 0; i < a.length; i++) {
       if (a[i] !== b[i]) return false;
     }
     return true;
   }
 
-  /**
-   * Синхронизирует состояние навигации для случая, когда навигация происходит на тот же маршрут.
-   * Не добавляет новый элемент в историю, но активирует правильный таб, обновляет видимый маршрут
-   * и обеспечивает корректное состояние стека.
-   */
   private syncStateForSameRoute(
     base: CompiledRoute,
     pathname: string,
@@ -806,7 +748,6 @@ export class Router {
       return;
     }
 
-    // Определяем целевой стек и маршрут
     const { targetStackId, targetRouteId } = this.resolveTargetStackAndRoute(
       base,
       pathname
@@ -814,27 +755,19 @@ export class Router {
 
     const rootStackId = this.root?.getId();
 
-    // Активируем контейнер (если есть)
     if (rootStackId) {
       this.activateContainerForRoute(targetRouteId, rootStackId);
     }
 
-    // Активируем стек
     this.activateStack(targetStackId);
 
-    // Обеспечиваем seed для пустого стека
     this.ensureStackHasSeed(targetStackId, rootStackId ?? base.stackId);
 
-    // Обновляем видимый маршрут
     this.updateActiveRouteFromStack(targetStackId, pathname);
 
     this.emit(this.listeners);
   }
 
-  /**
-   * Определяет целевой стек и маршрут для активации.
-   * Учитывает случай, когда pathname === '/' может быть в разных табах.
-   */
   private resolveTargetStackAndRoute(
     base: CompiledRoute,
     pathname: string
@@ -843,8 +776,6 @@ export class Router {
     let targetStackId = base.stackId!;
     let targetRouteId = base.routeId;
 
-    // Специальный случай: если matchBaseRoute выбрал root stack, но pathname === '/',
-    // и текущий видимый маршрут не является home tab, ищем дочерний стек (таб)
     const currentActivePath = this.activeRoute?.path;
     const currentActivePathname = currentActivePath
       ? this.parsePath(currentActivePath).pathname
@@ -868,21 +799,16 @@ export class Router {
     return { targetStackId, targetRouteId };
   }
 
-  /**
-   * Ищет дочерний стек (таб) с указанным pathname.
-   */
   private findChildStackRouteForPathname(
     rootStackId: string,
     pathname: string
   ): CompiledRoute | undefined {
-    // Ищем дочерний стек (таб) с таким же pathname
     for (const route of this.registry) {
       if (
         route.stackId !== rootStackId &&
         route.pathnamePattern === pathname &&
         !route.queryPattern
       ) {
-        // Проверяем, что это дочерний элемент контейнера
         const rootRoute = this.findRootRouteWithContainer(rootStackId);
         if (
           rootRoute?.childNode &&
@@ -895,9 +821,6 @@ export class Router {
     return undefined;
   }
 
-  /**
-   * Находит маршрут в root stack, который имеет контейнер как childNode.
-   */
   private findRootRouteWithContainer(
     rootStackId: string
   ): CompiledRoute | undefined {
@@ -909,20 +832,14 @@ export class Router {
     );
   }
 
-  /**
-   * Проверяет, принадлежит ли routeId контейнеру.
-   * Использует hasRoute для быстрой проверки, иначе проверяет через getNodeChildren.
-   */
   private isRouteInContainer(
     routeId: string,
     container: NavigationNode
   ): boolean {
-    // Используем hasRoute для быстрой проверки, если доступно
     if (canLookupRoutes(container)) {
       return container.hasRoute(routeId);
     }
 
-    // Fallback: проверяем через getNodeChildren
     const children = container.getNodeChildren();
     return children.some((child) => {
       const routes = child.node.getNodeRoutes();
@@ -930,9 +847,6 @@ export class Router {
     });
   }
 
-  /**
-   * Активирует контейнер для указанного routeId.
-   */
   private activateContainerForRoute(
     targetRouteId: string,
     rootStackId: string
@@ -943,12 +857,7 @@ export class Router {
     }
   }
 
-  /**
-   * Находит контейнер в указанном стеке.
-   * Сначала ищет в истории, затем в registry.
-   */
   private findContainerInStack(stackId: string): NavigationNode | undefined {
-    // Сначала ищем в истории (более актуально)
     const stackHistory = this.getStackHistory(stackId);
     for (let i = stackHistory.length - 1; i >= 0; i--) {
       const item = stackHistory[i];
@@ -960,14 +869,10 @@ export class Router {
       }
     }
 
-    // Если не нашли в истории, ищем в registry
     const rootRoute = this.findRootRouteWithContainer(stackId);
     return rootRoute?.childNode;
   }
 
-  /**
-   * Активирует стек через stackActivator (если есть).
-   */
   private activateStack(stackId: string): void {
     const activator = this.stackActivators.get(stackId);
     if (activator) {
@@ -975,10 +880,6 @@ export class Router {
     }
   }
 
-  /**
-   * Обеспечивает наличие seed для стека.
-   * Если в истории стека нет элементов, добавляет seed.
-   */
   private ensureStackHasSeed(stackId: string, rootStackId: string): void {
     const stackHistory = this.getStackHistory(stackId);
     if (stackHistory.length > 0) return;
@@ -1005,23 +906,17 @@ export class Router {
       pattern: compiled?.path ?? seed.path,
     };
 
-    // Добавляем seed в историю
     const prevHist = this.state.history;
     const nextHist = [...prevHist, item];
     this.setState({ history: nextHist });
 
-    // Эмитим события для stack listeners
     this.emit(this.stackListeners.get(seedStackId));
 
-    // Если это дочерний стек (контейнер), активируем контейнер
     if (seedStackId !== stackId && rootStackId) {
       this.activateContainerForRoute(seed.routeId, rootStackId);
     }
   }
 
-  /**
-   * Обновляет видимый маршрут из указанного стека.
-   */
   private updateActiveRouteFromStack(stackId: string, pathname: string): void {
     const stackHistory = this.getStackHistory(stackId);
 
@@ -1048,7 +943,6 @@ export class Router {
       }
     }
 
-    // Если в истории нет элементов, используем routeId из registry
     const targetRoute = this.registry.find(
       (r) => r.stackId === stackId && r.pathnamePattern === pathname
     );
@@ -1089,10 +983,8 @@ export class Router {
     pathname: string,
     params: Record<string, any>
   ): HistoryItem | undefined {
-    // Ищем в истории стека
     const stackHistory = this.getStackHistory(stackId);
 
-    // Проверяем по routeId + pathname + params
     return stackHistory.find((item) => {
       if (item.routeId !== routeId) return false;
 
@@ -1111,8 +1003,6 @@ export class Router {
     pathname: string,
     params: Record<string, any>
   ): HistoryItem | undefined {
-    // Ищем в истории стека по pathname + params (без учета routeId и query)
-    // Это используется для обновления query параметров с сохранением ключа
     const stackHistory = this.getStackHistory(stackId);
 
     return stackHistory.find((item) => {
@@ -1136,8 +1026,6 @@ export class Router {
 
       const routes: NodeRoute[] = node.getNodeRoutes();
 
-      // Try to get stackId - nodes that manage their own history should provide it
-      // This is determined by checking if the node has routes (stacks typically do)
       const stackId = routes.length > 0 ? node.getId() : undefined;
       if (stackId) {
         this.stackById.set(stackId, node);
@@ -1167,7 +1055,7 @@ export class Router {
           controller: r.controller,
           options: r.options,
           stackId,
-          childNode: r.childNode, // Сохраняем childNode для использования в seed
+          childNode: r.childNode,
         };
 
         this.registry.push(compiled);
@@ -1198,7 +1086,6 @@ export class Router {
       const children: NodeChild[] = node.getNodeChildren();
 
       for (const child of children) {
-        // If prefix is empty, use the current basePath as-is (don't join with '/')
         const nextBase =
           child.prefix === ''
             ? normalizedBasePath
@@ -1247,7 +1134,6 @@ export class Router {
       return pathname || '/';
     }
 
-    // Special case: if basePath is '/', return pathname as-is
     if (normalizedBase === '/') {
       return pathname || '/';
     }
@@ -1288,29 +1174,17 @@ export class Router {
     return segments.length * 2;
   }
 
-  /**
-   * Автоматически определяет seed для узла, если он не реализован.
-   * Логика:
-   * 1. Если у узла есть seed() и он возвращает значение - используем его
-   * 2. Если у узла есть getActiveChildId() (например, контейнер) - берем первый маршрут активного дочернего узла
-   * 3. Иначе - берем первый маршрут из getNodeRoutes()
-   *
-   * Примечание: не рекурсивно ищем в дочерних узлах, если у узла нет маршрутов,
-   * чтобы избежать создания неожиданных записей в истории.
-   */
   private getAutoSeed(node: NavigationNode): {
     routeId: string;
     params?: Record<string, unknown>;
     path: string;
     stackId?: string;
   } | null {
-    // Сначала пробуем вызвать явный seed()
     const explicitSeed = node.seed?.();
     if (explicitSeed) {
       return explicitSeed;
     }
 
-    // Если у узла есть активный дочерний узел (например, контейнер с активным дочерним элементом)
     const activeChildId = node.getActiveChildId?.();
     if (activeChildId) {
       const activeChild = node
@@ -1324,7 +1198,6 @@ export class Router {
       }
     }
 
-    // Берем первый маршрут из getNodeRoutes()
     const routes = node.getNodeRoutes();
     if (routes.length > 0 && routes[0]) {
       const firstRoute = routes[0];
@@ -1336,8 +1209,6 @@ export class Router {
       };
     }
 
-    // Не ищем рекурсивно в дочерних узлах, если у узла нет маршрутов,
-    // чтобы избежать создания неожиданных записей в истории
     return null;
   }
 
@@ -1363,7 +1234,6 @@ export class Router {
         };
         this.applyHistoryChange('push', item);
 
-        // Рекурсивно вызываем seed для childNode маршрута (например, контейнер)
         this.addChildNodeSeedsToHistory(seed.routeId);
       }
       return;
@@ -1386,18 +1256,14 @@ export class Router {
       })),
     });
 
-    // Находим маршрут в registry и проверяем, есть ли у него childNode
     const compiled = this.registry.find((r) => r.routeId === routeId);
     if (!compiled || !compiled.childNode) {
       this.log('addChildNodeSeeds: no childNode', { routeId });
       return;
     }
 
-    // Автоматически определяем seed для childNode (например, контейнер)
     const childNode = compiled.childNode;
 
-    // Если есть finalRouteId и childNode поддерживает switchToRoute,
-    // устанавливаем активный дочерний элемент на основе конечного маршрута
     if (finalRouteId && canSwitchToRoute(childNode)) {
       this.log('addChildNodeSeeds: setting active child', { finalRouteId });
       childNode.switchToRoute(finalRouteId);
@@ -1422,8 +1288,6 @@ export class Router {
     const childPath = childCompiled?.path ?? childMeta?.path ?? childSeed.path;
     const childStackId = childSeed.stackId ?? childNode.getId();
 
-    // Проверяем, не существует ли уже элемент с таким routeId и stackId в items
-    // Это предотвращает дублирование маршрутов при парсинге URL
     const existingItem = items.find(
       (item) =>
         item.routeId === childSeed.routeId && item.stackId === childStackId
@@ -1463,18 +1327,15 @@ export class Router {
     };
     items.push(childItem);
 
-    // Рекурсивно добавляем seed для дочерних узлов дочернего узла
     if (childSeed.routeId) {
       this.addChildNodeSeedsToItems(childSeed.routeId, items, finalRouteId);
     }
   }
 
   private addChildNodeSeedsToHistory(routeId: string): void {
-    // Находим маршрут в registry и проверяем, есть ли у него childNode
     const compiled = this.registry.find((r) => r.routeId === routeId);
     if (!compiled || !compiled.childNode) return;
 
-    // Автоматически определяем seed для childNode (например, контейнер)
     const childNode = compiled.childNode;
     const childSeed = this.getAutoSeed(childNode);
     if (!childSeed) return;
@@ -1497,7 +1358,6 @@ export class Router {
     };
     this.applyHistoryChange('push', childItem);
 
-    // Рекурсивно вызываем seed для дочерних узлов дочернего узла
     if (childSeed.routeId) {
       this.addChildNodeSeedsToHistory(childSeed.routeId);
     }
@@ -1533,15 +1393,11 @@ export class Router {
 
       if (!this.matchQueryPattern(r.queryPattern, query)) continue;
 
-      // Boost specificity for routes with query patterns to prioritize them
-      // This ensures overlay routes like *?modal=promo or /auth?kind=email are chosen over regular routes
       let spec = r.baseSpecificity;
       const hasQueryPattern =
         r.queryPattern && Object.keys(r.queryPattern).length > 0;
 
       if (hasQueryPattern) {
-        // Boost route with query pattern by a large amount to ensure priority
-        // This works for any overlay route (modal, sheet, or regular screen with query params)
         spec += 1000;
       }
 
@@ -1555,19 +1411,14 @@ export class Router {
       });
 
       if (!best || spec > best.specificity) {
-        // Нашли более специфичный маршрут - сбрасываем кандидатов
         best = { route: r, specificity: spec };
         candidates.length = 0;
         candidates.push(best);
       } else if (spec === best.specificity) {
-        // Если специфичность одинаковая, добавляем в кандидаты
         candidates.push({ route: r, specificity: spec });
       }
     }
 
-    // Если есть несколько кандидатов с одинаковой специфичностью,
-    // выбираем тот, у которого уже есть элемент в истории с таким же path
-    // Приоритет отдаем дочерним стекам (например, табам), а не root stack
     if (candidates.length > 1) {
       this.log('matchBaseRoute: multiple candidates with same specificity', {
         candidatesCount: candidates.length,
@@ -1602,7 +1453,6 @@ export class Router {
         });
 
         if (hasMatchingItem) {
-          // Если это не root stack, приоритет выше
           if (candidateStackId !== rootStackId) {
             bestChildStack = candidate.route;
             this.log(
@@ -1612,7 +1462,7 @@ export class Router {
                 stackId: candidateStackId,
               }
             );
-            // Прерываем поиск, так как нашли дочерний стек с точным совпадением
+
             break;
           } else if (!bestFromHistory) {
             bestFromHistory = candidate.route;
@@ -1621,8 +1471,6 @@ export class Router {
           candidateStackId !== rootStackId &&
           stackHistory.length > 0
         ) {
-          // Если это дочерний стек с историей (даже без точного совпадения pathname),
-          // сохраняем его как кандидата (приоритет над root stack)
           if (!bestChildStackWithHistory) {
             bestChildStackWithHistory = candidate.route;
             this.log(
@@ -1637,7 +1485,6 @@ export class Router {
         }
       }
 
-      // Приоритет: дочерний стек с точным совпадением > дочерний стек с историей > root stack с историей
       if (bestChildStack && best) {
         best = { route: bestChildStack, specificity: best.specificity };
         this.log('matchBaseRoute: selected child stack with matching item', {
@@ -2123,7 +1970,6 @@ export class Router {
   private popFromActiveStack(): HistoryItem | null {
     const active = this.activeRoute;
     if (!active || !active.stackId) {
-      // Fallback: try root stack
       if (this.root) {
         const sid = this.root.getId();
         if (sid) {
@@ -2134,7 +1980,6 @@ export class Router {
               top.options?.stackPresentation === 'modal' ||
               top.options?.stackPresentation === 'sheet';
             if (stackHistory.length > 1 || isModalOrSheet) {
-              // Обработка sheet с dismisser
               if (top.options?.stackPresentation === 'sheet') {
                 const dismisser = this.sheetDismissers.get(top.key);
                 if (dismisser) {
@@ -2152,8 +1997,6 @@ export class Router {
       return null;
     }
 
-    // Находим видимый элемент в истории
-    // Ищем последний элемент с таким же stackId в истории (может быть не последним в общей истории)
     let activeItem: HistoryItem | undefined;
     for (let i = this.state.history.length - 1; i >= 0; i--) {
       const h = this.state.history[i];
@@ -2167,14 +2010,12 @@ export class Router {
 
     const stackHistory = this.getStackHistory(activeItem.stackId);
 
-    // Нельзя уйти ниже корня стека (кроме модалов и sheet)
     const isModalOrSheet =
       activeItem.options?.stackPresentation === 'modal' ||
       activeItem.options?.stackPresentation === 'sheet';
 
     if (stackHistory.length <= 1 && !isModalOrSheet) return null;
 
-    // Обработка sheet с dismisser
     if (activeItem.options?.stackPresentation === 'sheet') {
       const dismisser = this.sheetDismissers.get(activeItem.key);
       if (dismisser) {
@@ -2184,7 +2025,6 @@ export class Router {
       }
     }
 
-    // Удаляем последний элемент активного стека
     const top = stackHistory[stackHistory.length - 1]!;
     this.applyHistoryChange('pop', top);
     return top;
@@ -2195,28 +2035,21 @@ export class Router {
 
     this.log('parse', { url, pathname, query });
 
-    // Сначала находим базовый маршрут для pathname (без query-параметров модалки)
-    // Это нужно, чтобы базовый маршрут был в истории перед модалкой
     const baseRoute = this.matchBaseRoute(pathname, {});
 
-    // Затем находим deepest route с учетом query-параметров (может быть overlay route с query pattern)
     const deepest = this.matchBaseRoute(pathname, query);
 
-    // Проверяем, имеет ли deepest query pattern (это может быть модалка, sheet, или любой overlay route)
     const hasDeepestQueryPattern =
       deepest &&
       deepest.queryPattern &&
       Object.keys(deepest.queryPattern).length > 0;
 
-    // Проверяем, отличается ли deepest от baseRoute (если отличается, значит это overlay route)
     const isDeepestOverlay =
       hasDeepestQueryPattern &&
       deepest &&
       baseRoute &&
       deepest.routeId !== baseRoute.routeId;
 
-    // Если deepest не найден, или если deepest является overlay route, но baseRoute не найден,
-    // используем seed для создания начальной истории
     if (!deepest || (isDeepestOverlay && !baseRoute)) {
       if (__DEV__) {
         console.warn(
@@ -2251,8 +2084,6 @@ export class Router {
       let routeForPrefix: CompiledRoute | undefined;
 
       if (index === prefixes.length - 1) {
-        // Для последнего префикса используем базовый маршрут (не модалку)
-        // Модалка будет добавлена отдельно после всех префиксов
         routeForPrefix = baseRoute || deepest;
       } else {
         let best:
@@ -2295,8 +2126,7 @@ export class Router {
 
       const matchResult = routeForPrefix.matchPath(prefixPath);
       const params = matchResult ? matchResult.params : undefined;
-      // Для последнего префикса не добавляем query, если deepest является overlay route с query pattern
-      // Query будет добавлен к overlay route отдельно
+
       const itemQuery =
         index === prefixes.length - 1 && !isDeepestOverlay ? query : {};
 
@@ -2319,15 +2149,9 @@ export class Router {
       items.push(item);
     });
 
-    // Если deepest является overlay route с query pattern, добавляем его поверх базового маршрута
     let overlayItem: HistoryItem | undefined;
     if (isDeepestOverlay && deepest && baseRoute) {
-      overlayItem = this.createHistoryItem(
-        deepest,
-        undefined, // params для overlay route обычно не нужны
-        query, // query-параметры overlay route
-        pathname // pathname для overlay route
-      );
+      overlayItem = this.createHistoryItem(deepest, undefined, query, pathname);
 
       this.log('parse: push overlay item', {
         routeId: deepest.routeId,
@@ -2339,11 +2163,7 @@ export class Router {
       items.push(overlayItem);
     }
 
-    // После создания истории для всех префиксов, проверяем элементы в обратном порядке
-    // чтобы найти первый элемент с childNode (например, контейнер) и вызвать seed для него
     if (items.length > 0) {
-      // Находим routeId конечного маршрута (для определения активного таба)
-      // Если последний элемент - overlay route с query pattern, используем предпоследний для определения активного таба
       const lastItem = items[items.length - 1];
       const lastItemCompiled = lastItem
         ? this.registry.find((r) => r.routeId === lastItem.routeId)
@@ -2358,8 +2178,6 @@ export class Router {
           ? items[items.length - 2]?.routeId
           : lastItem?.routeId;
 
-      // Ищем первый элемент с childNode, начиная с конца (последний элемент может быть конечным маршрутом без childNode)
-      // Пропускаем overlay route с query pattern, если он последний
       const searchStartIndex = isLastItemOverlay
         ? items.length - 2
         : items.length - 1;
@@ -2370,22 +2188,17 @@ export class Router {
             (r) => r.routeId === item.routeId
           );
           if (compiled && compiled.childNode) {
-            // Найден элемент с childNode - вызываем seed для него
-            // Передаем finalRouteId для правильного определения активного таба
             this.addChildNodeSeedsToItems(item.routeId, items, finalRouteId);
             break;
           }
         }
       }
 
-      // Если был добавлен overlay route с query pattern, убеждаемся, что он остается последним в истории
-      // (childNode seeds могли добавить элементы после него)
       if (overlayItem) {
         const overlayIndex = items.findIndex(
           (item) => item.key === overlayItem!.key
         );
         if (overlayIndex >= 0 && overlayIndex < items.length - 1) {
-          // Перемещаем overlay route в конец
           items.splice(overlayIndex, 1);
           items.push(overlayItem);
         }
@@ -2407,7 +2220,6 @@ export class Router {
 
     this.setState({ history: items });
 
-    // stackSlices вычисляется на лету, ничего перестраивать не нужно
     this.stackListeners.forEach((set) => this.emit(set));
 
     this.recomputeActiveRoute();

@@ -9,7 +9,7 @@ import { StyleSheet } from 'react-native';
 export interface StackRendererProps {
   stack: NavigationStack;
   appearance?: NavigationAppearance;
-  history?: HistoryItem[]; // ← История передается через props
+  history?: HistoryItem[];
 }
 
 export const StackRenderer = memo<StackRendererProps>(
@@ -17,8 +17,6 @@ export const StackRenderer = memo<StackRendererProps>(
     const router = useRouter();
     const stackId = stack.getId();
 
-    // Всегда вызываем useSyncExternalStore для реактивности (хуки должны вызываться безусловно)
-    // Но если история передана через props - используем её (родительский компонент уже реактивен)
     const subscribe = useCallback(
       (cb: () => void) => router.subscribeStack(stackId, cb),
       [router, stackId]
@@ -33,7 +31,6 @@ export const StackRenderer = memo<StackRendererProps>(
       get
     );
 
-    // Используем переданную историю или получаем из store
     const historyForThisStack = history ?? historyFromStore;
 
     return (

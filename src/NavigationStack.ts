@@ -190,7 +190,6 @@ export class NavigationStack implements NavigationNode {
   }
 
   public getRenderer(): React.ComponentType<any> {
-    // NavigationStack is not directly renderable; renderer is provided via routes.
     return () => null;
   }
 

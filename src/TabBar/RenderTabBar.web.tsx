@@ -37,7 +37,6 @@ const isImageSource = (value: unknown): value is ImageSourcePropType => {
 const toColorString = (c?: ColorValue): string | undefined =>
   typeof c === 'string' ? c : undefined;
 
-// Компонент для рендеринга стека таба с реактивностью
 const TabStackRenderer = memo<{
   stack: NavigationStack;
   appearance?: NavigationAppearance;
@@ -60,8 +59,6 @@ const TabStackRenderer = memo<{
 });
 
 TabStackRenderer.displayName = 'TabStackRenderer';
-
-//
 
 export const RenderTabBar = memo<RenderTabBarProps>(
   ({ tabBar, appearance }) => {
@@ -89,7 +86,6 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         const targetStack = tabBar.stacks[targetTab.tabKey];
 
         if (targetStack) {
-          // Prefer last visited route in the target stack; otherwise first route
           const stackId = targetStack.getId();
           const history = router.getStackHistory(stackId);
           const last = history.length ? history[history.length - 1] : undefined;
@@ -97,13 +93,12 @@ export const RenderTabBar = memo<RenderTabBarProps>(
           if (toPath) {
             const currentPath = router.getActiveRoute()?.path;
             if (nextIndex === index && toPath === currentPath) return;
-            // Use replace to avoid duplicating history entries when switching tabs
+
             router.replace(toPath, true);
             return;
           }
         }
 
-        // Fallback: just switch tab index (no history push if there is no path)
         tabBar.onIndexChange(nextIndex);
       },
       [router, tabBar, tabs, index]
@@ -129,7 +124,6 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       ]
     );
 
-    // If a custom component is provided, render it instead of the default web tab bar
     const CustomTabBar = config.component as
       | ComponentType<TabBarProps>
       | undefined;

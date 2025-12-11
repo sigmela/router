@@ -34,7 +34,6 @@ describe('Router slices', () => {
     const aId = stackA.getId();
     const bId = stackB.getId();
 
-    // Используем debugGetStackInfo для проверки истории
     expect(router.debugGetStackInfo(aId).historyLength).toBe(1);
     expect(router.debugGetStackInfo(bId).historyLength).toBe(0);
 
@@ -45,7 +44,7 @@ describe('Router slices', () => {
     expect(router.debugGetStackInfo(aId).historyLength).toBe(3);
 
     router.navigate('/b');
-    // Проверяем через debugGetState вместо getTabIndex
+
     const bStackInfo = router.debugGetStackInfo(bId);
     expect(bStackInfo.historyLength).toBe(1);
 
@@ -98,9 +97,9 @@ describe('Router slices', () => {
       .addTab({ key: 'b', stack: stackB, title: 'B' });
     router5.setRoot(newTabBar as any, { transition: 'fade' });
     expect(router5.getRootTransition()).toBe('fade');
-    // Используем debugGetState для проверки состояния
+
     const allStacks5 = router5.debugGetAllStacks();
-    // Проверяем, что есть хотя бы один стек с историей
+
     const seededStack5 = allStacks5.find((s) => s.historyLength > 0);
     expect(!!seededStack5).toBe(true);
     if (seededStack5) {
@@ -205,7 +204,7 @@ describe('Router controllers', () => {
     expect(router.debugGetStackInfo(stackId).historyLength).toBe(2);
     const stackInfo = router.debugGetStackInfo(stackId);
     const topItem = stackInfo.items[stackInfo.items.length - 1]!;
-    // Проверяем через debugGetState для passProps (если доступно)
+
     const state = router.debugGetState();
     const historyItem = state.history.find(
       (h) => h.routeId === topItem.routeId
@@ -238,7 +237,6 @@ describe('Router controllers', () => {
 
 describe('Router development mode errors', () => {
   test('should throw error in __DEV__ when route not found', () => {
-    // Mock __DEV__ to true
     const originalDev = (globalThis as any).__DEV__;
     (globalThis as any).__DEV__ = true;
 
@@ -246,22 +244,18 @@ describe('Router development mode errors', () => {
     const stack = new NavigationStack().addScreen('/test', TestScreen);
     const router = new Router({ root: stack });
 
-    // Should throw error when navigating to non-existent route
     expect(() => {
       router.navigate('/non-existent-route');
     }).toThrow('Route not found: "/non-existent-route"');
 
-    // Should throw error when replacing with non-existent route
     expect(() => {
       router.replace('/another-non-existent-route');
     }).toThrow('Route not found: "/another-non-existent-route"');
 
-    // Restore original __DEV__ value
     (globalThis as any).__DEV__ = originalDev;
   });
 
   test('should not throw error in production when route not found', () => {
-    // Mock __DEV__ to false
     const originalDev = (globalThis as any).__DEV__;
     (globalThis as any).__DEV__ = false;
 
@@ -269,17 +263,14 @@ describe('Router development mode errors', () => {
     const stack = new NavigationStack().addScreen('/test', TestScreen);
     const router = new Router({ root: stack });
 
-    // Should not throw error when navigating to non-existent route in production
     expect(() => {
       router.navigate('/non-existent-route');
     }).not.toThrow();
 
-    // Should not throw error when replacing with non-existent route in production
     expect(() => {
       router.replace('/another-non-existent-route');
     }).not.toThrow();
 
-    // Restore original __DEV__ value
     (globalThis as any).__DEV__ = originalDev;
   });
 });

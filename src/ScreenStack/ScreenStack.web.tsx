@@ -29,25 +29,8 @@ type ScreenStackProps = {
 
 type Direction = 'forward' | 'back';
 
-/**
- * Development-only logging helper
- */
-const devLog = (_: string, __?: any) => {
-  // if (false) {
-  //   //if (typeof __DEV__ !== 'undefined' && __DEV__) {
-  //   if (data !== undefined) {
-  //     // eslint-disable-next-line no-console
-  //     console.log(message, data);
-  //   } else {
-  //     // eslint-disable-next-line no-console
-  //     console.log(message);
-  //   }
-  // }
-};
+const devLog = (_: string, __?: any) => {};
 
-/**
- * Heuristic: считаем элемент ScreenStackItem по наличию props.item
- */
 const isScreenStackItemElement = (
   child: ReactNode
 ): child is ReactElement<ScreenStackItemProps> => {
@@ -56,11 +39,6 @@ const isScreenStackItemElement = (
   return anyProps && typeof anyProps === 'object' && 'item' in anyProps;
 };
 
-/**
- * Получаем стабильный ключ для элемента стека.
- * Предпочитаем React key, если он строка и не начинается с '.'.
- * Фоллбэк — item.key или item.routeId.
- */
 const getItemKey = (child: ReactElement<ScreenStackItemProps>): string => {
   const anyChild = child as any;
   const reactKey: Key | null = anyChild.key ?? null;
@@ -86,28 +64,24 @@ const getItemKey = (child: ReactElement<ScreenStackItemProps>): string => {
   throw new Error('[ScreenStack] ScreenStackItem is missing a stable key');
 };
 
-/**
- * Определяем направление навигации по предыдущему и текущему списку ключей.
- */
 const computeDirection = (prev: string[], current: string[]): Direction => {
   if (prev.length === 0 && current.length > 0) {
     return 'forward';
   }
 
   if (current.length > prev.length) {
-    return 'forward'; // push
+    return 'forward';
   }
 
   if (current.length < prev.length) {
-    return 'back'; // pop / popTo
+    return 'back';
   }
 
-  // Одинаковая длина: смотрим, поменялся ли топ и был ли он раньше в стеке
   const prevTop = prev[prev.length - 1];
   const currentTop = current[current.length - 1];
 
   if (prevTop === currentTop) {
-    return 'forward'; // нет очевидного движения назад, оставляем forward по умолчанию
+    return 'forward';
   }
 
   const prevIndexOfCurrentTop = prev.indexOf(currentTop!);
@@ -118,7 +92,6 @@ const computeDirection = (prev: string[], current: string[]): Direction => {
     prevIndexOfPrevTop !== -1 &&
     prevIndexOfCurrentTop < prevIndexOfPrevTop
   ) {
-    // "прыжок назад"
     return 'back';
   }
 
@@ -126,11 +99,7 @@ const computeDirection = (prev: string[], current: string[]): Direction => {
 };
 
 export const ScreenStack = memo<ScreenStackProps>((props) => {
-  const {
-    children,
-    transitionTime = 250,
-    animated = true,
-  } = props;
+  const { children, transitionTime = 250, animated = true } = props;
 
   devLog('[ScreenStack] Render', {
     transitionTime,
@@ -140,19 +109,16 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Флаг initial-фазы: пока true — не анимируем первый рендер стека
   const isInitialMountRef = useRef(true);
 
-  // Храним предыдущий список ключей стека
   const prevKeysRef = useRef<string[]>([]);
-  // Храним последнее направление навигации (используем для CSS)
+
   const lastDirectionRef = useRef<Direction>('forward');
-  // Кэш элементов по ключу, чтобы уметь рисовать exiting элементы после удаления из children
+
   const childMapRef = useRef<Map<string, ReactElement<ScreenStackItemProps>>>(
     new Map()
   );
 
-  // Разделяем детей на ScreenStackItem (otherChildren больше не поддерживаем)
   const stackChildren = useMemo(() => {
     const stackItems: ReactElement<ScreenStackItemProps>[] = [];
 
@@ -160,7 +126,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       if (isScreenStackItemElement(child)) {
         stackItems.push(child);
       } else if (child != null) {
-        // otherChildren больше не поддерживаем - выбрасываем предупреждение в dev
         devLog('[ScreenStack] Non-ScreenStackItem child ignored', { child });
       }
     });
@@ -172,8 +137,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     return stackItems;
   }, [children]);
 
-  // Текущий стек ключей (в порядке снизу вверх)
-  // ВАЖНО: используем item.key, а не React key, чтобы совпадало с поиском в контексте
   const routeKeys = useMemo(() => {
     const keys = stackChildren.map((child) => {
       const item = child.props.item;
@@ -183,8 +146,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     return keys;
   }, [stackChildren]);
 
-  // Обновляем childMap так, чтобы exiting элементы оставались доступны
-  // ВАЖНО: используем item.key как ключ, чтобы совпадало с поиском в контексте
   const childMap = useMemo(() => {
     const map = new Map(childMapRef.current);
 
@@ -208,7 +169,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     timeout: transitionTime,
     preEnter: true,
     mountOnEnter: true,
-    unmountOnExit: false, // сами решаем, когда удалять
+    unmountOnExit: false,
     enter: animated,
     exit: animated,
     allowMultiple: true,
@@ -222,7 +183,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     },
   });
 
-  // Сводка текущих transition-состояний
   devLog(
     '[ScreenStack] Current transition states:',
     Array.from(stateMap.entries()).map(([key, state]) => ({
@@ -234,21 +194,15 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     }))
   );
 
-  // Снимок stateMap на текущем рендере (полезно, если Map мутируется по месту)
   const stateMapEntries = Array.from(stateMap.entries());
 
-  // Текущее направление навигации считается синхронно из prevKeysRef и routeKeys,
-  // чтобы не было лагов (как раньше при pop на первом кадре).
-  const direction: Direction = useMemo(
-    () => {
-      const prevKeys = prevKeysRef.current;
-      const computed = computeDirection(prevKeys, routeKeys);
-      // Обновляем prevKeysRef синхронно, чтобы следующий рендер опирался на актуальный стек
-      prevKeysRef.current = routeKeys;
-      return computed;
-    },
-    [routeKeys]
-  );
+  const direction: Direction = useMemo(() => {
+    const prevKeys = prevKeysRef.current;
+    const computed = computeDirection(prevKeys, routeKeys);
+
+    prevKeysRef.current = routeKeys;
+    return computed;
+  }, [routeKeys]);
 
   devLog('[ScreenStack] Computed direction', {
     prevKeys: prevKeysRef.current,
@@ -258,9 +212,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
   const isInitialPhase = isInitialMountRef.current;
 
-  // Вычисляем список ключей, которые должны быть отрисованы:
-  // 1) все текущие routeKeys
-  // 2) плюс все exiting (mounted, но уже не в routeKeys)
   const keysToRender = useMemo(() => {
     const routeKeySet = new Set(routeKeys);
     const exitingKeys: string[] = [];
@@ -272,8 +223,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       }
     }
 
-    // Для стековой навигации: сначала все текущие (снизу вверх),
-    // затем exiting (они будут верхними по z-index).
     const result = [...routeKeys, ...exitingKeys];
 
     devLog('[ScreenStack] Keys to render:', {
@@ -288,10 +237,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     return 'screen-stack';
   }, []);
 
-  /**
-   * EFFECT 1: lifecycle — добавляем новые ключи, запускаем enter,
-   * помечаем на exit те, которых больше нет в стеке.
-   */
   useLayoutEffect(() => {
     devLog('[ScreenStack] === LIFECYCLE EFFECT START ===', {
       prevKeys: prevKeysRef.current,
@@ -301,7 +246,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
     const routeKeySet = new Set(routeKeys);
 
-    // Какие ключи новые относительно stateMap
     const existingKeySet = new Set<string>();
     for (const [key] of stateMapEntries) {
       existingKeySet.add(key);
@@ -317,7 +261,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       removedKeys,
     });
 
-    // Новые элементы: регистрируем и включаем enter
     for (const key of newKeys) {
       devLog(`[ScreenStack] Adding item: ${key}`);
       setItem(key);
@@ -325,8 +268,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       toggle(key, true);
     }
 
-
-    // Элементы, которых больше нет в стеке: запускаем exit
     for (const key of removedKeys) {
       const state = stateMap.get(key);
       if (state && state.isEnter) {
@@ -346,23 +287,17 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       }
     }
 
-    // Обновляем prevKeys и последнее направление
     lastDirectionRef.current = direction;
 
     devLog('[ScreenStack] === LIFECYCLE EFFECT END ===');
   }, [routeKeys, direction, setItem, toggle, stateMapEntries]);
 
-  /**
-   * EFFECT 2: cleanup — удаляем из transitionMap и childMap
-   * полностью завершённые и/или размонтированные элементы.
-   */
   useLayoutEffect(() => {
     devLog('[ScreenStack] === CLEANUP EFFECT START ===');
 
     const routeKeySet = new Set(routeKeys);
 
     for (const [key, state] of stateMapEntries) {
-      // Если элемент не смонтирован, можно удалять из карты
       if (!state.isMounted) {
         devLog(`[ScreenStack] Cleanup unmounted item: ${key}`, {
           status: state.status,
@@ -373,7 +308,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
         continue;
       }
 
-      // Если ключ не в текущем стеке и анимация завершена — чистим
       const isInStack = routeKeySet.has(key);
       const canCleanup =
         !isInStack && state.status === 'exited' && state.isResolved === true;
@@ -391,11 +325,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     devLog('[ScreenStack] === CLEANUP EFFECT END ===');
   }, [routeKeys, stateMapEntries, deleteItem]);
 
-  /**
-   * EFFECT 3: завершение initial-фазы.
-   * Как только появился хотя бы один смонтированный элемент в stateMap,
-   * считаем, что initial-mount закончился и дальше анимации включены.
-   */
   useEffect(() => {
     if (!isInitialMountRef.current) return;
 
@@ -407,7 +336,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     }
   }, [stateMapEntries]);
 
-  // Лог DOM-состояния после рендера (в деве)
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -422,16 +350,12 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     });
   });
 
-  // Текущий верхний ключ стека (если есть)
   const topKey = routeKeys[routeKeys.length - 1] ?? null;
   const routeKeySet = useMemo(() => new Set(routeKeys), [routeKeys]);
 
-  // Вычисляем items для контекста через useMemo
-  // ВАЖНО: включаем все routeKeys, даже если они еще не в stateMap (для первого рендера)
   const itemsContextValue = useMemo(() => {
     const items: { [key: string]: any } = {};
 
-    // Сначала обрабатываем элементы из keysToRender (те, что уже в stateMap)
     for (let index = 0; index < keysToRender.length; index++) {
       const key = keysToRender[index];
       if (!key) continue;
@@ -457,16 +381,15 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
         phase = 'inactive';
       }
 
-      // Если элемент еще не в stateMap, используем начальные значения
       const rawStatus = transitionState?.status || 'preEnter';
       const status =
         isInitialPhase && (rawStatus === 'preEnter' || rawStatus === 'entering')
           ? 'entered'
           : rawStatus;
 
-      // Определяем zIndex на основе позиции в routeKeys
       const routeIndex = routeKeys.indexOf(key);
-      const zIndex = routeIndex >= 0 ? routeIndex + 1 : keysToRender.length + index + 1;
+      const zIndex =
+        routeIndex >= 0 ? routeIndex + 1 : keysToRender.length + index + 1;
 
       const presentationType = getPresentationTypeClass(presentation);
       const animationType = computeAnimationType(
@@ -488,10 +411,9 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       };
     }
 
-    // Теперь добавляем элементы из routeKeys, которых еще нет в items (если они не в stateMap)
     for (let index = 0; index < routeKeys.length; index++) {
       const key = routeKeys[index];
-      if (!key || items[key]) continue; // Skip undefined keys или уже добавленные
+      if (!key || items[key]) continue;
 
       const child = childMap.get(key);
       if (!child) continue;
@@ -512,10 +434,18 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       }
 
       const presentationType = getPresentationTypeClass(presentation);
-      // Для элементов без stateMap используем начальное состояние
+
       const animationType = isInitialPhase
         ? 'none'
-        : computeAnimationType(key, isInStack, isTop, direction, presentation, isInitialPhase, animated);
+        : computeAnimationType(
+            key,
+            isInStack,
+            isTop,
+            direction,
+            presentation,
+            isInitialPhase,
+            animated
+          );
 
       items[key] = {
         presentationType,
@@ -529,16 +459,15 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     return { items };
   }, [
     keysToRender,
-    routeKeys,
-    stateMapEntries,
+    stateMap,
     childMap,
     routeKeySet,
     topKey,
-    direction,
     isInitialPhase,
+    routeKeys,
+    direction,
   ]);
 
-  // Вычисляем animating отдельно через useMemo
   const animating = useMemo(() => {
     return stateMapEntries.some(
       ([, state]) =>
@@ -550,7 +479,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     );
   }, [stateMapEntries]);
 
-
   return (
     <ScreenStackItemsContext.Provider value={itemsContextValue}>
       <ScreenStackAnimatingContext.Provider value={animating}>
@@ -558,16 +486,19 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
           ref={containerRef}
           className={containerClassName + (animating ? ' animating' : '')}
         >
-          {/* Рендерим keysToRender (текущие + exiting) через childMap, как в старой версии */}
-          {/* Это позволяет exiting элементам оставаться в DOM для анимации */}
+          {}
+          {}
           {keysToRender.map((key) => {
             const transitionState = stateMap.get(key);
 
             if (!transitionState || !transitionState.isMounted) {
-              devLog(`[ScreenStack] Skipping ${key} - no state or not mounted`, {
-                hasState: !!transitionState,
-                isMounted: transitionState?.isMounted,
-              });
+              devLog(
+                `[ScreenStack] Skipping ${key} - no state or not mounted`,
+                {
+                  hasState: !!transitionState,
+                  isMounted: transitionState?.isMounted,
+                }
+              );
               return null;
             }
 
@@ -579,8 +510,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
               return null;
             }
 
-            // Используем React key из child, но логический ключ для поиска в контексте - item.key
-            // Элемент найдет свои данные в контексте по item.key
             return <Fragment key={child.key || key}>{child}</Fragment>;
           })}
         </div>

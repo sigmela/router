@@ -13,7 +13,6 @@ type IOSIconShape =
 
 type ExtendedIcon = ImageSourcePropType | IOSIconShape;
 
-// Internal representation used by TabBar to support unified icon source while keeping original android props
 export type InternalTabItem = Omit<TabItem, 'icon' | 'selectedIcon'> & {
   icon?: ExtendedIcon;
   selectedIcon?: ExtendedIcon;
@@ -152,10 +151,6 @@ export class TabBar implements NavigationNode {
     return stack?.getId();
   }
 
-  /**
-   * Switches active tab by route ID.
-   * Implements NavigationNode.switchToRoute capability.
-   */
   public switchToRoute(routeId: string): void {
     const idx = this.findTabIndexByRoute(routeId);
     if (idx === -1) return;
@@ -163,24 +158,15 @@ export class TabBar implements NavigationNode {
     this.setState({ index: idx });
   }
 
-  /**
-   * Checks if a route exists in any tab.
-   * Implements NavigationNode.hasRoute capability.
-   */
   public hasRoute(routeId: string): boolean {
     return this.findTabIndexByRoute(routeId) !== -1;
   }
 
-  /**
-   * @deprecated Use switchToRoute instead. Kept for backward compatibility.
-   */
   public setActiveChildByRoute(routeId: string): void {
-    // Делегируем в switchToRoute для единой логики
     this.switchToRoute(routeId);
   }
 
   public getNodeRoutes(): NodeRoute[] {
-    // TabBar itself doesn't add standalone routes; it's intended to be used as childNode of a screen.
     return [];
   }
 
@@ -201,7 +187,6 @@ export class TabBar implements NavigationNode {
   }
 
   public getRenderer(): React.ComponentType<any> {
-    // eslint-disable-next-line consistent-this
     const tabBarInstance = this;
     return function TabBarScreen(props: any) {
       return React.createElement(RenderTabBar, {

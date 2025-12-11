@@ -4,24 +4,12 @@ import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useScreenStackItemsContext } from '../ScreenStack/ScreenStackContext';
 
-const devLog = (_: string, __?: any) => {
-  // if (false) {
-  //   //if (typeof __DEV__ !== 'undefined' && __DEV__) {
-  //   if (data !== undefined) {
-  //     // eslint-disable-next-line no-console
-  //     console.log(message, data);
-  //   } else {
-  //     // eslint-disable-next-line no-console
-  //     console.log(message);
-  //   }
-  // }
-};
+const devLog = (_: string, __?: any) => {};
 
 export const ScreenStackItem = memo(
   ({ item, appearance, style }: ScreenStackItemProps) => {
-    // Подписываемся только на itemsContext (по ключу) - оптимизация
     const itemsContext = useScreenStackItemsContext();
-    const key = item.key; // Используем item.key напрямую
+    const key = item.key;
 
     const itemState = itemsContext.items[key];
     const presentationType = itemState?.presentationType;
@@ -31,7 +19,6 @@ export const ScreenStackItem = memo(
     const zIndex = itemState?.zIndex ?? 0;
     const presentation = item.options?.stackPresentation ?? 'push';
 
-    // Определяем является ли модалкой (для overlay и контейнера)
     const isModalLike = [
       'modal',
       'transparentModal',
@@ -46,24 +33,18 @@ export const ScreenStackItem = memo(
     const className = useMemo(() => {
       const classes = ['screen-stack-item'];
 
-      // Стабильный класс типа экрана (presentation)
-      // Например: 'push', 'modal', 'sheet', 'transparent-modal' и т.д.
       if (presentationType) {
         classes.push(presentationType);
       }
 
-      // Динамический класс анимации
-      // Например: 'push-enter', 'pop-exit', 'modal-enter', 'sheet-exit' и т.д.
       if (animationType) {
         classes.push(animationType);
       }
 
-      // Классы transition статуса
       if (transitionStatus) {
         classes.push(`transition-${transitionStatus}`);
       }
 
-      // Классы фазы
       if (phase) {
         classes.push(`phase-${phase}`);
       }
@@ -88,7 +69,6 @@ export const ScreenStackItem = memo(
       item.path,
     ]);
 
-    // Объединяем стили: базовый, переданный через props, и zIndex из контекста
     const mergedStyle = useMemo(
       () => ({
         flex: 1,
@@ -107,13 +87,12 @@ export const ScreenStackItem = memo(
     };
 
     if (!itemState) {
-      // Нет данных в контексте — соблюдаем порядок хуков, но не рендерим элемент
       return null;
     }
 
     return (
       <div style={mergedStyle} className={className}>
-        {/* Overlay для всех modal-типов (CSS решает видимость по классам presentation) */}
+        {}
         {isModalLike && <div className="stack-modal-overlay" />}
 
         <div
@@ -143,7 +122,6 @@ export const ScreenStackItem = memo(
     );
   },
   (prevProps, nextProps) => {
-    // Кастомная функция сравнения для memo - ререндер только если изменился key
     return (
       prevProps.item.key === nextProps.item.key &&
       prevProps.item === nextProps.item &&

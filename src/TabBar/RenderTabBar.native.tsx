@@ -34,7 +34,6 @@ export interface RenderTabBarProps {
   appearance?: NavigationAppearance;
 }
 
-// Helpers outside render to avoid re-creation
 const isImageSource = (value: unknown): value is ImageSourcePropType => {
   if (value == null) return false;
   const valueType = typeof value;
@@ -61,7 +60,6 @@ const buildIOSIcon = (value: unknown): RNSIcon | undefined => {
   return { templateSource: value as ImageSourcePropType } as RNSIcon;
 };
 
-// Map unified tab icon props to RNS BottomTabsScreen platform-specific props
 const getTabIcon = (tab: InternalTabItem) => {
   const { icon, selectedIcon } = tab;
   if (icon || selectedIcon) {
@@ -78,7 +76,6 @@ const getTabIcon = (tab: InternalTabItem) => {
   return undefined;
 };
 
-// Компонент для рендеринга стека таба с реактивностью
 const TabStackRenderer = memo<{
   stack: NavigationStack;
   appearance?: NavigationAppearance;
@@ -183,12 +180,10 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       },
     });
 
-    // If a custom component is provided, render it instead of default native BottomTabs
     const CustomTabBar = config.component as
       | ComponentType<TabBarProps>
       | undefined;
 
-    // Track visited tabs to lazily mount on first visit and keep mounted afterwards
     const [visited, setVisited] = useState<Record<string, true>>({});
 
     useEffect(() => {

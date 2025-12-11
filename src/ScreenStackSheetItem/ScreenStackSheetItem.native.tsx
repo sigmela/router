@@ -28,8 +28,11 @@ export const ScreenStackSheetItem = memo<ScreenStackSheetItemProps>((props) => {
           Commands.dismiss(ref.current);
         }
       });
+
+      return () => router.unregisterSheetDismisser(item.key);
     }
 
+    return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

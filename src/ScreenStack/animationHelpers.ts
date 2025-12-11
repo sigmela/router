@@ -4,9 +4,6 @@ import type {
   AnimationType,
 } from './ScreenStackContext';
 
-/**
- * Получает стабильный класс типа presentation
- */
 export function getPresentationTypeClass(
   presentation: StackPresentationTypes
 ): PresentationTypeClass {
@@ -34,9 +31,6 @@ export function getPresentationTypeClass(
   }
 }
 
-/**
- * Получает динамический класс анимации для presentation типа
- */
 export function getAnimationTypeForPresentation(
   presentation: StackPresentationTypes,
   isEntering: boolean,
@@ -45,18 +39,13 @@ export function getAnimationTypeForPresentation(
   const suffix = isEntering ? 'enter' : 'exit';
   const presentationClass = getPresentationTypeClass(presentation);
 
-  // Для push используем направление в имени анимации
   if (presentation === 'push') {
     return direction === 'forward' ? `push-${suffix}` : `pop-${suffix}`;
   }
 
-  // Для остальных используем стабильный класс типа + суффикс
   return `${presentationClass}-${suffix}`;
 }
 
-/**
- * Вычисляет тип анимации для элемента стека
- */
 export function computeAnimationType(
   _key: string,
   isInStack: boolean,
@@ -66,20 +55,16 @@ export function computeAnimationType(
   isInitialPhase: boolean,
   animated: boolean = true
 ): AnimationType {
-  // Если анимация отключена через screenOptions
   if (!animated) {
     return 'no-animate';
   }
 
-  // Initial mount - без анимации
   if (isInitialPhase) {
     return 'none';
   }
 
-  // isEntering вычисляем внутри - используется для определения типа анимации
   const isEntering = isInStack && isTop;
 
-  // Modal/Sheet анимации (разные типы через getAnimationTypeForPresentation)
   const isModalLike = [
     'modal',
     'transparentModal',
@@ -93,7 +78,6 @@ export function computeAnimationType(
 
   if (isModalLike) {
     if (!isInStack) {
-      // Элемент выходит
       return getAnimationTypeForPresentation(
         presentation,
         false,
@@ -101,42 +85,35 @@ export function computeAnimationType(
       ) as AnimationType;
     }
     if (isEntering) {
-      // Элемент входит
       return getAnimationTypeForPresentation(
         presentation,
         true,
         direction
       ) as AnimationType;
     }
-    // Фоновая модалка (не должно происходить, но для безопасности)
+
     return 'none';
   }
 
-  // Push анимации (обычные экраны)
   if (!isInStack) {
-    // Элемент выходит
     if (direction === 'forward') {
-      return 'push-exit'; // Редкий случай
+      return 'push-exit';
     } else {
-      return 'pop-exit'; // Верхний экран уезжает вправо
+      return 'pop-exit';
     }
   }
 
   if (isTop) {
-    // Верхний элемент
     if (direction === 'forward') {
-      return 'push-enter'; // Въезжает справа (CSS через media query может отключить на desktop)
+      return 'push-enter';
     } else {
-      return 'pop-enter'; // Возвращается из -25% в 0
+      return 'pop-enter';
     }
   }
 
-  // Фоновый элемент
   if (direction === 'forward') {
-    return 'push-background'; // Сдвигается влево на -25%
+    return 'push-background';
   } else {
-    // При pop фоновые элементы остаются на -25% (были сдвинуты при push)
-    // Используем pop-background вместо none, чтобы сохранить позицию
     return 'pop-background';
   }
 }
