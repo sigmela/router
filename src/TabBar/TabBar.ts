@@ -187,6 +187,7 @@ export class TabBar implements NavigationNode {
   }
 
   public getRenderer(): React.ComponentType<any> {
+    // eslint-disable-next-line consistent-this
     const tabBarInstance = this;
     return function TabBarScreen(props: any) {
       return React.createElement(RenderTabBar, {

@@ -1,6 +1,6 @@
 import type { ScreenStackItemProps } from './ScreenStackItem.types';
 import { RouteLocalContext, useRouter } from '../RouterContext';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useScreenStackItemsContext } from '../ScreenStack/ScreenStackContext';
 
@@ -87,8 +87,6 @@ export const ScreenStackItem = memo(
       path: item.path,
     };
 
-    const handleCloseModal = useCallback(() => router.goBack(), []);
-
     if (!itemState) {
       return null;
     }
@@ -97,7 +95,10 @@ export const ScreenStackItem = memo(
       <div style={mergedStyle} className={className}>
         {}
         {isModalLike && (
-          <div className="stack-modal-overlay" onClick={handleCloseModal} />
+          <div
+            className="stack-modal-overlay"
+            onClick={() => router.goBack()}
+          />
         )}
 
         <div

@@ -290,7 +290,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     lastDirectionRef.current = direction;
 
     devLog('[ScreenStack] === LIFECYCLE EFFECT END ===');
-  }, [routeKeys, direction, setItem, toggle, stateMapEntries]);
+  }, [routeKeys, direction, setItem, toggle, stateMapEntries, stateMap]);
 
   useLayoutEffect(() => {
     devLog('[ScreenStack] === CLEANUP EFFECT START ===');
