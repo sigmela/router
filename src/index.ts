@@ -1,4 +1,5 @@
 export { useTabBar } from './TabBar/useTabBar';
+export { useTabBarHeight, TAB_BAR_HEIGHT } from './TabBar/useTabBarHeight';
 export { TabBar } from './TabBar/TabBar';
 export type { TabBarProps } from './TabBar/TabBar';
 

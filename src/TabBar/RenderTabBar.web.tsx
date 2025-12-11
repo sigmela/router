@@ -86,20 +86,22 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         const targetStack = tabBar.stacks[targetTab.tabKey];
 
         if (targetStack) {
-          const stackId = targetStack.getId();
-          const history = router.getStackHistory(stackId);
-          const last = history.length ? history[history.length - 1] : undefined;
-          const toPath = last?.path ?? targetStack.getFirstRoute()?.path;
-          if (toPath) {
-            const currentPath = router.getActiveRoute()?.path;
-            if (nextIndex === index && toPath === currentPath) return;
-
-            router.replace(toPath, true);
+          // Keep TabBar UI in sync immediately.
+          if (nextIndex !== index) {
+            tabBar.onIndexChange(nextIndex);
+          }
+          const firstRoutePath = targetStack.getFirstRoute()?.path;
+          if (firstRoutePath) {
+            // Web behavior: reset all preserved stacks when switching tabs.
+            // This keeps browser URL and Router state always consistent.
+            router.reset(firstRoutePath);
             return;
           }
         }
 
-        tabBar.onIndexChange(nextIndex);
+        if (nextIndex !== index) {
+          tabBar.onIndexChange(nextIndex);
+        }
       },
       [router, tabBar, tabs, index]
     );
@@ -145,46 +147,48 @@ export const RenderTabBar = memo<RenderTabBarProps>(
             />
           ) : (
             <div className="tab-bar" style={tabBarStyle}>
-              {tabs.map((tab, i) => {
-                const isActive = i === index;
-                const iconTint = toColorString(
-                  isActive
-                    ? appearance?.tabBar?.iconColorActive
-                    : appearance?.tabBar?.iconColor
-                );
-                const title = appearance?.tabBar?.title;
-                const labelColor = isActive
-                  ? (toColorString(title?.activeColor) ??
-                    toColorString(title?.color))
-                  : toColorString(title?.color);
-                const labelStyle: CSSProperties = {
-                  ...titleBaseStyle,
-                  color: labelColor,
-                };
-                return (
-                  <button
-                    key={tab.tabKey}
-                    data-index={i}
-                    className={`tab-item${isActive ? ' active' : ''}`}
-                    onClick={() => onTabClick(i)}
-                  >
-                    <div className="tab-item-icon">
-                      {isImageSource(tab.icon) ? (
-                        <TabIcon source={tab.icon} tintColor={iconTint} />
+              {/* <div className="tab-bar-blur-overlay" /> */}
+              <div className="tab-bar-inner">
+                {tabs.map((tab, i) => {
+                  const isActive = i === index;
+                  const iconTint = toColorString(
+                    isActive
+                      ? appearance?.tabBar?.iconColorActive
+                      : appearance?.tabBar?.iconColor
+                  );
+                  const title = appearance?.tabBar?.title;
+                  const labelColor = isActive
+                    ? (toColorString(title?.activeColor) ??
+                      toColorString(title?.color))
+                    : toColorString(title?.color);
+                  const labelStyle: CSSProperties = {
+                    ...titleBaseStyle,
+                    color: labelColor,
+                  };
+                  return (
+                    <button
+                      key={tab.tabKey}
+                      data-index={i}
+                      className={`tab-item${isActive ? ' active' : ''}`}
+                      onClick={() => onTabClick(i)}
+                    >
+                      <div className="tab-item-icon">
+                        {isImageSource(tab.icon) ? (
+                          <TabIcon source={tab.icon} tintColor={iconTint} />
+                        ) : null}
+                      </div>
+                      <div className="tab-item-label" style={labelStyle}>
+                        {tab.title}
+                      </div>
+                      {tab.badgeValue ? (
+                        <span className="tab-item-label-badge">
+                          {tab.badgeValue}
+                        </span>
                       ) : null}
-                    </div>
-                    {tab.badgeValue ? (
-                      <span className="tab-item-label-badge">
-                        {tab.badgeValue}
-                      </span>
-                    ) : null}
-
-                    <div className="tab-item-label" style={labelStyle}>
-                      {tab.title}
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

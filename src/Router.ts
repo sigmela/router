@@ -113,6 +113,31 @@ export class Router {
     this.performNavigation(path, 'replace', { dedupe: !!dedupe });
   };
 
+  /**
+   * Web-only convenience: resets Router navigation state to what a fresh
+   * deep-link render would produce for the given URL.
+   *
+   * This intentionally clears preserved per-tab stacks (useful when tab stacks
+   * and browser URL can get out of sync).
+   */
+  public reset = (path: string): void => {
+    if (this.isWebEnv()) {
+      const prevHistory = this.state.history;
+      // Important: clear current history before matching routes for the new URL.
+      // Otherwise, matchBaseRoute() tie-breakers may pick a wrong stack for ambiguous
+      // paths like '/' based on previously visited stacks, breaking tab switches.
+      this.state = { history: [] };
+      this.stackHistories.clear();
+      // Update browser URL without triggering onHistory navigation.
+      this.replaceUrlSilently(path);
+      // Rebuild history exactly like initial URL parsing (wipes other stacks).
+      this.buildHistoryFromUrl(path, prevHistory);
+      return;
+    }
+    // Native fallback: closest semantics is a replace navigation.
+    this.performNavigation(path, 'replace', { dedupe: true });
+  };
+
   public registerSheetDismisser = (
     key: string,
     dismisser: () => void
@@ -2149,7 +2174,7 @@ export class Router {
     return top;
   }
 
-  private buildHistoryFromUrl(url: string): void {
+  private buildHistoryFromUrl(url: string, reuseKeysFrom?: HistoryItem[]): void {
     const { pathname, query } = this.parsePath(url);
 
     this.log('parse', { url, pathname, query });
@@ -2338,11 +2363,60 @@ export class Router {
       return;
     }
 
+    // When rebuilding history (e.g. tab reset), preserve keys for matching items
+    // so web animations don't replay for the whole root stack.
+    this.reuseKeysFromPreviousHistory(items, reuseKeysFrom);
+
     this.setState({ history: items });
 
     this.stackListeners.forEach((set) => this.emit(set));
 
     this.recomputeActiveRoute();
     this.emit(this.listeners);
+  }
+
+  private reuseKeysFromPreviousHistory(
+    next: HistoryItem[],
+    prev?: HistoryItem[]
+  ): void {
+    if (!prev || prev.length === 0) return;
+    const used = new Set<string>();
+
+    const sameItemIdentity = (a: HistoryItem, b: HistoryItem): boolean => {
+      if (a.routeId !== b.routeId) return false;
+      if ((a.stackId ?? '') !== (b.stackId ?? '')) return false;
+      if ((a.path ?? '') !== (b.path ?? '')) return false;
+
+      const sameParams = this.areShallowEqual(
+        (a.params ?? {}) as Record<string, any>,
+        (b.params ?? {}) as Record<string, any>
+      );
+      if (!sameParams) return false;
+
+      const sameQuery = this.areShallowEqual(
+        (a.query ?? {}) as Record<string, any>,
+        (b.query ?? {}) as Record<string, any>
+      );
+      if (!sameQuery) return false;
+
+      // Keep presentation stable: modal/sheet items should not steal keys from push items.
+      const ap = a.options?.stackPresentation ?? null;
+      const bp = b.options?.stackPresentation ?? null;
+      if (ap !== bp) return false;
+
+      return true;
+    };
+
+    for (const item of next) {
+      for (let i = prev.length - 1; i >= 0; i--) {
+        const candidate = prev[i];
+        if (!candidate) continue;
+        if (used.has(candidate.key)) continue;
+        if (!sameItemIdentity(item, candidate)) continue;
+        item.key = candidate.key;
+        used.add(candidate.key);
+        break;
+      }
+    }
   }
 }

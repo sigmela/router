@@ -238,6 +238,30 @@ describe('Web History integration', () => {
     expect(after).toBe(before);
   });
 
+  test('tab switch resets stacks on web (tab always opens at its root)', () => {
+    const shim = installWebShim('https://example.test/mail/1/modal');
+
+    const mail = new NavigationStack()
+      .addScreen('/mail', Screen)
+      .addScreen('/mail/:id', Screen)
+      .addModal('/mail/:id/modal', Screen);
+
+    const catalog = new NavigationStack().addScreen('/catalog', Screen);
+
+    const tabBar = new TabBar()
+      .addTab({ key: 'mail', stack: mail, title: 'Mail' })
+      .addTab({ key: 'catalog', stack: catalog, title: 'Catalog' });
+
+    const router = new Router({ root: tabBar });
+
+    // Switching tabs should reset Router history to the root route of that tab.
+    router.reset('/catalog');
+    expect(shim.getLocation()).toEqual({ pathname: '/catalog', search: '' });
+
+    router.reset('/mail');
+    expect(shim.getLocation()).toEqual({ pathname: '/mail', search: '' });
+  });
+
   test('cross-stack replace preserves source stack top', () => {
     const shim = installWebShim('https://example.test/catalog');
 

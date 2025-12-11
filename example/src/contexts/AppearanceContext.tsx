@@ -65,10 +65,10 @@ export const AppearanceProvider: React.FC<AppearanceProviderProps> = ({
     return {
       tabBar: {
         labelVisibilityMode: 'labeled',
-        backgroundColor: theme.tabBarBackground,
+        // backgroundColor: theme.tabBarBackground,
         iconColor: theme.iconColor,
         iconColorActive: theme.iconColorActive,
-        androidActiveIndicatorColor: theme.androidActiveIndicatorColor,
+        // androidActiveIndicatorColor: theme.androidActiveIndicatorColor,
         iOSShadowColor: 'transparent',
         title: {
           color: theme.iconColor,
