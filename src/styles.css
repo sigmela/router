@@ -45,8 +45,11 @@
   will-change: opacity;
 }
 
-/* Показываем overlay только для модалок */
-.screen-stack-item:not(.modal) .stack-modal-overlay {
+/* Показываем overlay только для modal-like презентаций.
+   ВАЖНО: используем direct child (>) чтобы не схлопывать overlay из вложенных стеков,
+   когда modal ScreenStackItem находится внутри push ScreenStackItem-контейнера. */
+.screen-stack-item:not(.modal):not(.contained-modal):not(.fullscreen-modal):not(.formsheet):not(.pagesheet):not(.sheet)
+  > .stack-modal-overlay {
   display: none;
 }
 
@@ -71,58 +74,90 @@
 }
 
 /* Overlay в начальном состоянии — прозрачный */
-.screen-stack-item.modal.transition-preEnter .stack-modal-overlay,
-.screen-stack-item.modal.transition-preEnter .stack-modal-overlay {
+.screen-stack-item.modal.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.contained-modal.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.formsheet.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.pagesheet.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.sheet.transition-preEnter > .stack-modal-overlay {
   opacity: 0;
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
 }
 
 /* Overlay при входе — запускаем анимацию */
-.screen-stack-item.modal.transition-entering .stack-modal-overlay,
-.screen-stack-item.modal.phase-active.transition-preEnter .stack-modal-overlay,
-.screen-stack-item.modal.transition-entering .stack-modal-overlay,
-.screen-stack-item.modal.phase-active.transition-preEnter .stack-modal-overlay {
+.screen-stack-item.modal.transition-entering > .stack-modal-overlay,
+.screen-stack-item.modal.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.contained-modal.transition-entering > .stack-modal-overlay,
+.screen-stack-item.contained-modal.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.transition-entering > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.formsheet.transition-entering > .stack-modal-overlay,
+.screen-stack-item.formsheet.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.pagesheet.transition-entering > .stack-modal-overlay,
+.screen-stack-item.pagesheet.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.sheet.transition-entering > .stack-modal-overlay,
+.screen-stack-item.sheet.phase-active.transition-preEnter > .stack-modal-overlay {
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
   animation: modal-overlay-enter 300ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
 }
 
-/* Для модалок в активных / вошедших состояниях — полностью видимый */
-.screen-stack-item.modal.phase-active .stack-modal-overlay,
-.screen-stack-item.modal.transition-entered .stack-modal-overlay,
-.screen-stack-item.modal.phase-active .stack-modal-overlay,
-.screen-stack-item.modal.transition-entered .stack-modal-overlay {
+/* Для modal-like в активных / вошедших состояниях — полностью видимый */
+.screen-stack-item.modal.phase-active > .stack-modal-overlay,
+.screen-stack-item.modal.transition-entered > .stack-modal-overlay,
+.screen-stack-item.contained-modal.phase-active > .stack-modal-overlay,
+.screen-stack-item.contained-modal.transition-entered > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.phase-active > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.transition-entered > .stack-modal-overlay,
+.screen-stack-item.formsheet.phase-active > .stack-modal-overlay,
+.screen-stack-item.formsheet.transition-entered > .stack-modal-overlay,
+.screen-stack-item.pagesheet.phase-active > .stack-modal-overlay,
+.screen-stack-item.pagesheet.transition-entered > .stack-modal-overlay,
+.screen-stack-item.sheet.phase-active > .stack-modal-overlay,
+.screen-stack-item.sheet.transition-entered > .stack-modal-overlay {
   opacity: 0.5;
   background: rgba(0, 0, 0, 0.5);
   pointer-events: auto;
 }
 
-/* Overlay при закрытии модалки — анимация исчезновения */
-.screen-stack-item.modal.phase-exiting .stack-modal-overlay,
-.screen-stack-item.modal.transition-exiting .stack-modal-overlay,
-.screen-stack-item.modal.phase-exiting .stack-modal-overlay,
-.screen-stack-item.modal.transition-exiting .stack-modal-overlay {
+/* Overlay при закрытии modal-like — анимация исчезновения */
+.screen-stack-item.modal.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.modal.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.contained-modal.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.contained-modal.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.formsheet.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.formsheet.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.pagesheet.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.pagesheet.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.sheet.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.sheet.transition-exiting > .stack-modal-overlay {
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
   animation: modal-overlay-exit 250ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
 }
 
 /* Overlay для transparent-modal — прозрачный */
-.screen-stack-item.transparent-modal .stack-modal-overlay {
+.screen-stack-item.transparent-modal > .stack-modal-overlay {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
 /* Overlay для contained-transparent-modal — прозрачный */
-.screen-stack-item.contained-transparent-modal .stack-modal-overlay {
+.screen-stack-item.contained-transparent-modal > .stack-modal-overlay {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-/* Контейнер контента модалки всегда над overlay */
+/* Контейнер контента modal-like всегда над overlay */
 .screen-stack-item.modal .stack-modal-container,
-.screen-stack-item.modal .stack-modal-container {
+.screen-stack-item.contained-modal .stack-modal-container,
+.screen-stack-item.fullscreen-modal .stack-modal-container,
+.screen-stack-item.formsheet .stack-modal-container,
+.screen-stack-item.pagesheet .stack-modal-container,
+.screen-stack-item.sheet .stack-modal-container {
   position: relative;
   z-index: 2;
 }
@@ -172,21 +207,6 @@
 }
 
 /* ==================== ОБЩИЕ СТИЛИ ПО ТИПУ ЭКРАНА ==================== */
-
-/* Push экраны - базовые стили */
-.screen-stack-item.push {
-  /* Общие стили для всех push экранов */
-}
-
-/* Modal экраны - базовые стили */
-.screen-stack-item.modal {
-  /* Общие стили для всех modal экранов */
-}
-
-/* Sheet экраны - базовые стили */
-.screen-stack-item.sheet {
-  /* Общие стили для всех sheet экранов */
-}
 
 /* ==================== PUSH АНИМАЦИИ ==================== */
 
@@ -273,12 +293,6 @@
 
 /* ==================== MOBILE MODAL (<= 639px) — bottom sheet ==================== */
 @media (max-width: 639px) {
-  /* Overlay для мобильной модалки — прозрачный */
-  .screen-stack-item.modal .stack-modal-overlay {
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
   /* Внутренний контейнер модалки — bottom sheet на всю ширину без скругления */
   .screen-stack-item.modal .stack-modal-container {
     width: 100%;
