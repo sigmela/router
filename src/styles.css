@@ -527,3 +527,51 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ==================== SPLIT VIEW (web) ==================== */
+
+.split-view-container {
+  position: relative;
+  display: block; /* narrow by default; wide enabled via injected @media rule */
+  height: 100dvh;
+  min-height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.split-view-container .screen-stack {
+  /* ScreenStack has min-width: 100%, which breaks side-by-side layouts */
+  min-width: 0;
+}
+
+.split-view-primary {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.split-view-secondary {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+/* In narrow mode, hide secondary completely if it has no active screen */
+.split-view-secondary:not(:has(.screen-stack-item.phase-active)):not(:has(.screen-stack-item.phase-exiting)):not(:has(.screen-stack-item.transition-entering)):not(:has(.screen-stack-item.transition-entered)):not(:has(.screen-stack-item.transition-preEnter)):not(:has(.screen-stack-item.transition-exiting)):not(:has(.screen-stack-item.transition-preExit)):not(:has(.screen-stack-item.pop-exit)) {
+  display: none;
+}
+
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.phase-active)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.phase-exiting)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-entering)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-entered)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-preEnter)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-exiting)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-preExit)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.pop-exit)) .split-view-primary {
+  pointer-events: none;
+}

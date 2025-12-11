@@ -1,6 +1,7 @@
 import { Router } from '../Router';
 import { NavigationStack } from '../NavigationStack';
 import { TabBar } from '../TabBar/TabBar';
+import { SplitView } from '../SplitView/SplitView';
 import type { ComponentType } from 'react';
 
 const Screen: ComponentType<any> = () => null;
@@ -373,5 +374,55 @@ describe('Web History integration', () => {
 
       expect(shim.getLocation().pathname).toBe('/product/catalog');
     }
+  });
+
+  test('split view: deep-link keeps secondary on top (seed order)', () => {
+    installWebShim('https://example.test/mail/123');
+
+    const master = new NavigationStack().addScreen('/', Screen);
+    const detail = new NavigationStack().addScreen('/:threadId', Screen);
+
+    const splitView = new SplitView({
+      minWidth: 640,
+      primary: master,
+      secondary: detail,
+    });
+
+    const root = new NavigationStack().addScreen('/mail', splitView);
+    const router = new Router({ root });
+
+    const state = router.debugGetState();
+    expect(state.activeRoute?.path).toBe('/mail/123');
+
+    const rootId = root.getId();
+    const masterId = master.getId();
+    const detailId = detail.getId();
+
+    expect(state.history.map((h) => h.stackId)).toEqual([rootId, masterId, detailId]);
+  });
+
+  test('split view: goBack closes secondary even if it is the only screen', () => {
+    installWebShim('https://example.test/mail/123');
+
+    const master = new NavigationStack().addScreen('/', Screen);
+    const detail = new NavigationStack().addScreen('/:threadId', Screen);
+
+    const splitView = new SplitView({
+      minWidth: 640,
+      primary: master,
+      secondary: detail,
+    });
+
+    const root = new NavigationStack().addScreen('/mail', splitView);
+    const router = new Router({ root });
+
+    expect(router.debugGetState().activeRoute?.path).toBe('/mail/123');
+
+    router.goBack();
+    expect(router.debugGetState().activeRoute?.path).toBe('/mail');
+
+    const before = router.debugGetState().activeRoute?.path;
+    router.goBack();
+    expect(router.debugGetState().activeRoute?.path).toBe(before);
   });
 });

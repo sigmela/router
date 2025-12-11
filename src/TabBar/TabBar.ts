@@ -224,11 +224,28 @@ export class TabBar implements NavigationNode {
       const tab = this.state.tabs[i];
       const stack = tab && this.stacks[tab.tabKey];
       if (!stack) continue;
-      const hasRoute = stack.getRoutes().some((r) => r.routeId === routeId);
+      const hasRoute = this.nodeHasRoute(stack, routeId);
       if (hasRoute) {
         return i;
       }
     }
     return -1;
+  }
+
+  private nodeHasRoute(node: NavigationNode, routeId: string): boolean {
+    const routes = node.getNodeRoutes();
+    for (const r of routes) {
+      if (r.routeId === routeId) return true;
+      if (r.childNode) {
+        if (this.nodeHasRoute(r.childNode, routeId)) return true;
+      }
+    }
+
+    const children = node.getNodeChildren();
+    for (const child of children) {
+      if (this.nodeHasRoute(child.node, routeId)) return true;
+    }
+
+    return false;
   }
 }

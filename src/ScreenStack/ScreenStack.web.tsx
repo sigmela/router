@@ -330,11 +330,19 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
     const hasMountedItem = stateMapEntries.some(([, st]) => st.isMounted);
 
+    // If the stack mounts empty, we still want the first pushed screen to animate.
+    // Mark initial mount as completed immediately in that case.
+    if (!hasMountedItem && routeKeys.length === 0) {
+      isInitialMountRef.current = false;
+      devLog('[ScreenStack] Initial mount completed (empty stack)');
+      return;
+    }
+
     if (hasMountedItem) {
       isInitialMountRef.current = false;
       devLog('[ScreenStack] Initial mount completed');
     }
-  }, [stateMapEntries]);
+  }, [stateMapEntries, routeKeys.length]);
 
   useEffect(() => {
     if (!containerRef.current) return;

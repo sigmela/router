@@ -836,15 +836,26 @@ export class Router {
     routeId: string,
     container: NavigationNode
   ): boolean {
-    if (canLookupRoutes(container)) {
-      return container.hasRoute(routeId);
+    if (canLookupRoutes(container) && container.hasRoute(routeId)) {
+      return true;
     }
 
-    const children = container.getNodeChildren();
-    return children.some((child) => {
-      const routes = child.node.getNodeRoutes();
-      return routes.some((r) => r.routeId === routeId);
-    });
+    const visit = (node: NavigationNode): boolean => {
+      const routes = node.getNodeRoutes();
+      for (const r of routes) {
+        if (r.routeId === routeId) return true;
+        if (r.childNode && visit(r.childNode)) return true;
+      }
+
+      const children = node.getNodeChildren();
+      for (const child of children) {
+        if (visit(child.node)) return true;
+      }
+
+      return false;
+    };
+
+    return visit(container);
   }
 
   private activateContainerForRoute(
@@ -1325,7 +1336,18 @@ export class Router {
       path: childPath,
       pattern: childCompiled?.path ?? childSeed.path,
     };
-    items.push(childItem);
+    // Insert right after the parent route item, so that child stack seeds do not
+    // accidentally become the active route for deep-links (order matters).
+    let parentIndex = -1;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it && it.routeId === routeId) {
+        parentIndex = i;
+        break;
+      }
+    }
+    const insertIndex = parentIndex >= 0 ? parentIndex + 1 : items.length;
+    items.splice(insertIndex, 0, childItem);
 
     if (childSeed.routeId) {
       this.addChildNodeSeedsToItems(childSeed.routeId, items, finalRouteId);
@@ -2014,7 +2036,10 @@ export class Router {
       activeItem.options?.stackPresentation === 'modal' ||
       activeItem.options?.stackPresentation === 'sheet';
 
-    if (stackHistory.length <= 1 && !isModalOrSheet) return null;
+    const allowRootPop = activeItem.options?.allowRootPop === true;
+    if (stackHistory.length <= 1 && !isModalOrSheet && !allowRootPop) {
+      return null;
+    }
 
     if (activeItem.options?.stackPresentation === 'sheet') {
       const dismisser = this.sheetDismissers.get(activeItem.key);
@@ -2189,7 +2214,8 @@ export class Router {
           );
           if (compiled && compiled.childNode) {
             this.addChildNodeSeedsToItems(item.routeId, items, finalRouteId);
-            break;
+            // Don't break: we may have multiple nested containers (e.g. TabBar -> SplitView).
+            // All of them must be activated/seeded to make the UI consistent on initial deep-link.
           }
         }
       }

@@ -2,6 +2,10 @@ export { useTabBar } from './TabBar/useTabBar';
 export { TabBar } from './TabBar/TabBar';
 export type { TabBarProps } from './TabBar/TabBar';
 
+export { SplitView } from './SplitView/SplitView';
+export type { SplitViewOptions } from './SplitView/SplitView';
+export { useSplitView } from './SplitView/useSplitView';
+
 export type { NavigationAppearance } from './types';
 
 export { Router } from './Router';

@@ -38,6 +38,12 @@ export type ScreenOptions = Partial<
   tabBarIcon?: TabBarIcon;
 
   animated?: boolean;
+
+  /**
+   * Allows Router.goBack() to pop the last (root) screen of a stack.
+   * Useful for secondary stacks in split-view / overlays.
+   */
+  allowRootPop?: boolean;
 };
 
 export type HistoryItem = {

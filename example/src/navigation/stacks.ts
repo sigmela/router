@@ -1,4 +1,4 @@
-import { NavigationStack } from '@sigmela/router';
+import { NavigationStack, SplitView } from '@sigmela/router';
 
 import { HomeScreen } from '../screens/HomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
@@ -7,6 +7,10 @@ import { ProductScreen } from '../screens/ProductScreen';
 import { AuthRootScreen } from '../screens/AuthRootScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
 import { UserScreen, UserDetailsScreen } from '../screens/UserScreen';
+import { MailListScreen } from '../screens/MailListScreen';
+import { ThreadScreen } from '../screens/ThreadScreen';
+import { ThreadInfoScreen } from '../screens/ThreadInfoScreen';
+import { ThreadModalScreen } from '../screens/ThreadModalScreen';
 import { EmailAuthModal } from '../screens/EmailAuthModal';
 import { SmsAuthModal } from '../screens/SmsAuthModal';
 import { GenericAuthModal } from '../screens/GenericAuthModal';
@@ -33,6 +37,35 @@ export const settingsStack = new NavigationStack().addScreen(
     header: { title: 'Settings' },
   }
 );
+
+export const mailMasterStack = new NavigationStack().addScreen('/', MailListScreen, {
+  header: { title: 'Mail' },
+});
+
+export const mailDetailStack = new NavigationStack().addScreen(
+  '/:threadId',
+  ThreadScreen,
+  { header: { title: 'Thread' } }
+).addScreen(
+  '/:threadId/info',
+  ThreadInfoScreen,
+  { header: { title: 'Thread info' } }
+).addModal(
+  '/:threadId/modal',
+  ThreadModalScreen,
+  { header: { title: 'Thread modal' } }
+);
+
+export const mailSplitView = new SplitView({
+  minWidth: 640,
+  primary: mailMasterStack,
+  secondary: mailDetailStack,
+});
+
+export const mailStack = new NavigationStack().addScreen('/mail', mailSplitView, {
+  // Hide container header: child stacks render their own headers (native)
+  header: { hidden: true },
+});
 
 // Used in ProfileScreen.tsx
 export const authStack = new NavigationStack()
@@ -68,6 +101,12 @@ export function getRootStack() {
       key: 'home',
       stack: homeStack,
       title: 'Home',
+      icon: require('../../assets/icons/ic-more-h-circle-24.png'),
+    })
+    .addTab({
+      key: 'mail',
+      stack: mailStack,
+      title: 'Mail',
       icon: require('../../assets/icons/ic-more-h-circle-24.png'),
     })
     .addTab({

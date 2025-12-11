@@ -42,6 +42,7 @@ export const HomeScreen = () => {
                 title="Open Catalog"
                 onPress={() => router.navigate('/catalog')}
               />
+              <Button title="Open Mail" onPress={() => router.navigate('/mail')} />
               <Button
                 title="Open Product #42"
                 onPress={() => router.navigate('/catalog/products/42')}
