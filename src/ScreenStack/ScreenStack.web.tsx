@@ -486,8 +486,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
           ref={containerRef}
           className={containerClassName + (animating ? ' animating' : '')}
         >
-          {}
-          {}
           {keysToRender.map((key) => {
             const transitionState = stateMap.get(key);
 
