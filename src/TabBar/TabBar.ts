@@ -5,13 +5,15 @@ import type { TabItem } from '../types';
 import React from 'react';
 import { RenderTabBar } from './RenderTabBar';
 import type { NavigationNode, NodeChild, NodeRoute } from '../navigationNode';
+import type { PlatformIcon } from 'react-native-screens';
 
-type IOSIconShape =
+// Legacy icon format for backward compatibility
+type LegacyIOSIconShape =
   | { sfSymbolName: string }
   | { imageSource: ImageSourcePropType }
   | { templateSource: ImageSourcePropType };
 
-type ExtendedIcon = ImageSourcePropType | IOSIconShape;
+type ExtendedIcon = ImageSourcePropType | LegacyIOSIconShape | PlatformIcon;
 
 export type InternalTabItem = Omit<TabItem, 'icon' | 'selectedIcon'> & {
   icon?: ExtendedIcon;
