@@ -12,11 +12,16 @@ export const ThreadInfoScreen = () => {
   return (
     <View style={styles.screen}>
       <Text style={styles.title}>Thread {threadId} info</Text>
-      <Text style={styles.subtitle}>This is a deeper screen in secondary stack</Text>
+      <Text style={styles.subtitle}>
+        This is a deeper screen in secondary stack
+      </Text>
 
       <View style={styles.buttonRow}>
         <Button title="Back" onPress={() => router.goBack()} />
-        <Button title="Go to thread #2" onPress={() => router.replace('/mail/2/info')} />
+        <Button
+          title="Go to thread #2"
+          onPress={() => router.replace('/mail/2/info')}
+        />
         <Button
           title="Open modal"
           onPress={() => router.navigate(`/mail/${threadId}/modal`)}

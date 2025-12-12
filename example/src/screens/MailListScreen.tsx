@@ -10,8 +10,14 @@ export const MailListScreen = () => {
       <Text style={styles.subtitle}>Select a thread</Text>
 
       <View style={styles.buttonRow}>
-        <Button title="Open thread #1" onPress={() => router.navigate('/mail/1')} />
-        <Button title="Open thread #2" onPress={() => router.navigate('/mail/2')} />
+        <Button
+          title="Open thread #1"
+          onPress={() => router.navigate('/mail/1')}
+        />
+        <Button
+          title="Open thread #2"
+          onPress={() => router.navigate('/mail/2')}
+        />
       </View>
 
       <View style={styles.buttonRow}>

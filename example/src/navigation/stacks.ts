@@ -38,23 +38,22 @@ export const settingsStack = new NavigationStack().addScreen(
   }
 );
 
-export const mailMasterStack = new NavigationStack().addScreen('/', MailListScreen, {
-  header: { title: 'Mail' },
-});
-
-export const mailDetailStack = new NavigationStack().addScreen(
-  '/:threadId',
-  ThreadScreen,
-  { header: { title: 'Thread' } }
-).addScreen(
-  '/:threadId/info',
-  ThreadInfoScreen,
-  { header: { title: 'Thread info' } }
-).addModal(
-  '/:threadId/modal',
-  ThreadModalScreen,
-  { header: { title: 'Thread modal' } }
+export const mailMasterStack = new NavigationStack().addScreen(
+  '/',
+  MailListScreen,
+  {
+    header: { title: 'Mail' },
+  }
 );
+
+export const mailDetailStack = new NavigationStack()
+  .addScreen('/:threadId', ThreadScreen, { header: { title: 'Thread' } })
+  .addScreen('/:threadId/info', ThreadInfoScreen, {
+    header: { title: 'Thread info' },
+  })
+  .addModal('/:threadId/modal', ThreadModalScreen, {
+    header: { title: 'Thread modal' },
+  });
 
 export const mailSplitView = new SplitView({
   minWidth: 640,
@@ -62,10 +61,14 @@ export const mailSplitView = new SplitView({
   secondary: mailDetailStack,
 });
 
-export const mailStack = new NavigationStack().addScreen('/mail', mailSplitView, {
-  // Hide container header: child stacks render their own headers (native)
-  header: { hidden: true },
-});
+export const mailStack = new NavigationStack().addScreen(
+  '/mail',
+  mailSplitView,
+  {
+    // Hide container header: child stacks render their own headers (native)
+    header: { hidden: true },
+  }
+);
 
 // Used in ProfileScreen.tsx
 export const authStack = new NavigationStack()

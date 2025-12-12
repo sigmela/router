@@ -24,7 +24,10 @@ const StackSliceRenderer = memo<{
     (cb: () => void) => router.subscribeStack(stackId, cb),
     [router, stackId]
   );
-  const get = useCallback(() => router.getStackHistory(stackId), [router, stackId]);
+  const get = useCallback(
+    () => router.getStackHistory(stackId),
+    [router, stackId]
+  );
 
   const history: HistoryItem[] = useSyncExternalStore(subscribe, get, get);
 
@@ -48,7 +51,11 @@ const StackSliceRenderer = memo<{
   }
 
   return (
-    <StackRenderer appearance={appearance} stack={stack} history={historyToRender} />
+    <StackRenderer
+      appearance={appearance}
+      stack={stack}
+      history={historyToRender}
+    />
   );
 });
 
@@ -72,7 +79,10 @@ export const RenderSplitView = memo<RenderSplitViewProps>(
     return (
       <SplitViewContext.Provider value={splitView}>
         <View style={styles.container}>
-          <View style={styles.primary} pointerEvents={hasSecondary ? 'none' : 'auto'}>
+          <View
+            style={styles.primary}
+            pointerEvents={hasSecondary ? 'none' : 'auto'}
+          >
             <StackSliceRenderer
               appearance={appearance}
               stack={splitView.primary}
@@ -82,7 +92,10 @@ export const RenderSplitView = memo<RenderSplitViewProps>(
 
           {hasSecondary ? (
             <View style={styles.secondary}>
-              <StackSliceRenderer appearance={appearance} stack={splitView.secondary} />
+              <StackSliceRenderer
+                appearance={appearance}
+                stack={splitView.secondary}
+              />
             </View>
           ) : null}
         </View>

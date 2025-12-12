@@ -6,7 +6,7 @@ export const TAB_BAR_HEIGHT = 57;
 /**
  * Hook that returns the height of the TabBar
  * @returns {number} The height of the TabBar in pixels
- * 
+ *
  * @example
  * ```tsx
  * const TabBarExample = () => {
