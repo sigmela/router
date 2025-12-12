@@ -454,8 +454,45 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       expect(getActiveRouteParams(router)?.productId).toBe('1');
 
       router.navigate('/catalog/products/2');
-      expect(getStackHistoryLength(router, catalogStackId)).toBe(3);
+      // Default behavior: navigating to the same screen (same routeId) updates the active screen.
+      // It should not create a new stack item.
+      expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
       expect(getActiveRouteParams(router)?.productId).toBe('2');
+
+      router.navigate('/catalog/products/3');
+      expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
+      expect(getActiveRouteParams(router)?.productId).toBe('3');
+    });
+
+    test('navigate can push multiple instances when allowMultipleInstances=true', () => {
+      const CatalogScreen2: ComponentType<any> = () => null;
+      const ProductScreen2: ComponentType<any> = () => null;
+
+      const catalogStack = new NavigationStack()
+        .addScreen('/catalog', CatalogScreen2, { header: { title: 'Catalog' } })
+        .addScreen('/catalog/products/:productId', ProductScreen2, {
+          header: { title: 'Product' },
+          allowMultipleInstances: true,
+        });
+
+      const tabBar = new TabBar({ component: undefined }).addTab({
+        key: 'catalog',
+        stack: catalogStack,
+        title: 'Catalog',
+      });
+
+      const router = new Router({ root: tabBar });
+
+      const catalogStackId = catalogStack.getId();
+
+      router.navigate('/catalog');
+      expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
+
+      router.navigate('/catalog/products/1');
+      expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
+
+      router.navigate('/catalog/products/2');
+      expect(getStackHistoryLength(router, catalogStackId)).toBe(3);
 
       router.navigate('/catalog/products/3');
       expect(getStackHistoryLength(router, catalogStackId)).toBe(4);
@@ -477,7 +514,8 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
       expect(getActiveRouteParams(router)?.month).toBe('1');
 
       router.navigate('/orders/2024/2');
-      expect(getStackHistoryLength(router, ordersStackId)).toBe(3);
+      // Default behavior: same routeId in the same stack updates the active screen (replace).
+      expect(getStackHistoryLength(router, ordersStackId)).toBe(2);
       expect(getActiveRouteParams(router)?.month).toBe('2');
     });
 
@@ -545,15 +583,12 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
       router.navigate('/catalog/products/1');
       router.navigate('/catalog/products/2');
       router.navigate('/catalog/products/3');
-      expect(getStackHistoryLength(router, catalogStackId)).toBe(4);
-
-      router.goBack();
-      expect(getStackHistoryLength(router, catalogStackId)).toBe(3);
-      expect(getActiveRouteParams(router)?.productId).toBe('2');
-
-      router.goBack();
+      // Default behavior: navigating between product ids updates the active product screen.
       expect(getStackHistoryLength(router, catalogStackId)).toBe(2);
-      expect(getActiveRouteParams(router)?.productId).toBe('1');
+
+      router.goBack();
+      expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
+      expect(getActiveRoutePath(router)).toBe('/catalog');
 
       router.goBack();
       expect(getStackHistoryLength(router, catalogStackId)).toBe(1);
@@ -1365,8 +1400,9 @@ describe('Navigation Contract Tests - Key Preservation', () => {
         router.debugGetStackInfo(catalogStackId).items[1]?.key;
 
       router.navigate('/catalog/products/2');
+      // Default behavior: same routeId updates the existing product screen (key preserved).
       const product2Key =
-        router.debugGetStackInfo(catalogStackId).items[2]?.key;
+        router.debugGetStackInfo(catalogStackId).items[1]?.key;
 
       router.navigate('/catalog/products/2?modal=promo');
       const state = router.debugGetState();
@@ -1374,7 +1410,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
       router.goBack();
       const product2KeyAfter =
-        router.debugGetStackInfo(catalogStackId).items[2]?.key;
+        router.debugGetStackInfo(catalogStackId).items[1]?.key;
 
       expect(router.debugGetStackInfo(catalogStackId).items[0]?.key).toBe(
         catalogKey1
@@ -1383,14 +1419,11 @@ describe('Navigation Contract Tests - Key Preservation', () => {
       expect(modalKey).not.toBe(product2Key);
 
       router.goBack();
-      const product1KeyAfter =
-        router.debugGetStackInfo(catalogStackId).items[1]?.key;
-      expect(product1KeyAfter).toBe(product1Key);
-
-      router.goBack();
       const catalogKey1After =
         router.debugGetStackInfo(catalogStackId).items[0]?.key;
       expect(catalogKey1After).toBe(catalogKey1);
+      // Product screen key should be stable across product id changes.
+      expect(product2KeyAfter).toBe(product1Key);
     });
 
     // test('keys are preserved when using replace in middle of stack', () => {

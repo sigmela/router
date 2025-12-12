@@ -443,6 +443,34 @@ export class Router {
     const matchResult = base.matchPath(pathname);
     const params = matchResult ? matchResult.params : undefined;
 
+    // Smart navigate:
+    // If navigate(push) targets the currently active routeId within the same stack, treat it as
+    // "same screen, new data" and perform a replace (preserving the existing key) by default.
+    //
+    // Consumers can opt out per-route via ScreenOptions.allowMultipleInstances=true.
+    if (action === 'push' && base.stackId) {
+      const mergedOptions = this.mergeOptions(base.options, base.stackId);
+      const allowMultipleInstances =
+        mergedOptions?.allowMultipleInstances === true;
+      const isActiveSameStack = this.activeRoute?.stackId === base.stackId;
+      const isActiveSameRoute = this.activeRoute?.routeId === base.routeId;
+
+      // Optional safety: only apply to push-presentation screens by default.
+      const presentation = mergedOptions?.stackPresentation ?? 'push';
+      const isPushPresentation = presentation === 'push';
+
+      if (
+        !allowMultipleInstances &&
+        isPushPresentation &&
+        isActiveSameStack &&
+        isActiveSameRoute
+      ) {
+        const newItem = this.createHistoryItem(base, params, query, pathname);
+        this.applyHistoryChange('replace', newItem);
+        return;
+      }
+    }
+
     if (action === 'push') {
       if (base.stackId) {
         let existing = this.findExistingRoute(

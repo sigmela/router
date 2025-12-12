@@ -40,6 +40,15 @@ export type ScreenOptions = Partial<
   animated?: boolean;
 
   /**
+   * Allows pushing multiple instances of the same screen (same routeId) onto a stack.
+   *
+   * By default, Router.navigate() will behave like "replace" when targeting the currently
+   * active routeId in the same stack (i.e. treat it as "same screen, new data").
+   * Set this to true to force "push" even when navigating to the active routeId.
+   */
+  allowMultipleInstances?: boolean;
+
+  /**
    * Allows Router.goBack() to pop the last (root) screen of a stack.
    * Useful for secondary stacks in split-view / overlays.
    */

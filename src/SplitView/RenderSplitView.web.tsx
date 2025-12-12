@@ -5,10 +5,13 @@ import { useRouter } from '../RouterContext';
 import type { NavigationStack } from '../NavigationStack';
 import type { HistoryItem } from '../types';
 import type { SplitView } from './SplitView';
+import { ScreenStackConfigContext } from '../ScreenStack/ScreenStackContext';
 import {
   memo,
   useCallback,
+  useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type CSSProperties,
 } from 'react';
@@ -73,10 +76,43 @@ StackSliceRenderer.displayName = 'SplitViewStackSliceRenderer';
 
 export const RenderSplitView = memo<RenderSplitViewProps>(
   ({ splitView, appearance }) => {
-    const instanceClass = useMemo(
-      () => `split-view-instance-${splitView.getId()}`,
-      [splitView]
-    );
+    const [isWide, setIsWide] = useState(() => {
+      if (
+        typeof window === 'undefined' ||
+        typeof window.matchMedia !== 'function'
+      ) {
+        return false;
+      }
+      return window.matchMedia(`(min-width: ${splitView.minWidth}px)`).matches;
+    });
+
+    useEffect(() => {
+      if (
+        typeof window === 'undefined' ||
+        typeof window.matchMedia !== 'function'
+      ) {
+        return;
+      }
+
+      const mq = window.matchMedia(`(min-width: ${splitView.minWidth}px)`);
+      const onChange = (ev: MediaQueryListEvent) => setIsWide(ev.matches);
+
+      // Sync immediately.
+      setIsWide(mq.matches);
+
+      if (typeof mq.addEventListener === 'function') {
+        mq.addEventListener('change', onChange);
+        return () => mq.removeEventListener('change', onChange);
+      }
+
+      // Safari < 14 fallback (deprecated, but still needed).
+      const mqAny = mq as unknown as {
+        addListener?: (cb: (ev: MediaQueryListEvent) => void) => void;
+        removeListener?: (cb: (ev: MediaQueryListEvent) => void) => void;
+      };
+      mqAny.addListener?.(onChange);
+      return () => mqAny.removeListener?.(onChange);
+    }, [splitView.minWidth]);
 
     const containerStyle: CSSProperties | undefined = useMemo(() => {
       return {
@@ -86,22 +122,31 @@ export const RenderSplitView = memo<RenderSplitViewProps>(
 
     return (
       <SplitViewContext.Provider value={splitView}>
-        <div className={instanceClass}>
-          <div className="split-view-container" style={containerStyle}>
-            <div className="split-view-primary">
-              <StackSliceRenderer
-                appearance={appearance}
-                stack={splitView.primary}
-                fallbackToFirstRoute
-              />
-            </div>
+        <div className="split-view-container" style={containerStyle}>
+          <div className="split-view-primary">
+            <StackSliceRenderer
+              appearance={appearance}
+              stack={splitView.primary}
+              fallbackToFirstRoute
+            />
+          </div>
 
-            <div className="split-view-secondary">
+          <div className="split-view-secondary">
+            {isWide ? (
+              <ScreenStackConfigContext.Provider
+                value={{ animateFirstScreenAfterEmpty: false }}
+              >
+                <StackSliceRenderer
+                  appearance={appearance}
+                  stack={splitView.secondary}
+                />
+              </ScreenStackConfigContext.Provider>
+            ) : (
               <StackSliceRenderer
                 appearance={appearance}
                 stack={splitView.secondary}
               />
-            </div>
+            )}
           </div>
         </div>
       </SplitViewContext.Provider>

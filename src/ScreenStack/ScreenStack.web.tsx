@@ -15,6 +15,7 @@ import { useTransitionMap } from 'react-transition-state';
 import {
   ScreenStackItemsContext,
   ScreenStackAnimatingContext,
+  useScreenStackConfig,
 } from './ScreenStackContext';
 import {
   getPresentationTypeClass,
@@ -110,6 +111,9 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const isInitialMountRef = useRef(true);
+
+  const suppressEnterAfterEmptyRef = useRef(false);
+  const suppressedEnterKeyRef = useRef<string | null>(null);
 
   const prevKeysRef = useRef<string[]>([]);
 
@@ -210,6 +214,10 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     direction,
   });
 
+  const screenStackConfig = useScreenStackConfig();
+  const animateFirstScreenAfterEmpty =
+    screenStackConfig.animateFirstScreenAfterEmpty ?? true;
+
   const isInitialPhase = isInitialMountRef.current;
 
   const keysToRender = useMemo(() => {
@@ -256,10 +264,32 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       (key) => !routeKeySet.has(key)
     );
 
+    // Track "became empty" state to suppress the next enter animation when configured.
+    // This is SplitView-secondary-only (via ScreenStackConfigContext), not global behavior.
+    if (!animateFirstScreenAfterEmpty) {
+      if (routeKeys.length === 0) {
+        suppressEnterAfterEmptyRef.current = true;
+        suppressedEnterKeyRef.current = null;
+      }
+    }
+
     devLog('[ScreenStack] Lifecycle diff', {
       newKeys,
       removedKeys,
     });
+
+    // If this is the first pushed key after the stack was empty, remember its key so we can
+    // suppress only its enter animation (without affecting exit animations).
+    if (
+      !animateFirstScreenAfterEmpty &&
+      suppressEnterAfterEmptyRef.current &&
+      routeKeys.length > 0 &&
+      newKeys.length > 0
+    ) {
+      const candidate = newKeys[newKeys.length - 1] ?? null;
+      suppressedEnterKeyRef.current = candidate;
+      suppressEnterAfterEmptyRef.current = false;
+    }
 
     for (const key of newKeys) {
       devLog(`[ScreenStack] Adding item: ${key}`);
@@ -290,7 +320,15 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     lastDirectionRef.current = direction;
 
     devLog('[ScreenStack] === LIFECYCLE EFFECT END ===');
-  }, [routeKeys, direction, setItem, toggle, stateMapEntries, stateMap]);
+  }, [
+    routeKeys,
+    direction,
+    setItem,
+    toggle,
+    stateMapEntries,
+    stateMap,
+    animateFirstScreenAfterEmpty,
+  ]);
 
   useLayoutEffect(() => {
     devLog('[ScreenStack] === CLEANUP EFFECT START ===');
@@ -333,8 +371,10 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     // If the stack mounts empty, we still want the first pushed screen to animate.
     // Mark initial mount as completed immediately in that case.
     if (!hasMountedItem && routeKeys.length === 0) {
-      isInitialMountRef.current = false;
-      devLog('[ScreenStack] Initial mount completed (empty stack)');
+      if (animateFirstScreenAfterEmpty) {
+        isInitialMountRef.current = false;
+        devLog('[ScreenStack] Initial mount completed (empty stack)');
+      }
       return;
     }
 
@@ -342,7 +382,24 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       isInitialMountRef.current = false;
       devLog('[ScreenStack] Initial mount completed');
     }
-  }, [stateMapEntries, routeKeys.length]);
+  }, [stateMapEntries, routeKeys.length, animateFirstScreenAfterEmpty]);
+
+  // Clear suppression key once it is no longer the top screen (so it can animate normally as
+  // a background when new screens are pushed).
+  useLayoutEffect(() => {
+    if (animateFirstScreenAfterEmpty) return;
+    const topKey = routeKeys[routeKeys.length - 1] ?? null;
+    if (!topKey) {
+      suppressedEnterKeyRef.current = null;
+      return;
+    }
+    if (
+      suppressedEnterKeyRef.current &&
+      suppressedEnterKeyRef.current !== topKey
+    ) {
+      suppressedEnterKeyRef.current = null;
+    }
+  }, [routeKeys, animateFirstScreenAfterEmpty]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -400,7 +457,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
         routeIndex >= 0 ? routeIndex + 1 : keysToRender.length + index + 1;
 
       const presentationType = getPresentationTypeClass(presentation);
-      const animationType = computeAnimationType(
+      let animationType = computeAnimationType(
         key,
         isInStack,
         isTop,
@@ -409,6 +466,16 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
         isInitialPhase,
         animated
       );
+
+      // SplitView-secondary-only: suppress enter animation for the first screen after empty.
+      if (
+        !animateFirstScreenAfterEmpty &&
+        isTop &&
+        direction === 'forward' &&
+        suppressedEnterKeyRef.current === key
+      ) {
+        animationType = 'none';
+      }
 
       items[key] = {
         presentationType,
@@ -443,7 +510,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
       const presentationType = getPresentationTypeClass(presentation);
 
-      const animationType = isInitialPhase
+      let animationType = isInitialPhase
         ? 'none'
         : computeAnimationType(
             key,
@@ -454,6 +521,15 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
             isInitialPhase,
             animated
           );
+
+      if (
+        !animateFirstScreenAfterEmpty &&
+        isTop &&
+        direction === 'forward' &&
+        suppressedEnterKeyRef.current === key
+      ) {
+        animationType = 'none';
+      }
 
       items[key] = {
         presentationType,
@@ -474,6 +550,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     isInitialPhase,
     routeKeys,
     direction,
+    animateFirstScreenAfterEmpty,
   ]);
 
   const animating = useMemo(() => {

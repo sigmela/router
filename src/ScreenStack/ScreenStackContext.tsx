@@ -59,6 +59,22 @@ export const ScreenStackItemsContext =
 export const ScreenStackAnimatingContext =
   createContext<ScreenStackAnimatingContextValue>(false);
 
+export type ScreenStackConfig = {
+  /**
+   * When false, the first screen pushed after the stack becomes empty will NOT animate
+   * (treated as an initial render). Subsequent pushes/pops still animate normally.
+   */
+  animateFirstScreenAfterEmpty?: boolean;
+};
+
+export const ScreenStackConfigContext = createContext<ScreenStackConfig>({
+  animateFirstScreenAfterEmpty: true,
+});
+
+export const useScreenStackConfig = () => {
+  return useContext(ScreenStackConfigContext);
+};
+
 export const useScreenStackItemsContext = () => {
   const ctx = useContext(ScreenStackItemsContext);
   if (!ctx) {
