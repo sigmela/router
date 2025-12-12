@@ -2174,7 +2174,10 @@ export class Router {
     return top;
   }
 
-  private buildHistoryFromUrl(url: string, reuseKeysFrom?: HistoryItem[]): void {
+  private buildHistoryFromUrl(
+    url: string,
+    reuseKeysFrom?: HistoryItem[]
+  ): void {
     const { pathname, query } = this.parsePath(url);
 
     this.log('parse', { url, pathname, query });

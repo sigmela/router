@@ -370,7 +370,10 @@ describe('Web History integration', () => {
     // We closed the top screen, but browser history index should not move.
     expect(router.debugGetState().activeRoute?.path).toBe('/product/catalog');
     expect(shim.getIndex()).toBe(idxBefore);
-    expect(shim.getLocation()).toEqual({ pathname: '/product/catalog', search: '' });
+    expect(shim.getLocation()).toEqual({
+      pathname: '/product/catalog',
+      search: '',
+    });
   });
 
   test('browser back button traverses browser history (popstate), not Router.goBack()', () => {
@@ -501,7 +504,11 @@ describe('Web History integration', () => {
     const masterId = master.getId();
     const detailId = detail.getId();
 
-    expect(state.history.map((h) => h.stackId)).toEqual([rootId, masterId, detailId]);
+    expect(state.history.map((h) => h.stackId)).toEqual([
+      rootId,
+      masterId,
+      detailId,
+    ]);
   });
 
   test('split view: goBack closes secondary even if it is the only screen', () => {
@@ -544,7 +551,9 @@ describe('Web History integration', () => {
     expect(router.debugGetState().activeRoute?.path).toBe('/product/catalog');
     expect(shim.getLocation()).toEqual({ pathname: '/product', search: '' });
 
-    const g = globalThis as unknown as { history?: { back?: () => void; forward?: () => void } };
+    const g = globalThis as unknown as {
+      history?: { back?: () => void; forward?: () => void };
+    };
 
     g.history?.back?.();
     expect(router.debugGetState().activeRoute?.path).toBe('/product');

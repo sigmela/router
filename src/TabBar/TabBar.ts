@@ -135,7 +135,6 @@ export class TabBar implements NavigationNode {
       } catch (e) {
         // TabBar has no debug flag; keep behavior quiet in production.
         if (__DEV__) {
-          // eslint-disable-next-line no-console
           console.error('[TabBar] listener error', e);
         }
       }

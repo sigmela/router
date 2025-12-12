@@ -30,7 +30,10 @@ const StackSliceRenderer = memo<{
     (cb: () => void) => router.subscribeStack(stackId, cb),
     [router, stackId]
   );
-  const get = useCallback(() => router.getStackHistory(stackId), [router, stackId]);
+  const get = useCallback(
+    () => router.getStackHistory(stackId),
+    [router, stackId]
+  );
 
   const history: HistoryItem[] = useSyncExternalStore(subscribe, get, get);
 
@@ -58,7 +61,11 @@ const StackSliceRenderer = memo<{
   }
 
   return (
-    <StackRenderer appearance={appearance} stack={stack} history={historyToRender} />
+    <StackRenderer
+      appearance={appearance}
+      stack={stack}
+      history={historyToRender}
+    />
   );
 });
 

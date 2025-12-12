@@ -12,11 +12,16 @@ export const ThreadModalScreen = () => {
   return (
     <View style={styles.screen}>
       <Text style={styles.title}>Modal in thread {threadId}</Text>
-      <Text style={styles.subtitle}>This modal is pushed from secondary stack</Text>
+      <Text style={styles.subtitle}>
+        This modal is pushed from secondary stack
+      </Text>
 
       <View style={styles.buttonRow}>
         <Button title="Close" onPress={() => router.goBack()} />
-        <Button title="Go to info" onPress={() => router.navigate(`/mail/${threadId}/info`)} />
+        <Button
+          title="Go to info"
+          onPress={() => router.navigate(`/mail/${threadId}/info`)}
+        />
       </View>
     </View>
   );
