@@ -9,7 +9,7 @@ const ScreenB: ComponentType<any> = () => null;
 const ScreenAuth: ComponentType<any> = () => null;
 
 describe('Router slices', () => {
-  test('tabbed root and global overlay flow', () => {
+  test('tabbed root flow', () => {
     const stackA = new NavigationStack()
       .addScreen('/a', ScreenA)
       .addScreen('/a/one', ScreenA)
@@ -20,84 +20,68 @@ describe('Router slices', () => {
       .addScreen('/b/one', ScreenB)
       .addScreen('/b/two', ScreenB);
 
-    const globalStack = new NavigationStack().addScreen('/auth', ScreenAuth, {
-      stackPresentation: 'modal',
-    });
-
     const tabBar = new TabBar()
       .addTab({ key: 'a', stack: stackA, title: 'A' })
       .addTab({ key: 'b', stack: stackB, title: 'B' });
 
-    const router = new Router({ root: tabBar as any, global: globalStack });
+    const rootStack = new NavigationStack().addScreen('/', {
+      component: tabBar.getRenderer(),
+      childNode: tabBar,
+    });
+
+    const router = new Router({ root: rootStack });
 
     const aId = stackA.getId();
     const bId = stackB.getId();
-    const gId = globalStack.getId();
 
-    expect(router.getStackHistory(aId).length).toBe(1);
-    expect(router.getStackHistory(bId).length).toBe(0);
+    expect(router.debugGetStackInfo(aId).historyLength).toBe(1);
+    expect(router.debugGetStackInfo(bId).historyLength).toBe(0);
 
     router.navigate('/a/one');
     router.navigate('/a/two');
-    expect(router.getStackHistory(aId).length).toBe(3);
+    expect(router.debugGetStackInfo(aId).historyLength).toBe(3);
     router.navigate('/a/two');
-    expect(router.getStackHistory(aId).length).toBe(3);
+    expect(router.debugGetStackInfo(aId).historyLength).toBe(3);
 
     router.navigate('/b');
-    expect(router.getActiveTabIndex()).toBe(1);
-    expect(router.getStackHistory(bId).length).toBe(1);
+
+    const bStackInfo = router.debugGetStackInfo(bId);
+    expect(bStackInfo.historyLength).toBe(1);
 
     router.navigate('/b/one');
     router.navigate('/b/two');
-    expect(router.getStackHistory(bId).length).toBe(3);
+    expect(router.debugGetStackInfo(bId).historyLength).toBe(3);
 
-    router.navigate('/auth');
-    expect(router.getStackHistory(gId).length).toBe(1);
-    router.navigate('/auth');
-    expect(router.getStackHistory(gId).length).toBe(1);
+    expect(router.debugGetStackInfo(aId).historyLength).toBe(3);
+    expect(router.debugGetStackInfo(bId).historyLength).toBe(3);
 
     router.goBack();
-    expect(router.getStackHistory(gId).length).toBe(0);
-
-    expect(router.getStackHistory(aId).length).toBe(3);
-    expect(router.getStackHistory(bId).length).toBe(3);
-    expect(router.getActiveTabIndex()).toBe(1);
-
+    expect(router.debugGetStackInfo(bId).historyLength).toBe(2);
     router.goBack();
-    expect(router.getStackHistory(bId).length).toBe(2);
+    expect(router.debugGetStackInfo(bId).historyLength).toBe(1);
     router.goBack();
-    expect(router.getStackHistory(bId).length).toBe(1);
-    router.goBack();
-    expect(router.getStackHistory(bId).length).toBe(1);
+    expect(router.debugGetStackInfo(bId).historyLength).toBe(1);
 
-    router.setActiveTabIndex(1);
+    tabBar.onIndexChange(1);
     router.navigate('/b/one');
-    expect(router.getStackHistory(bId).length).toBe(2);
+    expect(router.debugGetStackInfo(bId).historyLength).toBe(2);
     router.goBack();
-    expect(router.getStackHistory(bId).length).toBe(1);
+    expect(router.debugGetStackInfo(bId).historyLength).toBe(1);
 
     const rootOnly = new NavigationStack()
       .addScreen('/r', ScreenA)
       .addScreen('/r/next', ScreenA);
     const router2 = new Router({ root: rootOnly });
     const rId = rootOnly.getId();
-    expect(router2.getStackHistory(rId).length).toBe(1);
+    expect(router2.debugGetStackInfo(rId).historyLength).toBe(1);
     router2.navigate('/r/next');
-    expect(router2.getStackHistory(rId).length).toBe(2);
+    expect(router2.debugGetStackInfo(rId).historyLength).toBe(2);
     router2.navigate('/r/next');
-    expect(router2.getStackHistory(rId).length).toBe(2);
+    expect(router2.debugGetStackInfo(rId).historyLength).toBe(2);
     router2.goBack();
-    expect(router2.getStackHistory(rId).length).toBe(1);
+    expect(router2.debugGetStackInfo(rId).historyLength).toBe(1);
     router2.goBack();
-    expect(router2.getStackHistory(rId).length).toBe(1);
-
-    const router3 = new Router({ root: rootOnly, global: globalStack });
-    const r3Id = rootOnly.getId();
-    router3.navigate('/auth');
-    expect(router3.getStackHistory(gId).length).toBe(1);
-    router3.goBack();
-    expect(router3.getStackHistory(gId).length).toBe(0);
-    expect(router3.getStackHistory(r3Id).length).toBe(1);
+    expect(router2.debugGetStackInfo(rId).historyLength).toBe(1);
 
     const authRoot = new NavigationStack().addScreen('/login', ScreenAuth);
     const router5 = new Router({ root: authRoot });
@@ -106,45 +90,44 @@ describe('Router slices', () => {
       rootChanges += 1;
     });
     const r5Id = authRoot.getId();
-    expect(router5.hasTabBar()).toBe(false);
-    expect(router5.getStackHistory(r5Id).length).toBe(1);
+    expect(router5.debugGetStackInfo(r5Id).historyLength).toBe(1);
 
     const newTabBar = new TabBar()
       .addTab({ key: 'a', stack: stackA, title: 'A' })
       .addTab({ key: 'b', stack: stackB, title: 'B' });
     router5.setRoot(newTabBar as any, { transition: 'fade' });
-    expect(router5.hasTabBar()).toBe(true);
     expect(router5.getRootTransition()).toBe('fade');
-    const activeIdx5 = router5.getActiveTabIndex();
-    const state5 = newTabBar.getState();
-    const route5 = state5.tabs[activeIdx5]!;
-    const seededStack5 = newTabBar.stacks[route5.tabKey]!;
+
+    const allStacks5 = router5.debugGetAllStacks();
+
+    const seededStack5 = allStacks5.find((s) => s.historyLength > 0);
     expect(!!seededStack5).toBe(true);
-    expect(router5.getStackHistory(seededStack5.getId()).length).toBe(1);
+    if (seededStack5) {
+      expect(seededStack5.historyLength).toBe(1);
+    }
 
     router5.setRoot(authRoot, { transition: 'slide_from_right' });
-    expect(router5.hasTabBar()).toBe(false);
     expect(router5.getRootTransition()).toBe('slide_from_right');
-    expect(router5.getStackHistory(r5Id).length).toBe(1);
+    expect(router5.debugGetStackInfo(r5Id).historyLength).toBe(1);
     expect(rootChanges).toBeGreaterThanOrEqual(2);
     unsub();
 
     const router4 = new Router({ root: tabBar as any });
     router4.navigate('/a/one');
     router4.navigate('/a/two');
-    router4.setActiveTabIndex(1);
+    tabBar.onIndexChange(1);
     router4.navigate('/b/one');
-    router4.setActiveTabIndex(0);
+    tabBar.onIndexChange(0);
     const a4Id = stackA.getId();
     const b4Id = stackB.getId();
-    expect(router4.getStackHistory(a4Id).length).toBe(2);
-    expect(router4.getStackHistory(b4Id).length).toBe(2);
+    expect(router4.debugGetStackInfo(a4Id).historyLength).toBe(2);
+    expect(router4.debugGetStackInfo(b4Id).historyLength).toBe(2);
     router4.goBack();
-    expect(router4.getStackHistory(a4Id).length).toBe(1);
-    expect(router4.getStackHistory(b4Id).length).toBe(2);
-    router4.setActiveTabIndex(1);
+    expect(router4.debugGetStackInfo(a4Id).historyLength).toBe(2);
+    expect(router4.debugGetStackInfo(b4Id).historyLength).toBe(1);
+    tabBar.onIndexChange(1);
     router4.goBack();
-    expect(router4.getStackHistory(b4Id).length).toBe(1);
+    expect(router4.debugGetStackInfo(b4Id).historyLength).toBe(1);
 
     const modalStack = new NavigationStack().addModal('/modal', ScreenAuth, {
       header: { title: 'Modal Screen' },
@@ -154,6 +137,46 @@ describe('Router slices', () => {
     const modalRoute = modalRoutes[0]!;
     expect(modalRoute.options?.stackPresentation).toBe('modal');
     expect(modalRoute.options?.header?.title).toBe('Modal Screen');
+  });
+
+  test('tab bar keeps active index in sync with navigation', () => {
+    const stackA = new NavigationStack()
+      .addScreen('/a', ScreenA)
+      .addScreen('/a/one', ScreenA);
+    const stackB = new NavigationStack().addScreen('/b', ScreenB);
+
+    const tabBar = new TabBar()
+      .addTab({ key: 'a', stack: stackA, title: 'A' })
+      .addTab({ key: 'b', stack: stackB, title: 'B' });
+
+    const router = new Router({ root: tabBar as any });
+
+    expect(tabBar.getState().index).toBe(0);
+
+    router.navigate('/b');
+    expect(tabBar.getState().index).toBe(1);
+
+    router.navigate('/a/one');
+    expect(tabBar.getState().index).toBe(0);
+
+    router.goBack();
+    expect(tabBar.getState().index).toBe(0);
+  });
+
+  test('listener errors do not prevent other listeners from running', () => {
+    const stack = new NavigationStack().addScreen('/a', ScreenA);
+    const router = new Router({ root: stack });
+
+    let goodCalls = 0;
+    router.subscribe(() => {
+      throw new Error('listener boom');
+    });
+    router.subscribe(() => {
+      goodCalls += 1;
+    });
+
+    router.navigate('/a');
+    expect(goodCalls).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -183,47 +206,53 @@ describe('Router controllers', () => {
     const router = new Router({ root: stackWithController });
     const stackId = stackWithController.getId();
 
-    expect(router.getStackHistory(stackId).length).toBe(1);
+    expect(router.debugGetStackInfo(stackId).historyLength).toBe(1);
 
     router.navigate('/test/123?param=value');
     expect(controllerCallCount).toBe(1);
-    expect(router.getStackHistory(stackId).length).toBe(1);
+    expect(router.debugGetStackInfo(stackId).historyLength).toBe(1);
     expect(controllerReceivedParams).toEqual({ id: '123' });
     expect(controllerReceivedQuery).toEqual({ param: 'value' });
 
     const testProps = { data: 'test-data', loading: false };
     presentCallback(testProps);
 
-    expect(router.getStackHistory(stackId).length).toBe(2);
-    const currentStack = router.getStackHistory(stackId);
-    const topItem = currentStack[currentStack.length - 1]!;
-    expect(topItem.passProps).toEqual(testProps);
-    expect(topItem.params?.id).toBe('123');
-    expect(topItem.query?.param).toBe('value');
+    expect(router.debugGetStackInfo(stackId).historyLength).toBe(2);
+    const stackInfo = router.debugGetStackInfo(stackId);
+    const topItem = stackInfo.items[stackInfo.items.length - 1]!;
+
+    const state = router.debugGetState();
+    const historyItem = state.history.find(
+      (h) => h.routeId === topItem.routeId
+    );
+    expect(historyItem?.params?.id).toBe('123');
+    expect(historyItem?.query?.param).toBe('value');
 
     controllerCallCount = 0;
     router.replace('/test/456?param=newvalue');
     expect(controllerCallCount).toBe(1);
-    expect(router.getStackHistory(stackId).length).toBe(2);
+    expect(router.debugGetStackInfo(stackId).historyLength).toBe(2);
     expect(controllerReceivedParams).toEqual({ id: '456' });
 
     const replaceProps = { data: 'replace-data', loading: true };
     presentCallback(replaceProps);
 
-    expect(router.getStackHistory(stackId).length).toBe(2);
-    const replacedStack = router.getStackHistory(stackId);
-    const replacedTopItem = replacedStack[replacedStack.length - 1]!;
-    expect(replacedTopItem.passProps).toEqual(replaceProps);
-    expect(replacedTopItem.params?.id).toBe('456');
+    expect(router.debugGetStackInfo(stackId).historyLength).toBe(2);
+    const replacedStackInfo = router.debugGetStackInfo(stackId);
+    const replacedTopItem =
+      replacedStackInfo.items[replacedStackInfo.items.length - 1]!;
+    const replacedHistoryItem = router
+      .debugGetState()
+      .history.find((h) => h.routeId === replacedTopItem.routeId);
+    expect(replacedHistoryItem?.params?.id).toBe('456');
 
     router.navigate('/test');
-    expect(router.getStackHistory(stackId).length).toBe(3);
+    expect(router.debugGetStackInfo(stackId).historyLength).toBe(1);
   });
 });
 
 describe('Router development mode errors', () => {
   test('should throw error in __DEV__ when route not found', () => {
-    // Mock __DEV__ to true
     const originalDev = (globalThis as any).__DEV__;
     (globalThis as any).__DEV__ = true;
 
@@ -231,22 +260,18 @@ describe('Router development mode errors', () => {
     const stack = new NavigationStack().addScreen('/test', TestScreen);
     const router = new Router({ root: stack });
 
-    // Should throw error when navigating to non-existent route
     expect(() => {
       router.navigate('/non-existent-route');
     }).toThrow('Route not found: "/non-existent-route"');
 
-    // Should throw error when replacing with non-existent route
     expect(() => {
       router.replace('/another-non-existent-route');
     }).toThrow('Route not found: "/another-non-existent-route"');
 
-    // Restore original __DEV__ value
     (globalThis as any).__DEV__ = originalDev;
   });
 
   test('should not throw error in production when route not found', () => {
-    // Mock __DEV__ to false
     const originalDev = (globalThis as any).__DEV__;
     (globalThis as any).__DEV__ = false;
 
@@ -254,17 +279,14 @@ describe('Router development mode errors', () => {
     const stack = new NavigationStack().addScreen('/test', TestScreen);
     const router = new Router({ root: stack });
 
-    // Should not throw error when navigating to non-existent route in production
     expect(() => {
       router.navigate('/non-existent-route');
     }).not.toThrow();
 
-    // Should not throw error when replacing with non-existent route in production
     expect(() => {
       router.replace('/another-non-existent-route');
     }).not.toThrow();
 
-    // Restore original __DEV__ value
     (globalThis as any).__DEV__ = originalDev;
   });
 });

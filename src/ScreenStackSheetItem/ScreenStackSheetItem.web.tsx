@@ -1,3 +1,3 @@
 export const ScreenStackSheetItem = () => {
-  return null; // TODO: Implement
+  return null;
 };

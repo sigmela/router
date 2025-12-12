@@ -9,12 +9,14 @@ import { StyleSheet } from 'react-native';
 export interface StackRendererProps {
   stack: NavigationStack;
   appearance?: NavigationAppearance;
+  history?: HistoryItem[];
 }
 
 export const StackRenderer = memo<StackRendererProps>(
-  ({ stack, appearance }) => {
+  ({ stack, appearance, history }) => {
     const router = useRouter();
     const stackId = stack.getId();
+
     const subscribe = useCallback(
       (cb: () => void) => router.subscribeStack(stackId, cb),
       [router, stackId]
@@ -23,11 +25,13 @@ export const StackRenderer = memo<StackRendererProps>(
       () => router.getStackHistory(stackId),
       [router, stackId]
     );
-    const historyForThisStack: HistoryItem[] = useSyncExternalStore(
+    const historyFromStore: HistoryItem[] = useSyncExternalStore(
       subscribe,
       get,
       get
     );
+
+    const historyForThisStack = history ?? historyFromStore;
 
     return (
       <ScreenStack

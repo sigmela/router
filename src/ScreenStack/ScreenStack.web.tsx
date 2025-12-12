@@ -1,180 +1,525 @@
 import type { ReactElement, Key, ReactNode } from 'react';
-import { Fragment, memo, useRef } from 'react';
-import type {
-  ScreenStackItemPhase,
-  ScreenStackItemProps,
-} from '../ScreenStackItem/ScreenStackItem.types';
-import TransitionStack, {
-  type TransitionStackType,
-} from '../web/TransitionStack';
 import {
-  Children,
-  cloneElement,
+  memo,
+  useRef,
   useLayoutEffect,
   useMemo,
-  useState,
+  useEffect,
+  Children,
+  isValidElement,
+  Fragment,
 } from 'react';
-
-type RecordT = {
-  key: Key;
-  phase: ScreenStackItemPhase;
-  element: ReactElement<ScreenStackItemProps>;
-};
+import type { ScreenStackItemProps } from '../ScreenStackItem/ScreenStackItem.types';
+import type { ScreenStackItemPhase } from '../ScreenStackItem/ScreenStackItem.types';
+import { useTransitionMap } from 'react-transition-state';
+import {
+  ScreenStackItemsContext,
+  ScreenStackAnimatingContext,
+} from './ScreenStackContext';
+import {
+  getPresentationTypeClass,
+  computeAnimationType,
+} from './animationHelpers';
 
 type ScreenStackProps = {
   children: ReactNode;
   transitionTime?: number;
-  type?: TransitionStackType;
   animated?: boolean;
 };
 
+type Direction = 'forward' | 'back';
+
+const devLog = (_: string, __?: any) => {};
+
+const isScreenStackItemElement = (
+  child: ReactNode
+): child is ReactElement<ScreenStackItemProps> => {
+  if (!isValidElement(child)) return false;
+  const anyProps = (child as any).props;
+  return anyProps && typeof anyProps === 'object' && 'item' in anyProps;
+};
+
+const getItemKey = (child: ReactElement<ScreenStackItemProps>): string => {
+  const anyChild = child as any;
+  const reactKey: Key | null = anyChild.key ?? null;
+
+  if (
+    typeof reactKey === 'string' &&
+    reactKey.length > 0 &&
+    !reactKey.startsWith('.')
+  ) {
+    return reactKey;
+  }
+
+  const item = anyChild.props?.item;
+
+  if (item?.key && typeof item.key === 'string') {
+    return item.key;
+  }
+
+  if (item?.routeId) {
+    return String(item.routeId);
+  }
+
+  throw new Error('[ScreenStack] ScreenStackItem is missing a stable key');
+};
+
+const computeDirection = (prev: string[], current: string[]): Direction => {
+  if (prev.length === 0 && current.length > 0) {
+    return 'forward';
+  }
+
+  if (current.length > prev.length) {
+    return 'forward';
+  }
+
+  if (current.length < prev.length) {
+    return 'back';
+  }
+
+  const prevTop = prev[prev.length - 1];
+  const currentTop = current[current.length - 1];
+
+  if (prevTop === currentTop) {
+    return 'forward';
+  }
+
+  const prevIndexOfCurrentTop = prev.indexOf(currentTop!);
+  const prevIndexOfPrevTop = prev.indexOf(prevTop!);
+
+  if (
+    prevIndexOfCurrentTop !== -1 &&
+    prevIndexOfPrevTop !== -1 &&
+    prevIndexOfCurrentTop < prevIndexOfPrevTop
+  ) {
+    return 'back';
+  }
+
+  return 'forward';
+};
+
 export const ScreenStack = memo<ScreenStackProps>((props) => {
-  const { children, transitionTime = 250, type, animated = true } = props;
-  const [records, setRecords] = useState<RecordT[]>([]);
+  const { children, transitionTime = 250, animated = true } = props;
+
+  devLog('[ScreenStack] Render', {
+    transitionTime,
+    animated,
+    childrenExists: !!children,
+  });
+
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const transitionRef = useRef<
-    ((id: number, animate?: boolean) => void | boolean) | null
-  >(null);
-  const prevSelectedRef = useRef<number>(-1);
-  const lastExitingIndexRef = useRef<number | null>(null);
-  const prevSignatureRef = useRef<string | null>(null);
 
-  const childArray = useMemo(
-    () =>
-      Children.toArray(children).filter(
-        Boolean
-      ) as ReactElement<ScreenStackItemProps>[],
-    [children]
+  const isInitialMountRef = useRef(true);
+
+  const prevKeysRef = useRef<string[]>([]);
+
+  const lastDirectionRef = useRef<Direction>('forward');
+
+  const childMapRef = useRef<Map<string, ReactElement<ScreenStackItemProps>>>(
+    new Map()
   );
-  const nextKeys = useMemo(
-    () => childArray.map((c) => c.key as Key),
-    [childArray]
-  );
-  useLayoutEffect(() => {
-    setRecords((prev) => {
-      const prevKeys = prev.map((r) => r.key);
-      if (
-        nextKeys.length === prevKeys.length + 1 &&
-        prevKeys.every((k, i) => k === nextKeys[i])
-      ) {
-        const child = childArray[childArray.length - 1];
-        if (!child) return prev;
-        const key = child.key as Key;
-        const element = cloneElement<ScreenStackItemProps>(child, {
-          phase: 'active',
-        });
-        return [...prev, { key, phase: 'active', element }];
+
+  const stackChildren = useMemo(() => {
+    const stackItems: ReactElement<ScreenStackItemProps>[] = [];
+
+    Children.forEach(children, (child) => {
+      if (isScreenStackItemElement(child)) {
+        stackItems.push(child);
+      } else if (child != null) {
+        devLog('[ScreenStack] Non-ScreenStackItem child ignored', { child });
       }
+    });
 
-      if (
-        prevKeys.length === nextKeys.length + 1 &&
-        nextKeys.every((k, i) => k === prevKeys[i])
-      ) {
-        const last = prev[prev.length - 1];
-        if (!last) return prev;
-        if (last.phase === 'exiting') return prev;
-        return [
-          ...prev.slice(0, -1),
+    devLog('[ScreenStack] Parsed children', {
+      stackChildrenLength: stackItems.length,
+    });
+
+    return stackItems;
+  }, [children]);
+
+  const routeKeys = useMemo(() => {
+    const keys = stackChildren.map((child) => {
+      const item = child.props.item;
+      return item?.key || getItemKey(child);
+    });
+    devLog('[ScreenStack] routeKeys', keys);
+    return keys;
+  }, [stackChildren]);
+
+  const childMap = useMemo(() => {
+    const map = new Map(childMapRef.current);
+
+    for (const child of stackChildren) {
+      const item = child.props.item;
+      const key = item?.key || getItemKey(child);
+      map.set(key, child);
+    }
+
+    childMapRef.current = map;
+
+    devLog('[ScreenStack] childMap updated', {
+      size: map.size,
+      keys: Array.from(map.keys()),
+    });
+
+    return map;
+  }, [stackChildren]);
+
+  const { stateMap, toggle, setItem, deleteItem } = useTransitionMap<string>({
+    timeout: transitionTime,
+    preEnter: true,
+    mountOnEnter: true,
+    unmountOnExit: false,
+    enter: animated,
+    exit: animated,
+    allowMultiple: true,
+    onStateChange: ({ key, current }) => {
+      devLog(`[ScreenStack] Transition state change for key ${key}:`, {
+        status: current.status,
+        isMounted: current.isMounted,
+        isEnter: current.isEnter,
+        isResolved: current.isResolved,
+      });
+    },
+  });
+
+  devLog(
+    '[ScreenStack] Current transition states:',
+    Array.from(stateMap.entries()).map(([key, state]) => ({
+      key,
+      status: state.status,
+      isMounted: state.isMounted,
+      isEnter: state.isEnter,
+      isResolved: state.isResolved,
+    }))
+  );
+
+  const stateMapEntries = Array.from(stateMap.entries());
+
+  const direction: Direction = useMemo(() => {
+    const prevKeys = prevKeysRef.current;
+    const computed = computeDirection(prevKeys, routeKeys);
+
+    prevKeysRef.current = routeKeys;
+    return computed;
+  }, [routeKeys]);
+
+  devLog('[ScreenStack] Computed direction', {
+    prevKeys: prevKeysRef.current,
+    routeKeys,
+    direction,
+  });
+
+  const isInitialPhase = isInitialMountRef.current;
+
+  const keysToRender = useMemo(() => {
+    const routeKeySet = new Set(routeKeys);
+    const exitingKeys: string[] = [];
+
+    for (const [key, state] of stateMapEntries) {
+      if (!state.isMounted) continue;
+      if (!routeKeySet.has(key)) {
+        exitingKeys.push(key);
+      }
+    }
+
+    const result = [...routeKeys, ...exitingKeys];
+
+    devLog('[ScreenStack] Keys to render:', {
+      result,
+      exitingKeys,
+    });
+
+    return result;
+  }, [routeKeys, stateMapEntries]);
+
+  const containerClassName = useMemo(() => {
+    return 'screen-stack';
+  }, []);
+
+  useLayoutEffect(() => {
+    devLog('[ScreenStack] === LIFECYCLE EFFECT START ===', {
+      prevKeys: prevKeysRef.current,
+      routeKeys,
+      direction,
+    });
+
+    const routeKeySet = new Set(routeKeys);
+
+    const existingKeySet = new Set<string>();
+    for (const [key] of stateMapEntries) {
+      existingKeySet.add(key);
+    }
+
+    const newKeys = routeKeys.filter((key) => !existingKeySet.has(key));
+    const removedKeys = [...existingKeySet].filter(
+      (key) => !routeKeySet.has(key)
+    );
+
+    devLog('[ScreenStack] Lifecycle diff', {
+      newKeys,
+      removedKeys,
+    });
+
+    for (const key of newKeys) {
+      devLog(`[ScreenStack] Adding item: ${key}`);
+      setItem(key);
+      devLog(`[ScreenStack] Entering item: ${key}`);
+      toggle(key, true);
+    }
+
+    for (const key of removedKeys) {
+      const state = stateMap.get(key);
+      if (state && state.isEnter) {
+        devLog(`[ScreenStack] Starting exit for item: ${key}`, {
+          status: state.status,
+        });
+        toggle(key, false);
+      } else {
+        devLog(
+          `[ScreenStack] Skip exit for item (not entered or missing): ${key}`,
           {
-            key: last.key,
-            phase: 'exiting',
-            element: cloneElement<ScreenStackItemProps>(last.element, {
-              phase: 'exiting',
-            }),
-          },
-        ];
+            hasState: !!state,
+            status: state?.status,
+            isEnter: state?.isEnter,
+          }
+        );
+      }
+    }
+
+    lastDirectionRef.current = direction;
+
+    devLog('[ScreenStack] === LIFECYCLE EFFECT END ===');
+  }, [routeKeys, direction, setItem, toggle, stateMapEntries, stateMap]);
+
+  useLayoutEffect(() => {
+    devLog('[ScreenStack] === CLEANUP EFFECT START ===');
+
+    const routeKeySet = new Set(routeKeys);
+
+    for (const [key, state] of stateMapEntries) {
+      if (!state.isMounted) {
+        devLog(`[ScreenStack] Cleanup unmounted item: ${key}`, {
+          status: state.status,
+          isResolved: state.isResolved,
+        });
+        deleteItem(key);
+        childMapRef.current.delete(key);
+        continue;
       }
 
-      const nextByKey = new Map<Key, ReactElement<ScreenStackItemProps>>();
-      for (const ch of childArray) nextByKey.set(ch.key as Key, ch);
+      const isInStack = routeKeySet.has(key);
+      const canCleanup =
+        !isInStack && state.status === 'exited' && state.isResolved === true;
 
-      const prevByKey = new Map<Key, RecordT>();
-      for (const r of prev) prevByKey.set(r.key, r);
-
-      const result: RecordT[] = [];
-
-      for (const ch of childArray) {
-        const key = ch.key as Key;
-        const existed = prevByKey.get(key);
-        const nextEl = cloneElement<ScreenStackItemProps>(ch, {
-          phase: 'active',
+      if (canCleanup) {
+        devLog(`[ScreenStack] Cleanup exited item: ${key}`, {
+          status: state.status,
+          isResolved: state.isResolved,
         });
-        if (existed) {
-          const sameActive = existed.phase === 'active';
-          result.push(
-            sameActive
-              ? { key, phase: 'active', element: nextEl }
-              : { key, phase: 'active', element: nextEl }
+        deleteItem(key);
+        childMapRef.current.delete(key);
+      }
+    }
+
+    devLog('[ScreenStack] === CLEANUP EFFECT END ===');
+  }, [routeKeys, stateMapEntries, deleteItem]);
+
+  useEffect(() => {
+    if (!isInitialMountRef.current) return;
+
+    const hasMountedItem = stateMapEntries.some(([, st]) => st.isMounted);
+
+    // If the stack mounts empty, we still want the first pushed screen to animate.
+    // Mark initial mount as completed immediately in that case.
+    if (!hasMountedItem && routeKeys.length === 0) {
+      isInitialMountRef.current = false;
+      devLog('[ScreenStack] Initial mount completed (empty stack)');
+      return;
+    }
+
+    if (hasMountedItem) {
+      isInitialMountRef.current = false;
+      devLog('[ScreenStack] Initial mount completed');
+    }
+  }, [stateMapEntries, routeKeys.length]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const items = containerRef.current.querySelectorAll('.screen-stack-item');
+    if (items.length === 0) return;
+
+    devLog('[ScreenStack] DOM State after render:', {
+      containerClasses: containerRef.current.className,
+      containerDataAnimation: containerRef.current.dataset.animation,
+      containerDataDirection: containerRef.current.dataset.direction,
+      itemCount: items.length,
+    });
+  });
+
+  const topKey = routeKeys[routeKeys.length - 1] ?? null;
+  const routeKeySet = useMemo(() => new Set(routeKeys), [routeKeys]);
+
+  const itemsContextValue = useMemo(() => {
+    const items: { [key: string]: any } = {};
+
+    for (let index = 0; index < keysToRender.length; index++) {
+      const key = keysToRender[index];
+      if (!key) continue;
+
+      const transitionState = stateMap.get(key);
+      const child = childMap.get(key);
+      if (!child) continue;
+
+      const item = child.props.item;
+      if (!item) continue;
+
+      const presentation = item.options?.stackPresentation ?? 'push';
+      const animated = item.options?.animated ?? true;
+      const isInStack = routeKeySet.has(key);
+      const isTop = isInStack && topKey !== null && key === topKey;
+
+      let phase: ScreenStackItemPhase;
+      if (!isInStack) {
+        phase = 'exiting';
+      } else if (isTop) {
+        phase = 'active';
+      } else {
+        phase = 'inactive';
+      }
+
+      const rawStatus = transitionState?.status || 'preEnter';
+      const status =
+        isInitialPhase && (rawStatus === 'preEnter' || rawStatus === 'entering')
+          ? 'entered'
+          : rawStatus;
+
+      const routeIndex = routeKeys.indexOf(key);
+      const zIndex =
+        routeIndex >= 0 ? routeIndex + 1 : keysToRender.length + index + 1;
+
+      const presentationType = getPresentationTypeClass(presentation);
+      const animationType = computeAnimationType(
+        key,
+        isInStack,
+        isTop,
+        direction,
+        presentation,
+        isInitialPhase,
+        animated
+      );
+
+      items[key] = {
+        presentationType,
+        animationType,
+        phase,
+        transitionStatus: status,
+        zIndex,
+      };
+    }
+
+    for (let index = 0; index < routeKeys.length; index++) {
+      const key = routeKeys[index];
+      if (!key || items[key]) continue;
+
+      const child = childMap.get(key);
+      if (!child) continue;
+
+      const item = child.props.item;
+      if (!item) continue;
+
+      const presentation = item.options?.stackPresentation ?? 'push';
+      const animated = item.options?.animated ?? true;
+      const isInStack = routeKeySet.has(key);
+      const isTop = isInStack && topKey !== null && key === topKey;
+
+      let phase: ScreenStackItemPhase;
+      if (isTop) {
+        phase = 'active';
+      } else {
+        phase = 'inactive';
+      }
+
+      const presentationType = getPresentationTypeClass(presentation);
+
+      const animationType = isInitialPhase
+        ? 'none'
+        : computeAnimationType(
+            key,
+            isInStack,
+            isTop,
+            direction,
+            presentation,
+            isInitialPhase,
+            animated
           );
-        } else {
-          result.push({ key, phase: 'active', element: nextEl });
-        }
-      }
 
-      for (const r of prev) {
-        if (!nextByKey.has(r.key)) {
-          const exitingEl = cloneElement<ScreenStackItemProps>(r.element, {
-            phase: 'exiting',
-          });
-          result.push({ key: r.key, phase: 'exiting', element: exitingEl });
-        }
-      }
+      items[key] = {
+        presentationType,
+        animationType,
+        phase,
+        transitionStatus: 'preEnter' as const,
+        zIndex: index + 1,
+      };
+    }
 
-      return result;
-    });
-  }, [childArray, nextKeys]);
+    return { items };
+  }, [
+    keysToRender,
+    stateMap,
+    childMap,
+    routeKeySet,
+    topKey,
+    isInitialPhase,
+    routeKeys,
+    direction,
+  ]);
 
-  useLayoutEffect(() => {
-    if (!containerRef.current || transitionRef.current) return;
-    transitionRef.current = TransitionStack({
-      content: containerRef.current,
-      type: type as TransitionStackType,
-      transitionTime,
-      withAnimationListener: animated,
-      onTransitionEnd: () => {
-        setRecords((prev) => {
-          const idx = lastExitingIndexRef.current ?? -1;
-          if (idx < 0 || idx >= prev.length) return prev;
-          const candidate = prev[idx];
-          if (candidate?.phase !== 'exiting') return prev;
-          return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
-        });
-      },
-    });
-  }, [type, transitionTime, animated]);
-
-  useLayoutEffect(() => {
-    if (!transitionRef.current) return;
-    const targetIndex = (() => {
-      for (let i = records.length - 1; i >= 0; i--) {
-        const rec = records[i];
-        if (rec && rec.phase === 'active') return i;
-      }
-      return -1;
-    })();
-    if (targetIndex === -1) return;
-    const outgoingIndex = records.findIndex((it) => it.phase === 'exiting');
-    lastExitingIndexRef.current = outgoingIndex !== -1 ? outgoingIndex : null;
-
-    const signature = records
-      .map((r) => `${String(r.key)}:${r.phase}`)
-      .join('|');
-    const stackChanged =
-      prevSignatureRef.current !== null &&
-      prevSignatureRef.current !== signature;
-
-    const animate = animated && stackChanged;
-
-    transitionRef.current(targetIndex, animate);
-    prevSignatureRef.current = signature;
-    prevSelectedRef.current = targetIndex;
-  }, [records, animated]);
+  const animating = useMemo(() => {
+    return stateMapEntries.some(
+      ([, state]) =>
+        state.isMounted &&
+        (state.status === 'entering' ||
+          state.status === 'exiting' ||
+          state.status === 'preEnter' ||
+          state.status === 'preExit')
+    );
+  }, [stateMapEntries]);
 
   return (
-    <div ref={containerRef} className={`screen-stack${type ? ` ${type}` : ''}`}>
-      {records.map((r) => (
-        <Fragment key={r.key}>{r.element}</Fragment>
-      ))}
-    </div>
+    <ScreenStackItemsContext.Provider value={itemsContextValue}>
+      <ScreenStackAnimatingContext.Provider value={animating}>
+        <div
+          ref={containerRef}
+          className={containerClassName + (animating ? ' animating' : '')}
+        >
+          {keysToRender.map((key) => {
+            const transitionState = stateMap.get(key);
+
+            if (!transitionState || !transitionState.isMounted) {
+              devLog(
+                `[ScreenStack] Skipping ${key} - no state or not mounted`,
+                {
+                  hasState: !!transitionState,
+                  isMounted: transitionState?.isMounted,
+                }
+              );
+              return null;
+            }
+
+            const child = childMap.get(key);
+            if (!child) {
+              devLog(`[ScreenStack] No child element for ${key}`, {
+                availableKeys: Array.from(childMap.keys()),
+              });
+              return null;
+            }
+
+            return <Fragment key={child.key || key}>{child}</Fragment>;
+          })}
+        </div>
+      </ScreenStackAnimatingContext.Provider>
+    </ScreenStackItemsContext.Provider>
   );
 });

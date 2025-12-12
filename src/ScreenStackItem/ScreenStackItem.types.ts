@@ -3,8 +3,10 @@ import type {
   NavigationAppearance,
   ScreenOptions,
 } from '../types';
+import type { TransitionStatus } from 'react-transition-state';
+import type { CSSProperties } from 'react';
 
-export type ScreenStackItemPhase = 'active' | 'exiting';
+export type ScreenStackItemPhase = 'active' | 'inactive' | 'exiting';
 
 export interface ScreenStackItemProps {
   item: HistoryItem;
@@ -12,4 +14,6 @@ export interface ScreenStackItemProps {
   stackAnimation?: ScreenOptions['stackAnimation'];
   appearance?: NavigationAppearance;
   phase?: ScreenStackItemPhase;
+  transitionStatus?: TransitionStatus;
+  style?: CSSProperties;
 }

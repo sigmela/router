@@ -1,12 +1,13 @@
 export { useTabBar } from './TabBar/useTabBar';
+export { useTabBarHeight, TAB_BAR_HEIGHT } from './TabBar/useTabBarHeight';
 export { TabBar } from './TabBar/TabBar';
 export type { TabBarProps } from './TabBar/TabBar';
 
-export type { NavigationAppearance } from './types';
+export { SplitView } from './SplitView/SplitView';
+export type { SplitViewOptions } from './SplitView/SplitView';
+export { useSplitView } from './SplitView/useSplitView';
 
-/**
- * Navigation System
- */
+export type { NavigationAppearance } from './types';
 
 export { Router } from './Router';
 export { Navigation } from './Navigation';

@@ -1,4 +1,4 @@
-import '@sigmela/router/styles.css';
+import '@sigmela/router/src/styles.css';
 import { Navigation } from '@sigmela/router';
 import { router } from './navigation/router';
 import {

@@ -1,6 +1,4 @@
-// import { ScreenStackItem as RNNScreenStackItem } from 'react-native-screens';
 import type { NavigationAppearance } from './types';
-import { RenderTabBar } from './TabBar/RenderTabBar';
 import { ScreenStackItem } from './ScreenStackItem';
 import { RouterContext } from './RouterContext';
 import { ScreenStack } from './ScreenStack';
@@ -31,25 +29,24 @@ function useStackHistory(router: Router, stackId?: string) {
     () => (stackId ? router.getStackHistory(stackId) : EMPTY_HISTORY),
     [router, stackId]
   );
+
   return useSyncExternalStore(subscribe, get, get);
 }
 
 export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
   const [root, setRoot] = useState(() => ({
-    hasTabBar: router.hasTabBar(),
     rootId: router.getRootStackId(),
   }));
 
   useEffect(() => {
     return router.subscribeRoot(() => {
       setRoot({
-        hasTabBar: router.hasTabBar(),
         rootId: router.getRootStackId(),
       });
     });
   }, [router]);
 
-  const { hasTabBar, rootId } = root;
+  const { rootId } = root;
   const rootTransition = router.getRootTransition();
   const globalId = router.getGlobalStackId();
   const rootItems = useStackHistory(router, rootId);
@@ -58,9 +55,6 @@ export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
   return (
     <RouterContext.Provider value={router}>
       <ScreenStack style={styles.flex}>
-        {hasTabBar && (
-          <RenderTabBar tabBar={router.tabBar!} appearance={appearance} />
-        )}
         {rootItems.map((item) => (
           <ScreenStackItem
             key={`root-${item.key}`}

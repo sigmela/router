@@ -3,6 +3,8 @@ import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
 import { useRouter } from '../RouterContext';
+import { NavigationStack } from '../NavigationStack';
+import type { HistoryItem } from '../types';
 import type { TabBarProps } from './TabBar';
 import type { TabBar } from './TabBar';
 import { TabIcon } from './TabIcon';
@@ -10,7 +12,6 @@ import {
   useCallback,
   useSyncExternalStore,
   memo,
-  useEffect,
   useMemo,
   type CSSProperties,
   type ComponentType,
@@ -36,7 +37,28 @@ const isImageSource = (value: unknown): value is ImageSourcePropType => {
 const toColorString = (c?: ColorValue): string | undefined =>
   typeof c === 'string' ? c : undefined;
 
-//
+const TabStackRenderer = memo<{
+  stack: NavigationStack;
+  appearance?: NavigationAppearance;
+}>(({ stack, appearance }) => {
+  const router = useRouter();
+  const stackId = stack.getId();
+  const subscribe = useCallback(
+    (cb: () => void) => router.subscribeStack(stackId, cb),
+    [router, stackId]
+  );
+  const get = useCallback(
+    () => router.getStackHistory(stackId),
+    [router, stackId]
+  );
+  const history: HistoryItem[] = useSyncExternalStore(subscribe, get, get);
+
+  return (
+    <StackRenderer appearance={appearance} stack={stack} history={history} />
+  );
+});
+
+TabStackRenderer.displayName = 'TabStackRenderer';
 
 export const RenderTabBar = memo<RenderTabBarProps>(
   ({ tabBar, appearance }) => {
@@ -53,10 +75,6 @@ export const RenderTabBar = memo<RenderTabBarProps>(
     );
     const { tabs, index, config } = snapshot;
 
-    useEffect(() => {
-      router.ensureTabSeed(index);
-    }, [index, router]);
-
     const focusedTab = tabs[index];
     const stack = focusedTab ? tabBar.stacks[focusedTab.tabKey] : undefined;
     const Screen = focusedTab ? tabBar.screens[focusedTab.tabKey] : undefined;
@@ -68,22 +86,22 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         const targetStack = tabBar.stacks[targetTab.tabKey];
 
         if (targetStack) {
-          // Prefer last visited route in the target stack; otherwise first route
-          const stackId = targetStack.getId();
-          const history = router.getStackHistory(stackId);
-          const last = history.length ? history[history.length - 1] : undefined;
-          const toPath = last?.path ?? targetStack.getFirstRoute()?.path;
-          if (toPath) {
-            const currentPath = router.getVisibleRoute()?.path;
-            if (nextIndex === index && toPath === currentPath) return;
-            // Use replace to avoid duplicating history entries when switching tabs
-            router.replace(toPath, true);
+          // Keep TabBar UI in sync immediately.
+          if (nextIndex !== index) {
+            tabBar.onIndexChange(nextIndex);
+          }
+          const firstRoutePath = targetStack.getFirstRoute()?.path;
+          if (firstRoutePath) {
+            // Web behavior: reset all preserved stacks when switching tabs.
+            // This keeps browser URL and Router state always consistent.
+            router.reset(firstRoutePath);
             return;
           }
         }
 
-        // Fallback: just switch tab index (no history push if there is no path)
-        router.onTabIndexChange(nextIndex);
+        if (nextIndex !== index) {
+          tabBar.onIndexChange(nextIndex);
+        }
       },
       [router, tabBar, tabs, index]
     );
@@ -108,33 +126,29 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       ]
     );
 
-    // If a custom component is provided, render it instead of the default web tab bar
     const CustomTabBar = config.component as
       | ComponentType<TabBarProps>
       | undefined;
 
     return (
-      <div
-        className="screen-stack-item"
-        data-presentation="push"
-        data-phase="active"
-      >
-        <TabBarContext.Provider value={tabBar}>
-          <div className="tab-stacks-container">
-            {stack ? (
-              <StackRenderer appearance={appearance} stack={stack} />
-            ) : Screen ? (
-              <Screen />
-            ) : null}
+      <TabBarContext.Provider value={tabBar}>
+        <div className="tab-stacks-container">
+          {stack ? (
+            <TabStackRenderer appearance={appearance} stack={stack} />
+          ) : Screen ? (
+            <Screen />
+          ) : null}
 
-            {CustomTabBar ? (
-              <CustomTabBar
-                onTabPress={onTabClick}
-                activeIndex={index}
-                tabs={tabs}
-              />
-            ) : (
-              <div className="tab-bar" style={tabBarStyle}>
+          {CustomTabBar ? (
+            <CustomTabBar
+              onTabPress={onTabClick}
+              activeIndex={index}
+              tabs={tabs}
+            />
+          ) : (
+            <div className="tab-bar" style={tabBarStyle}>
+              {/* <div className="tab-bar-blur-overlay" /> */}
+              <div className="tab-bar-inner">
                 {tabs.map((tab, i) => {
                   const isActive = i === index;
                   const iconTint = toColorString(
@@ -163,23 +177,22 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                           <TabIcon source={tab.icon} tintColor={iconTint} />
                         ) : null}
                       </div>
+                      <div className="tab-item-label" style={labelStyle}>
+                        {tab.title}
+                      </div>
                       {tab.badgeValue ? (
                         <span className="tab-item-label-badge">
                           {tab.badgeValue}
                         </span>
                       ) : null}
-
-                      <div className="tab-item-label" style={labelStyle}>
-                        {tab.title}
-                      </div>
                     </button>
                   );
                 })}
               </div>
-            )}
-          </div>
-        </TabBarContext.Provider>
-      </div>
+            </div>
+          )}
+        </div>
+      </TabBarContext.Provider>
     );
   }
 );

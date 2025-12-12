@@ -10,37 +10,500 @@
 .screen-stack > .screen-stack-item {
   position: absolute;
   inset: 0;
-  display: flex;
   font-size: 24px;
-  display: none;
   overflow: hidden;
+  display: none;
+  /* z-index is set inline in ScreenStack.web.tsx */
+
+  /* Base transition for opening screen */
+  transition:
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.screen-stack > .screen-stack-item.active {
+/* Inner container for regular screen */
+.stack-screen-container {
+  display: flex;
+  flex: 1;
+  height: 100%;
+}
+
+/* Inner container for modal (NOT flex: 1, to avoid stretching to full width) */
+.stack-modal-container {
+  display: flex;
+  height: 100%;
+}
+
+/* Overlay inside ScreenStackItem — always full-screen, only opacity animation */
+.stack-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+  will-change: opacity;
+}
+
+/* Show overlay only for modal-like presentations.
+   IMPORTANT: use direct child (>) to avoid collapsing overlay from nested stacks,
+   when modal ScreenStackItem is inside push ScreenStackItem container. */
+.screen-stack-item:not(.modal):not(.contained-modal):not(.fullscreen-modal):not(.formsheet):not(.pagesheet):not(.sheet)
+  > .stack-modal-overlay {
+  display: none;
+}
+
+/* Keyframes for overlay appearance */
+@keyframes modal-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
+
+/* Keyframes for overlay disappearance */
+@keyframes modal-overlay-exit {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Overlay in initial state — transparent */
+.screen-stack-item.modal.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.contained-modal.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.formsheet.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.pagesheet.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.sheet.transition-preEnter > .stack-modal-overlay {
+  opacity: 0;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* Overlay on enter — start animation */
+.screen-stack-item.modal.transition-entering > .stack-modal-overlay,
+.screen-stack-item.modal.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.contained-modal.transition-entering > .stack-modal-overlay,
+.screen-stack-item.contained-modal.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.transition-entering > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.formsheet.transition-entering > .stack-modal-overlay,
+.screen-stack-item.formsheet.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.pagesheet.transition-entering > .stack-modal-overlay,
+.screen-stack-item.pagesheet.phase-active.transition-preEnter > .stack-modal-overlay,
+.screen-stack-item.sheet.transition-entering > .stack-modal-overlay,
+.screen-stack-item.sheet.phase-active.transition-preEnter > .stack-modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: modal-overlay-enter 300ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+/* For modal-like in active / entered states — fully visible */
+.screen-stack-item.modal.phase-active > .stack-modal-overlay,
+.screen-stack-item.modal.transition-entered > .stack-modal-overlay,
+.screen-stack-item.contained-modal.phase-active > .stack-modal-overlay,
+.screen-stack-item.contained-modal.transition-entered > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.phase-active > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.transition-entered > .stack-modal-overlay,
+.screen-stack-item.formsheet.phase-active > .stack-modal-overlay,
+.screen-stack-item.formsheet.transition-entered > .stack-modal-overlay,
+.screen-stack-item.pagesheet.phase-active > .stack-modal-overlay,
+.screen-stack-item.pagesheet.transition-entered > .stack-modal-overlay,
+.screen-stack-item.sheet.phase-active > .stack-modal-overlay,
+.screen-stack-item.sheet.transition-entered > .stack-modal-overlay {
+  opacity: 0.5;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+/* Overlay on modal-like close — disappearance animation */
+.screen-stack-item.modal.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.modal.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.contained-modal.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.contained-modal.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.fullscreen-modal.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.formsheet.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.formsheet.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.pagesheet.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.pagesheet.transition-exiting > .stack-modal-overlay,
+.screen-stack-item.sheet.phase-exiting > .stack-modal-overlay,
+.screen-stack-item.sheet.transition-exiting > .stack-modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: modal-overlay-exit 300ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+/* Overlay for transparent-modal — transparent */
+.screen-stack-item.transparent-modal > .stack-modal-overlay {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Overlay for contained-transparent-modal — transparent */
+.screen-stack-item.contained-transparent-modal > .stack-modal-overlay {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Modal-like content container always above overlay */
+.screen-stack-item.modal .stack-modal-container,
+.screen-stack-item.contained-modal .stack-modal-container,
+.screen-stack-item.fullscreen-modal .stack-modal-container,
+.screen-stack-item.formsheet .stack-modal-container,
+.screen-stack-item.pagesheet .stack-modal-container,
+.screen-stack-item.sheet .stack-modal-container {
+  position: relative;
+  z-index: 2;
+}
+
+/* Show active / entering elements */
+.screen-stack > .screen-stack-item.phase-active,
+.screen-stack > .screen-stack-item.transition-entered,
+.screen-stack > .screen-stack-item.transition-entering,
+.screen-stack > .screen-stack-item.transition-preEnter {
   display: flex;
 }
 
-.screen-stack[data-animation="navigation"].animating > .screen-stack-item {
-  transition: transform .3s cubic-bezier(.4, .0, .2, 1), filter .3s cubic-bezier(.4, .0, .2, 1)
+/* Base state for active elements after entry */
+/* Overridden via animation classes (push-enter, pop-enter, etc.) */
+.screen-stack > .screen-stack-item.phase-active.transition-entered:not(.push-enter):not(.pop-enter):not(.modal):not(.sheet) {
+  transform: translateX(0);
+  filter: none;
 }
 
-.screen-stack[data-animation="navigation"].animating.backwards > .screen-stack-item {
-  transition: transform .25s cubic-bezier(.4, .0, .2, 1), filter .25s cubic-bezier(.4, .0, .2, 1);
+/* Background (inactive) — visible, but without interactions */
+.screen-stack > .screen-stack-item.phase-inactive {
+  display: flex;
+  pointer-events: none; /* Don't intercept clicks */
 }
 
-.screen-stack[data-animation="modal"].animating > .screen-stack-item {
-  transition: transform .3s cubic-bezier(.4, .0, .2, 1), filter .3s cubic-bezier(.4, .0, .2, 1)
+/* Exiting elements are also shown during animation */
+/* Important: also show elements with pop-exit, even if they are still in transition-entered */
+.screen-stack > .screen-stack-item.phase-exiting,
+.screen-stack > .screen-stack-item.transition-exiting,
+.screen-stack > .screen-stack-item.transition-preExit,
+.screen-stack > .screen-stack-item.pop-exit {
+  display: flex;
 }
 
-.screen-stack[data-animation="modal"].animating.backwards > .screen-stack-item {
-  transition: transform .25s cubic-bezier(.4, .0, .2, 1), filter .25s cubic-bezier(.4, .0, .2, 1);
+/* Fully exited — hide */
+.screen-stack > .screen-stack-item.transition-exited,
+.screen-stack > .screen-stack-item.transition-unmounted {
+  display: none;
 }
+
+/* ==================== MODALS: base transform neutralization ==================== */
+
+/* IMPORTANT: modal elements should not move like regular screens */
+.screen-stack > .screen-stack-item.modal,
+.screen-stack > .screen-stack-item.sheet {
+  transform: translate3d(0, 0, 0) !important;
+}
+
+/* ==================== COMMON STYLES BY SCREEN TYPE ==================== */
+
+/* ==================== PUSH ANIMATIONS ==================== */
+
+/* Forward navigation (push) — opening screen 300ms */
+.screen-stack-item.push.push-enter {
+  transition:
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* PUSH ENTER - regular screen enters from right */
+.screen-stack-item.push.push-enter.transition-preEnter {
+  transform: translateX(100%);
+}
+
+.screen-stack-item.push.push-enter.transition-entering,
+.screen-stack-item.push.push-enter.transition-entered {
+  transform: translateX(0);
+}
+
+/* PUSH BACKGROUND - background screen shifts left */
+/* Important: use !important to override general rules for inactive */
+.screen-stack-item.push.push-background {
+  transform: translateX(-25%) !important;
+  transition:
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* POP BACKGROUND - background screen on pop stays at -25% */
+/* Background elements on pop get pop-background instead of none, to preserve -25% position */
+.screen-stack-item.push.pop-background {
+  transform: translateX(-25%) !important;
+  /* Don't set transition, so element stays in place without animation */
+  filter: none;
+}
+
+/* Backward navigation (pop) — closing screen 300ms */
+/* IMPORTANT: transition is set on element with pop-exit */
+.screen-stack-item.push.pop-exit {
+  transition:
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* POP EXIT - top screen exits to right */
+/* Key difference from old version: in old version selector .phase-exiting was applied WITHOUT dependency on transition-exiting */
+/* Here we do the same: if element has pop-exit and phase-exiting, it should exit to right */
+.screen-stack-item.push.pop-exit.phase-exiting,
+.screen-stack-item.push.pop-exit.transition-exiting {
+  transform: translateX(100%);
+  filter: none;
+}
+
+/* POP ENTER - screen returns to center from -25% */
+/* Applied only to active (top) element on pop */
+/* In old version: element was at -25% (as background), then on pop becomes active and goes to 0 */
+/* Simplified approach as in old version: phase-active simply becomes 0 */
+.screen-stack-item.push.pop-enter {
+  transition:
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Active element on pop simply in center (0) - final state */
+/* As in old version: .phase-active on pop → transform: translateX(0) */
+.screen-stack-item.push.pop-enter.phase-active,
+.screen-stack-item.push.pop-enter.phase-active.transition-entered {
+  transform: translateX(0);
+  filter: none;
+}
+
+/* ==================== MODAL STACK: don't move background ==================== */
+
+/* If there's a modal on top — don't move previous screen and don't dim it,
+   overlay is responsible for dimming. */
+.screen-stack:has(> .screen-stack-item.modal.phase-active)
+  > .screen-stack-item.push.phase-inactive,
+.screen-stack:has(> .screen-stack-item.modal.phase-active)
+  > .screen-stack-item.push.phase-inactive.transition-entered {
+  transform: translate3d(0, 0, 0) !important;
+  filter: none;
+}
+
+/* ==================== MOBILE MODAL (<= 639px) — bottom sheet ==================== */
+@media (max-width: 639px) {
+  /* Inner container for modal — bottom sheet full width with top border radius */
+  .screen-stack-item.modal .stack-modal-container {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    border-top-left-radius: 38px;
+    border-top-right-radius: 38px;
+    align-self: flex-end; /* align to bottom edge of parent */
+    overflow: hidden;
+    background: #fff; /* or var(--modal-bg) */
+
+    transform: translateY(0);
+    transition:
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  /* MODAL ENTER - modal enters (bottom to top) */
+  .screen-stack-item.modal.modal-enter.transition-preEnter .stack-modal-container {
+    transform: translateY(100%);
+    filter: none;
+  }
+
+  .screen-stack-item.modal.modal-enter.transition-entering .stack-modal-container,
+  .screen-stack-item.modal.modal-enter.transition-entered .stack-modal-container {
+    transform: translateY(0);
+    filter: none;
+  }
+
+  /* MODAL EXIT - modal closes (exits downward) */
+  .screen-stack-item.modal.modal-exit.transition-exiting .stack-modal-container {
+    transform: translateY(100%);
+    filter: none;
+    transition:
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  /* SHEET - sheet styles for mobile version */
+  .screen-stack-item.sheet .stack-modal-container {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    border-top-left-radius: 38px;
+    border-top-right-radius: 38px;
+    align-self: flex-end;
+    overflow: hidden;
+    background: #fff;
+
+    transform: translateY(0);
+    transition:
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  /* SHEET ENTER - sheet enters (bottom to top) */
+  .screen-stack-item.sheet.sheet-enter.transition-preEnter .stack-modal-container {
+    transform: translateY(100%);
+    filter: none;
+  }
+
+  .screen-stack-item.sheet.sheet-enter.transition-entering .stack-modal-container,
+  .screen-stack-item.sheet.sheet-enter.transition-entered .stack-modal-container {
+    transform: translateY(0);
+    filter: none;
+  }
+
+  /* SHEET EXIT - sheet closes */
+  .screen-stack-item.sheet.sheet-exit.transition-exiting .stack-modal-container {
+    transform: translateY(100%);
+    filter: none;
+    transition:
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+}
+
+/* ==================== DESKTOP MODAL (>= 640px) — sheet on right ==================== */
+@media (min-width: 640px) {
+  /* Inner container for modal — right sheet 393px, with margin and border radius */
+  .screen-stack-item.modal .stack-modal-container {
+    width: 393px;
+    max-width: calc(100% - 36px);
+    height: calc(100% - 36px);
+    margin: 18px;
+    margin-left: auto; /* align to right edge */
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff; /* or var(--modal-bg) */
+
+    transform: translateX(0);
+    transition:
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  /* MODAL ENTER - modal enters (right to left) */
+  .screen-stack-item.modal.modal-enter.transition-preEnter .stack-modal-container {
+    transform: translateX(100%);
+    filter: none;
+  }
+
+  .screen-stack-item.modal.modal-enter.transition-entering .stack-modal-container,
+  .screen-stack-item.modal.modal-enter.transition-entered .stack-modal-container {
+    transform: translateX(0);
+    filter: none;
+  }
+
+  /* MODAL EXIT - modal closes (exits to right) */
+  .screen-stack-item.modal.modal-exit.transition-exiting .stack-modal-container {
+    transform: translateX(100%);
+    filter: none;
+    transition:
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  /* SHEET ENTER - sheet enters (right to left) */
+  .screen-stack-item.sheet.sheet-enter.transition-preEnter
+    .stack-modal-container {
+    transform: translateX(100%);
+    filter: none;
+  }
+
+  .screen-stack-item.sheet.sheet-enter.transition-entering
+    .stack-modal-container,
+  .screen-stack-item.sheet.sheet-enter.transition-entered
+    .stack-modal-container {
+    transform: translateX(0);
+    filter: none;
+  }
+
+  /* SHEET EXIT - sheet closes */
+  .screen-stack-item.sheet.sheet-exit.transition-exiting
+    .stack-modal-container {
+    transform: translateX(100%);
+    filter: none;
+    transition:
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  /* Background screens under modal — don't move, don't dim (overlay does this) */
+  .screen-stack:has(> .screen-stack-item.modal.phase-active)
+    > .screen-stack-item.push.phase-inactive,
+  .screen-stack:has(> .screen-stack-item.modal.phase-active)
+    > .screen-stack-item.push.phase-inactive.transition-entered {
+    transform: translate3d(0, 0, 0) !important;
+    filter: none;
+  }
+}
+
+/* ==================== INACTIVE SCREENS (common settings) ==================== */
+
+/* Inactive screens (background stack elements)
+   Background elements on pop get animationType: pop-background and stay at -25%
+   (except modal case, there we override via :has) */
+.screen-stack > .screen-stack-item.phase-inactive:not(.push-background):not(.pop-background):not(.pop-enter):not(.pop-exit):not(.modal):not(.sheet) {
+  /* Don't set transform explicitly - element will preserve previous position */
+  filter: none;
+}
+
+/* ==================== SPECIAL CASES ==================== */
+
+/* NO-ANIMATE - no animation (screenOptions.animated === false) */
+/* IMPORTANT: this rule should override all other animation rules */
+.screen-stack-item.no-animate,
+.screen-stack-item.no-animate.push-enter,
+.screen-stack-item.no-animate.push-exit,
+.screen-stack-item.no-animate.push-background,
+.screen-stack-item.no-animate.pop-enter,
+.screen-stack-item.no-animate.pop-exit,
+.screen-stack-item.no-animate.pop-background {
+  transform: translate3d(0, 0, 0) !important;
+  transition: none !important;
+  filter: none !important;
+}
+
+/* NONE - no animation (initial mount) */
+/* IMPORTANT: this rule should NOT be applied to pop-background elements */
+.screen-stack-item.none:not(.pop-background) {
+  transform: translate3d(0, 0, 0) !important;
+  transition: none !important;
+  filter: none !important;
+}
+
+
 
 .tab-stacks-container {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 100vhd;
+  min-height: 100dvh;
+  position: relative;
+}
+
+.tab-stacks-container > .screen-stack {
+  padding-bottom: calc(73px + env(safe-area-inset-bottom)); 
+}
+
+.tab-bar-blur-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(73px + 16px + env(safe-area-inset-bottom));
+  backdrop-filter: blur(20px) saturate(180%);
+  background-color: rgba(255, 255, 255, 0.05);
+  /* -webkit-backdrop-filter: blur(20px) saturate(180%); */
+  pointer-events: none;
+  z-index: 99;
 }
 
 .tab-bar {
@@ -49,8 +512,27 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  position: relative;
-  height: 49px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  background: transparent;
+  z-index: 100;
+}
+
+.tab-bar-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: #FFFFFF;
+  box-shadow: 0 2px 8px #00000014;
+  border-radius: 100px;
+  padding: 4px;
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .tab-item {
@@ -58,20 +540,37 @@
   background: transparent;
   border: 0;
   margin: 0;
-  padding: 4px 0 2px;
-  height: 100%;
+  padding: 8px 16px;
+  height: 49px;
   color: inherit;
   display: flex;
-  flex: 1 1 0%;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   position: relative;
   cursor: pointer;
+  border-radius: 100px;
+  transition: all 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
+
+.tab-item.active {
+  background: #EDEDED;
+}
+
+.tab-item:hover:not(.active) {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
 
 .tab-item:focus {
   outline: none;
+}
+
+.tab-item:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 .tab-item-icon {
@@ -80,6 +579,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .tab-item-icon > * {
@@ -90,28 +590,193 @@
 }
 
 .tab-item-label {
-  font-size: 11px;
-  line-height: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
   text-align: center;
   white-space: nowrap;
   pointer-events: none;
-  margin-top: 2px;
 }
 
 .tab-item-label-badge {
   position: absolute;
-  top: 4px;
-  left: 50%;
-  transform: translateX(10px);
-  min-width: 16px;
-  height: 16px;
-  padding: 0 5px;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
   border-radius: 9999px;
   background-color: #dc3545;
   color: #fff;
-  font-size: 10px;
-  line-height: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* ==================== DESKTOP TAB BAR (>= 641px) ==================== */
+@media (min-width: 641px) {
+  .tab-stacks-container {
+    flex-direction: row;
+  }
+
+  .tab-stacks-container > .screen-stack {
+    padding-bottom: 0;
+    margin-left: 260px;
+    min-width: 0;
+    width: calc(100% - 260px);
+  }
+
+  .tab-bar-blur-overlay {
+    display: none;
+  }
+
+  .tab-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    height: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    flex-shrink: 0;
+    order: 1;
+    background: transparent;
+    z-index: auto;
+  }
+
+  .tab-bar-inner {
+    height: 100%;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    border-radius: 0;
+    padding: 12px 0 0 0;
+    gap: 0;
+    background: #FFFFFF;
+    box-shadow: none;
+  }
+
+  .tab-item {
+    margin: 0 12px;
+    margin-bottom: 4px;
+    height: 44px;
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 12px;
+    width: auto;
+    border-radius: 10px;
+    transition: background-color 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  .tab-item.active {
+    background: var(--backgroundTertiaryTrans, rgba(201, 204, 209, 0.32));
+  }
+
+  .tab-item:active {
+    transform: none;
+  }
+
+  .tab-item-icon {
+    width: 24px;
+    height: 24px;
+    padding-right: 12px;
+    flex-shrink: 0;
+  }
+
+  .tab-item-label {
+    flex: 1;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+    text-align: left;
+    padding-right: 3px;
+    white-space: nowrap;
+  }
+
+  .tab-item-label-badge {
+    position: static;
+    transform: none;
+    margin-left: auto;
+  }
+}
+
+/* ==================== SPLIT VIEW (web) ==================== */
+
+.split-view-container {
+  position: relative;
+  display: block; /* narrow by default; wide enabled via injected @media rule */
+  height: 100dvh;
+  min-height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.split-view-container .screen-stack {
+  /* ScreenStack has min-width: 100%, which breaks side-by-side layouts */
+  min-width: 0;
+}
+
+.split-view-primary {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.split-view-secondary {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+/* In narrow mode, hide secondary completely if it has no active screen */
+.split-view-secondary:not(:has(.screen-stack-item.phase-active)):not(:has(.screen-stack-item.phase-exiting)):not(:has(.screen-stack-item.transition-entering)):not(:has(.screen-stack-item.transition-entered)):not(:has(.screen-stack-item.transition-preEnter)):not(:has(.screen-stack-item.transition-exiting)):not(:has(.screen-stack-item.transition-preExit)):not(:has(.screen-stack-item.pop-exit)) {
+  display: none;
+}
+
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.phase-active)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.phase-exiting)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-entering)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-entered)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-preEnter)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-exiting)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.transition-preExit)) .split-view-primary,
+.split-view-container:has(.split-view-secondary:has(.screen-stack-item.pop-exit)) .split-view-primary {
+  pointer-events: none;
+}
+
+/* Split view wide layout - applied when viewport width >= 640px */
+@media (min-width: 640px) {
+  .split-view-container {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .split-view-primary {
+    position: relative;
+    flex: 0 0 auto;
+    max-width: var(--split-view-primary-max-width, 390px);
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .split-view-secondary {
+    display: flex;
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    flex: 1 1 auto;
+  }
 }

@@ -3,15 +3,18 @@ import { NavigationStack } from '../NavigationStack';
 import type { ComponentType } from 'react';
 import type { TabItem } from '../types';
 import React from 'react';
+import { RenderTabBar } from './RenderTabBar';
+import type { NavigationNode, NodeChild, NodeRoute } from '../navigationNode';
+import type { PlatformIcon } from 'react-native-screens';
 
-type IOSIconShape =
+// Legacy icon format for backward compatibility
+type LegacyIOSIconShape =
   | { sfSymbolName: string }
   | { imageSource: ImageSourcePropType }
   | { templateSource: ImageSourcePropType };
 
-type ExtendedIcon = ImageSourcePropType | IOSIconShape;
+type ExtendedIcon = ImageSourcePropType | LegacyIOSIconShape | PlatformIcon;
 
-// Internal representation used by TabBar to support unified icon source while keeping original android props
 export type InternalTabItem = Omit<TabItem, 'icon' | 'selectedIcon'> & {
   icon?: ExtendedIcon;
   selectedIcon?: ExtendedIcon;
@@ -22,6 +25,10 @@ export type TabBarProps = {
   onTabPress: (index: number) => void;
   tabs: InternalTabItem[];
   activeIndex: number;
+};
+
+export type TabBarDescriptor = {
+  renderer?: ComponentType<TabBarProps>;
 };
 
 type TabBarConfig = Omit<InternalTabItem, 'tabKey' | 'key'> & {
@@ -36,7 +43,8 @@ type TabBarOptions = {
   initialIndex?: number;
 };
 
-export class TabBar {
+export class TabBar implements NavigationNode {
+  private readonly tabBarId: string;
   public screens: Record<string, React.ComponentType<any>> = {};
   public stacks: Record<string, NavigationStack> = {};
   private listeners: Set<() => void> = new Set();
@@ -48,6 +56,7 @@ export class TabBar {
   };
 
   constructor(options: TabBarOptions = {}) {
+    this.tabBarId = `tabbar-${Math.random().toString(36).slice(2)}`;
     this.state = {
       tabs: [],
       index: options.initialIndex ?? 0,
@@ -55,15 +64,24 @@ export class TabBar {
     };
   }
 
+  public getId(): string {
+    return this.tabBarId;
+  }
+
   public addTab(tab: Omit<TabBarConfig, 'tabKey'> & { key: string }): TabBar {
     const { key, ...rest } = tab;
     const nextIndex = this.state.tabs.length;
     const tabKey = key ?? `tab-${nextIndex}`;
 
-    this.state.tabs.push({
-      tabKey,
-      ...rest,
-    });
+    const nextTabs = [
+      ...this.state.tabs,
+      {
+        tabKey,
+        ...rest,
+      },
+    ];
+
+    this.setState({ tabs: nextTabs });
 
     if (tab.stack) {
       this.stacks[tabKey] = tab.stack;
@@ -110,7 +128,18 @@ export class TabBar {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach((listener) => listener());
+    // Do not allow one listener to break all others.
+    for (const listener of Array.from(this.listeners)) {
+      try {
+        listener();
+      } catch (e) {
+        // TabBar has no debug flag; keep behavior quiet in production.
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.error('[TabBar] listener error', e);
+        }
+      }
+    }
   }
 
   public subscribe(listener: () => void): () => void {
@@ -118,5 +147,118 @@ export class TabBar {
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  public getTabs() {
+    return this.state.tabs.slice();
+  }
+
+  public getInitialIndex(): number {
+    return this.state.index ?? 0;
+  }
+
+  public getActiveChildId(): string | undefined {
+    const activeTab = this.state.tabs[this.state.index];
+    if (!activeTab) return undefined;
+    const stack = this.stacks[activeTab.tabKey];
+    return stack?.getId();
+  }
+
+  public switchToRoute(routeId: string): void {
+    const idx = this.findTabIndexByRoute(routeId);
+    if (idx === -1) return;
+    if (idx === this.state.index) return;
+    this.setState({ index: idx });
+  }
+
+  public hasRoute(routeId: string): boolean {
+    return this.findTabIndexByRoute(routeId) !== -1;
+  }
+
+  public setActiveChildByRoute(routeId: string): void {
+    this.switchToRoute(routeId);
+  }
+
+  public getNodeRoutes(): NodeRoute[] {
+    return [];
+  }
+
+  public getNodeChildren(): NodeChild[] {
+    const children: NodeChild[] = [];
+    for (let idx = 0; idx < this.state.tabs.length; idx++) {
+      const tab = this.state.tabs[idx];
+      const stack = tab ? this.stacks[tab.tabKey] : undefined;
+      if (stack) {
+        children.push({
+          prefix: '',
+          node: stack as NavigationNode,
+          onMatch: () => this.onIndexChange(idx),
+        });
+      }
+    }
+    return children;
+  }
+
+  public getRenderer(): React.ComponentType<any> {
+    // eslint-disable-next-line consistent-this
+    const tabBarInstance = this;
+    return function TabBarScreen(props: any) {
+      return React.createElement(RenderTabBar, {
+        tabBar: tabBarInstance,
+        appearance: props?.appearance,
+      });
+    };
+  }
+
+  public seed(): {
+    routeId: string;
+    params?: Record<string, unknown>;
+    path: string;
+    stackId?: string;
+  } | null {
+    const activeTab = this.state.tabs[this.state.index];
+    if (!activeTab) return null;
+
+    const stack = this.stacks[activeTab.tabKey];
+    if (!stack) return null;
+
+    const firstRoute = stack.getFirstRoute();
+    if (!firstRoute) return null;
+
+    return {
+      routeId: firstRoute.routeId,
+      path: firstRoute.path,
+      stackId: stack.getId(),
+    };
+  }
+
+  private findTabIndexByRoute(routeId: string): number {
+    for (let i = 0; i < this.state.tabs.length; i++) {
+      const tab = this.state.tabs[i];
+      const stack = tab && this.stacks[tab.tabKey];
+      if (!stack) continue;
+      const hasRoute = this.nodeHasRoute(stack, routeId);
+      if (hasRoute) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private nodeHasRoute(node: NavigationNode, routeId: string): boolean {
+    const routes = node.getNodeRoutes();
+    for (const r of routes) {
+      if (r.routeId === routeId) return true;
+      if (r.childNode) {
+        if (this.nodeHasRoute(r.childNode, routeId)) return true;
+      }
+    }
+
+    const children = node.getNodeChildren();
+    for (const child of children) {
+      if (this.nodeHasRoute(child.node, routeId)) return true;
+    }
+
+    return false;
   }
 }

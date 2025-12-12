@@ -20,10 +20,9 @@ export const AuthScreen = () => {
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
-    height: 400,
   },
   header: {
     height: 50,

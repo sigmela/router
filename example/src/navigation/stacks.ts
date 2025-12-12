@@ -1,13 +1,22 @@
-import { NavigationStack } from '@sigmela/router';
+import { NavigationStack, SplitView } from '@sigmela/router';
 
 import { HomeScreen } from '../screens/HomeScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { CatalogScreen } from '../screens/CatalogScreen';
 import { ProductScreen } from '../screens/ProductScreen';
-import { AuthScreen } from '../screens/AuthScreen';
 import { AuthRootScreen } from '../screens/AuthRootScreen';
 import { OrdersScreen } from '../screens/OrdersScreen';
 import { UserScreen, UserDetailsScreen } from '../screens/UserScreen';
+import { MailListScreen } from '../screens/MailListScreen';
+import { ThreadScreen } from '../screens/ThreadScreen';
+import { ThreadInfoScreen } from '../screens/ThreadInfoScreen';
+import { ThreadModalScreen } from '../screens/ThreadModalScreen';
+import { EmailAuthModal } from '../screens/EmailAuthModal';
+import { SmsAuthModal } from '../screens/SmsAuthModal';
+import { GenericAuthModal } from '../screens/GenericAuthModal';
+import { PromoModal } from '../screens/PromoModal';
+import { AuthScreen } from '../screens/AuthScreen';
+import { TabBar } from '@sigmela/router';
 
 export const homeStack = new NavigationStack().addScreen('/', HomeScreen, {
   header: { title: 'Home' },
@@ -29,9 +38,47 @@ export const settingsStack = new NavigationStack().addScreen(
   }
 );
 
-export const globalStack = new NavigationStack().addSheet('/auth', AuthScreen, {
-  header: { title: 'Sign in' },
+export const mailMasterStack = new NavigationStack().addScreen('/', MailListScreen, {
+  header: { title: 'Mail' },
 });
+
+export const mailDetailStack = new NavigationStack().addScreen(
+  '/:threadId',
+  ThreadScreen,
+  { header: { title: 'Thread' } }
+).addScreen(
+  '/:threadId/info',
+  ThreadInfoScreen,
+  { header: { title: 'Thread info' } }
+).addModal(
+  '/:threadId/modal',
+  ThreadModalScreen,
+  { header: { title: 'Thread modal' } }
+);
+
+export const mailSplitView = new SplitView({
+  minWidth: 640,
+  primary: mailMasterStack,
+  secondary: mailDetailStack,
+});
+
+export const mailStack = new NavigationStack().addScreen('/mail', mailSplitView, {
+  // Hide container header: child stacks render their own headers (native)
+  header: { hidden: true },
+});
+
+// Used in ProfileScreen.tsx
+export const authStack = new NavigationStack()
+  .addModal('/auth', AuthRootScreen, {
+    header: { title: 'Login', hidden: true },
+  })
+  .addModal('/auth?kind=email', EmailAuthModal, {
+    header: { title: 'Email login' },
+  })
+  .addModal('/auth?kind=sms', SmsAuthModal, {
+    header: { title: 'SMS login' },
+  })
+  .addModal('/auth?kind=:kind', GenericAuthModal);
 
 export const ordersStack = new NavigationStack()
   .addScreen('/orders', OrdersScreen, {
@@ -41,16 +88,60 @@ export const ordersStack = new NavigationStack()
     header: { title: 'Orders' },
   });
 
+// Exported for potential future use
 export const userStack = new NavigationStack()
   .addScreen('/users/:userId', UserScreen, { header: { title: 'User' } })
   .addScreen('/users/:userId/details', UserDetailsScreen, {
     header: { title: 'Details' },
   });
 
-export const authStack = new NavigationStack().addScreen(
-  '/login',
-  AuthRootScreen,
-  {
-    header: { title: 'Login', hidden: true },
-  }
-);
+export function getRootStack() {
+  const tabBar = new TabBar({ component: undefined })
+    .addTab({
+      key: 'home',
+      stack: homeStack,
+      title: 'Home',
+      icon: require('../../assets/icons/ic-more-h-circle-24.png'),
+    })
+    .addTab({
+      key: 'mail',
+      stack: mailStack,
+      title: 'Mail',
+      icon: require('../../assets/icons/ic-more-h-circle-24.png'),
+    })
+    .addTab({
+      key: 'catalog',
+      stack: catalogStack,
+      title: 'Catalog',
+      icon: require('../../assets/icons/ic-products-outline-24.png'),
+    })
+    .addTab({
+      key: 'orders',
+      stack: ordersStack,
+      title: 'Orders',
+      icon: require('../../assets/icons/ic-orders-24.png'),
+    })
+    .addTab({
+      key: 'settings',
+      stack: settingsStack,
+      title: 'Settings',
+      icon: require('../../assets/icons/ic-settings-outline-24.png'),
+    });
+
+  const rootStack = new NavigationStack()
+    .addScreen('/', tabBar)
+    .addScreen('/auth', AuthScreen, {
+      header: { title: 'Login', hidden: true },
+    })
+    .addModal('/auth?kind=email', EmailAuthModal, {
+      header: { title: 'Email login' },
+    })
+    .addModal('/auth?kind=sms', SmsAuthModal, {
+      // syncWithUrl: true,
+      header: { title: 'SMS login' },
+    })
+    .addModal('/auth?kind=:kind', GenericAuthModal)
+    .addModal('*?modal=promo', PromoModal);
+
+  return rootStack;
+}

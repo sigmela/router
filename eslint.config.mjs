@@ -22,6 +22,7 @@ export default defineConfig([
       'react/react-in-jsx-scope': 'off',
       'prettier/prettier': 'error',
       'react-native/no-inline-styles': 'off',
+      '@typescript-eslint/no-shadow': 'off',
     },
   },
   {

@@ -2,11 +2,13 @@ import type { InternalTabItem, TabBar } from './TabBar';
 import type { NavigationAppearance } from '../types';
 import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
+import { NavigationStack } from '../NavigationStack';
 import { useRouter } from '../RouterContext';
 import type { TabBarProps } from './TabBar';
 import {
   type NativeFocusChangeEvent,
-  type Icon as RNSIcon,
+  type PlatformIcon,
+  type PlatformIconIOS,
   BottomTabsScreen,
   BottomTabs,
   ScreenStackItem,
@@ -26,13 +28,13 @@ import {
   useState,
   type ComponentType,
 } from 'react';
+import type { HistoryItem } from '../types';
 
 export interface RenderTabBarProps {
   tabBar: TabBar;
   appearance?: NavigationAppearance;
 }
 
-// Helpers outside render to avoid re-creation
 const isImageSource = (value: unknown): value is ImageSourcePropType => {
   if (value == null) return false;
   const valueType = typeof value;
@@ -41,44 +43,169 @@ const isImageSource = (value: unknown): value is ImageSourcePropType => {
   if (valueType === 'object') {
     const v = value as Record<string, unknown>;
     if ('uri' in v || 'width' in v || 'height' in v) return true;
+    // Check for new PlatformIcon format
+    if ('ios' in v || 'android' in v || 'shared' in v) return false;
+    // Check for legacy format
     if ('sfSymbolName' in v || 'imageSource' in v || 'templateSource' in v)
       return false;
+    // Check for new type-based format
+    if ('type' in v) return false;
   }
   return false;
 };
 
-const isRNSIcon = (value: unknown): value is RNSIcon => {
+const isPlatformIcon = (value: unknown): value is PlatformIcon => {
+  if (value == null || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return 'ios' in v || 'android' in v || 'shared' in v;
+};
+
+const isLegacyIOSIcon = (value: unknown): boolean => {
   if (value == null || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
   return 'sfSymbolName' in v || 'imageSource' in v || 'templateSource' in v;
 };
 
-const buildIOSIcon = (value: unknown): RNSIcon | undefined => {
-  if (!value) return undefined;
-  if (isRNSIcon(value)) return value;
-  return { templateSource: value as ImageSourcePropType } as RNSIcon;
-};
+const convertLegacyIOSIconToPlatformIconIOS = (
+  value: unknown
+): PlatformIconIOS | undefined => {
+  if (!value || typeof value !== 'object') return undefined;
+  const v = value as Record<string, unknown>;
 
-// Map unified tab icon props to RNS BottomTabsScreen platform-specific props
-const getTabIcon = (tab: InternalTabItem) => {
-  const { icon, selectedIcon } = tab;
-  if (icon || selectedIcon) {
-    if (Platform.OS === 'android' && isImageSource(icon)) {
-      return { iconResource: icon };
-    }
-
+  if ('sfSymbolName' in v) {
     return {
-      selectedIcon: buildIOSIcon(selectedIcon),
-      icon: buildIOSIcon(icon),
+      type: 'sfSymbol',
+      name: v.sfSymbolName as string,
+    };
+  }
+
+  if ('templateSource' in v) {
+    return {
+      type: 'templateSource',
+      templateSource: v.templateSource as ImageSourcePropType,
+    };
+  }
+
+  if ('imageSource' in v) {
+    return {
+      type: 'imageSource',
+      imageSource: v.imageSource as ImageSourcePropType,
     };
   }
 
   return undefined;
 };
 
+const buildIOSIcon = (value: unknown): PlatformIconIOS | undefined => {
+  if (!value) return undefined;
+
+  // If it's already a PlatformIcon, extract ios
+  if (isPlatformIcon(value)) {
+    return value.ios;
+  }
+
+  // If it's a legacy format, convert it
+  if (isLegacyIOSIcon(value)) {
+    return convertLegacyIOSIconToPlatformIconIOS(value);
+  }
+
+  // If it's an ImageSourcePropType, convert to templateSource
+  if (isImageSource(value)) {
+    return {
+      type: 'templateSource',
+      templateSource: value as ImageSourcePropType,
+    };
+  }
+
+  return undefined;
+};
+
+const buildPlatformIcon = (
+  icon: unknown,
+  selectedIcon?: unknown
+): PlatformIcon | undefined => {
+  if (!icon && !selectedIcon) return undefined;
+
+  const iosIcon = buildIOSIcon(icon);
+  const iosSelectedIcon = buildIOSIcon(selectedIcon);
+
+  // If it's already a PlatformIcon, use it directly
+  if (isPlatformIcon(icon)) {
+    return {
+      ...icon,
+      ios: iosSelectedIcon || icon.ios,
+    };
+  }
+
+  // Build new PlatformIcon
+  const result: PlatformIcon = {};
+
+  if (iosIcon || iosSelectedIcon) {
+    result.ios = iosSelectedIcon || iosIcon;
+  }
+
+  // For shared imageSource (works on both platforms)
+  if (isImageSource(icon) && !iosIcon) {
+    result.shared = {
+      type: 'imageSource',
+      imageSource: icon as ImageSourcePropType,
+    };
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+};
+
+const getTabIcon = (tab: InternalTabItem) => {
+  const { icon, selectedIcon } = tab;
+  if (!icon && !selectedIcon) return undefined;
+
+  // Build PlatformIcon for new API
+  const platformIcon = buildPlatformIcon(icon, selectedIcon);
+  if (!platformIcon) return undefined;
+
+  // For Android, if icon is a direct ImageSourcePropType, use shared
+  if (
+    Platform.OS === 'android' &&
+    isImageSource(icon) &&
+    !platformIcon.shared
+  ) {
+    platformIcon.shared = {
+      type: 'imageSource',
+      imageSource: icon as ImageSourcePropType,
+    };
+  }
+
+  return {
+    icon: platformIcon,
+    selectedIcon: platformIcon.ios,
+  };
+};
+
+const TabStackRenderer = memo<{
+  stack: NavigationStack;
+  appearance?: NavigationAppearance;
+}>(({ stack, appearance }) => {
+  const router = useRouter();
+  const stackId = stack.getId();
+  const subscribe = useCallback(
+    (cb: () => void) => router.subscribeStack(stackId, cb),
+    [router, stackId]
+  );
+  const get = useCallback(
+    () => router.getStackHistory(stackId),
+    [router, stackId]
+  );
+  const history: HistoryItem[] = useSyncExternalStore(subscribe, get, get);
+
+  return (
+    <StackRenderer appearance={appearance} stack={stack} history={history} />
+  );
+});
+
+TabStackRenderer.displayName = 'TabStackRenderer';
+
 export const RenderTabBar = memo<RenderTabBarProps>(
   ({ tabBar, appearance = {} }) => {
-    const router = useRouter();
     const subscribe = useCallback(
       (cb: () => void) => tabBar.subscribe(cb),
       [tabBar]
@@ -103,24 +230,20 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       iOSShadowColor,
     } = appearance?.tabBar ?? {};
 
-    useEffect(() => {
-      router.ensureTabSeed(index);
-    }, [index, router]);
-
     const onNativeFocusChange = useCallback(
       (event: NativeSyntheticEvent<NativeFocusChangeEvent>) => {
         const tabKey = event.nativeEvent.tabKey;
         const tabIndex = tabs.findIndex((route) => route.tabKey === tabKey);
-        router.onTabIndexChange(tabIndex);
+        tabBar.onIndexChange(tabIndex);
       },
-      [tabs, router]
+      [tabs, tabBar]
     );
 
     const onTabPress = useCallback(
       (nextIndex: number) => {
-        router.onTabIndexChange(nextIndex);
+        tabBar.onIndexChange(nextIndex);
       },
-      [router]
+      [tabBar]
     );
 
     const containerProps = {
@@ -162,12 +285,10 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       },
     });
 
-    // If a custom component is provided, render it instead of default native BottomTabs
     const CustomTabBar = config.component as
       | ComponentType<TabBarProps>
       | undefined;
 
-    // Track visited tabs to lazily mount on first visit and keep mounted afterwards
     const [visited, setVisited] = useState<Record<string, true>>({});
 
     useEffect(() => {
@@ -199,7 +320,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                       style={[styles.flex, !isActive && styles.hidden]}
                     >
                       {stackForTab ? (
-                        <StackRenderer
+                        <TabStackRenderer
                           appearance={appearance}
                           stack={stackForTab}
                         />
@@ -249,12 +370,11 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                   title={tab.title}
                   badgeValue={tab.badgeValue}
                   specialEffects={tab.specialEffects}
-                  selectedIcon={icon?.selectedIcon}
-                  iconResource={icon?.iconResource}
                   icon={icon?.icon}
+                  selectedIcon={icon?.selectedIcon}
                 >
                   {stack ? (
-                    <StackRenderer appearance={appearance} stack={stack} />
+                    <TabStackRenderer appearance={appearance} stack={stack} />
                   ) : Screen ? (
                     <Screen />
                   ) : null}
