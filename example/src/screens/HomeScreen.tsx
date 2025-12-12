@@ -62,6 +62,12 @@ export const HomeScreen = () => {
               />
               <Button title="Back" onPress={() => router.goBack()} />
             </View>
+            <View style={styles.buttonRow}>
+              <Button
+                title="Logout (switch root)"
+                onPress={() => router.setRoot('auth', { transition: 'fade' })}
+              />
+            </View>
           </View>
         </View>
 

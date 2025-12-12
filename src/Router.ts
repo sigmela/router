@@ -25,7 +25,8 @@ function canLookupRoutes(
 }
 
 export interface RouterConfig {
-  root: NavigationNode;
+  roots: Record<string, NavigationNode>;
+  root: string;
   screenOptions?: ScreenOptions;
   debug?: boolean;
 }
@@ -38,6 +39,9 @@ const EMPTY_ARRAY: HistoryItem[] = [];
 
 export class Router {
   public root: NavigationNode | null = null;
+
+  private readonly roots: Record<string, NavigationNode>;
+  private activeRootKey: string;
 
   private readonly listeners: Set<Listener> = new Set();
   private readonly registry: CompiledRoute[] = [];
@@ -57,6 +61,9 @@ export class Router {
   private activeRoute: ActiveRoute = null;
   private rootListeners: Set<Listener> = new Set();
   private rootTransition?: RootTransition = undefined;
+  // Root swaps should behave like a fresh initial mount (no enter animation).
+  // We keep the API option for compatibility, but suppress transition application.
+  private suppressRootTransitionOnNextRead: boolean = false;
 
   private lastBrowserIndex: number = 0;
   private suppressHistorySyncCount: number = 0;
@@ -70,7 +77,17 @@ export class Router {
 
     this.log('ctor');
 
-    this.root = config.root;
+    this.roots = config.roots;
+    this.activeRootKey = config.root;
+
+    const initialRoot = this.roots[this.activeRootKey];
+    if (!initialRoot) {
+      throw new Error(
+        `Router: root "${String(this.activeRootKey)}" not found in config.roots`
+      );
+    }
+
+    this.root = initialRoot;
 
     this.buildRegistry();
 
@@ -222,16 +239,32 @@ export class Router {
   }
 
   public getRootTransition(): RootTransition | undefined {
+    if (this.suppressRootTransitionOnNextRead) {
+      this.suppressRootTransitionOnNextRead = false;
+      // Ensure we don't accidentally apply it on subsequent renders.
+      this.rootTransition = undefined;
+      return undefined;
+    }
     return this.rootTransition;
   }
 
   public setRoot(
-    nextRoot: NavigationNode,
+    nextRootKey: string,
     options?: { transition?: RootTransition }
   ): void {
+    const nextRoot = this.roots[nextRootKey];
+    if (!nextRoot) {
+      throw new Error(
+        `Router: root "${String(nextRootKey)}" not found in config.roots`
+      );
+    }
+
+    this.activeRootKey = nextRootKey;
     this.root = nextRoot;
 
     this.rootTransition = options?.transition ?? undefined;
+    // Make the incoming root behave like initial: suppress enter animation.
+    this.suppressRootTransitionOnNextRead = true;
 
     this.registry.length = 0;
     this.stackById.clear();

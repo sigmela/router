@@ -29,7 +29,7 @@ describe('Router slices', () => {
       childNode: tabBar,
     });
 
-    const router = new Router({ root: rootStack });
+    const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
     const aId = stackA.getId();
     const bId = stackB.getId();
@@ -71,7 +71,7 @@ describe('Router slices', () => {
     const rootOnly = new NavigationStack()
       .addScreen('/r', ScreenA)
       .addScreen('/r/next', ScreenA);
-    const router2 = new Router({ root: rootOnly });
+    const router2 = new Router({ roots: { main: rootOnly }, root: 'main' });
     const rId = rootOnly.getId();
     expect(router2.debugGetStackInfo(rId).historyLength).toBe(1);
     router2.navigate('/r/next');
@@ -84,7 +84,15 @@ describe('Router slices', () => {
     expect(router2.debugGetStackInfo(rId).historyLength).toBe(1);
 
     const authRoot = new NavigationStack().addScreen('/login', ScreenAuth);
-    const router5 = new Router({ root: authRoot });
+
+    const newTabBar = new TabBar()
+      .addTab({ key: 'a', stack: stackA, title: 'A' })
+      .addTab({ key: 'b', stack: stackB, title: 'B' });
+
+    const router5 = new Router({
+      roots: { auth: authRoot, tabs: newTabBar as any },
+      root: 'auth',
+    });
     let rootChanges = 0;
     const unsub = router5.subscribeRoot(() => {
       rootChanges += 1;
@@ -92,11 +100,9 @@ describe('Router slices', () => {
     const r5Id = authRoot.getId();
     expect(router5.debugGetStackInfo(r5Id).historyLength).toBe(1);
 
-    const newTabBar = new TabBar()
-      .addTab({ key: 'a', stack: stackA, title: 'A' })
-      .addTab({ key: 'b', stack: stackB, title: 'B' });
-    router5.setRoot(newTabBar as any, { transition: 'fade' });
-    expect(router5.getRootTransition()).toBe('fade');
+    router5.setRoot('tabs', { transition: 'fade' });
+    // Root swaps should behave like an initial mount; transition is suppressed.
+    expect(router5.getRootTransition()).toBe(undefined);
 
     const allStacks5 = router5.debugGetAllStacks();
 
@@ -106,13 +112,17 @@ describe('Router slices', () => {
       expect(seededStack5.historyLength).toBe(1);
     }
 
-    router5.setRoot(authRoot, { transition: 'slide_from_right' });
-    expect(router5.getRootTransition()).toBe('slide_from_right');
+    router5.setRoot('auth', { transition: 'slide_from_right' });
+    // Root swaps should behave like an initial mount; transition is suppressed.
+    expect(router5.getRootTransition()).toBe(undefined);
     expect(router5.debugGetStackInfo(r5Id).historyLength).toBe(1);
     expect(rootChanges).toBeGreaterThanOrEqual(2);
     unsub();
 
-    const router4 = new Router({ root: tabBar as any });
+    const router4 = new Router({
+      roots: { main: tabBar as any },
+      root: 'main',
+    });
     router4.navigate('/a/one');
     router4.navigate('/a/two');
     tabBar.onIndexChange(1);
@@ -149,7 +159,7 @@ describe('Router slices', () => {
       .addTab({ key: 'a', stack: stackA, title: 'A' })
       .addTab({ key: 'b', stack: stackB, title: 'B' });
 
-    const router = new Router({ root: tabBar as any });
+    const router = new Router({ roots: { main: tabBar as any }, root: 'main' });
 
     expect(tabBar.getState().index).toBe(0);
 
@@ -165,7 +175,7 @@ describe('Router slices', () => {
 
   test('listener errors do not prevent other listeners from running', () => {
     const stack = new NavigationStack().addScreen('/a', ScreenA);
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     let goodCalls = 0;
     router.subscribe(() => {
@@ -203,7 +213,10 @@ describe('Router controllers', () => {
         component: TestScreen,
       });
 
-    const router = new Router({ root: stackWithController });
+    const router = new Router({
+      roots: { main: stackWithController },
+      root: 'main',
+    });
     const stackId = stackWithController.getId();
 
     expect(router.debugGetStackInfo(stackId).historyLength).toBe(1);
@@ -258,7 +271,7 @@ describe('Router development mode errors', () => {
 
     const TestScreen: ComponentType<any> = () => null;
     const stack = new NavigationStack().addScreen('/test', TestScreen);
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     expect(() => {
       router.navigate('/non-existent-route');
@@ -277,7 +290,7 @@ describe('Router development mode errors', () => {
 
     const TestScreen: ComponentType<any> = () => null;
     const stack = new NavigationStack().addScreen('/test', TestScreen);
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     expect(() => {
       router.navigate('/non-existent-route');

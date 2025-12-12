@@ -1,7 +1,6 @@
 import { Button, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { useTabBar, useRouter } from '@sigmela/router';
-import { authStack } from '../navigation/stacks';
 
 export const ProfileScreen = () => {
   const [notificationCount, setNotificationCount] = useState(0);
@@ -27,7 +26,7 @@ export const ProfileScreen = () => {
       <Button
         title="Logout"
         onPress={() =>
-          router.setRoot(authStack, { transition: 'slide_from_right' })
+          router.setRoot('auth', { transition: 'slide_from_right' })
         }
       />
     </View>

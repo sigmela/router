@@ -136,7 +136,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
   describe('Basic path navigation', () => {
     test('navigate to root path', () => {
       const { tabBar, homeStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const homeStackId = homeStack.getId();
       expect(getStackHistoryLength(router, homeStackId)).toBe(1);
@@ -145,7 +145,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to catalog path', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/catalog');
       expect(getActiveRoutePath(router)).toBe('/catalog');
@@ -153,7 +153,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to settings path', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/settings');
       expect(getActiveRoutePath(router)).toBe('/settings');
@@ -161,7 +161,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to orders path', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/orders');
       expect(getActiveRoutePath(router)).toBe('/orders');
@@ -171,7 +171,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
   describe('Navigation with path parameters', () => {
     test('navigate to product with productId parameter', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/catalog/products/123');
       const activeRoute = router.debugGetState().activeRoute;
@@ -181,7 +181,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to orders with year and month parameters', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/orders/2024/12');
       const activeRoute = router.debugGetState().activeRoute;
@@ -199,7 +199,10 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
           header: { title: 'Details' },
         });
 
-      const router = new Router({ root: rootStackWithUser });
+      const router = new Router({
+        roots: { main: rootStackWithUser },
+        root: 'main',
+      });
 
       router.navigate('/users/42');
       const activeRoute = router.debugGetState().activeRoute;
@@ -216,7 +219,10 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
           header: { title: 'Details' },
         });
 
-      const router = new Router({ root: rootStackWithUser });
+      const router = new Router({
+        roots: { main: rootStackWithUser },
+        root: 'main',
+      });
 
       router.navigate('/users/42/details');
       const activeRoute = router.debugGetState().activeRoute;
@@ -228,7 +234,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
   describe('Navigation with query parameters', () => {
     test('navigate to auth with email kind query', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth?kind=email');
       const activeRoute = router.debugGetState().activeRoute;
@@ -238,7 +244,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to auth with sms kind query', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth?kind=sms');
       const activeRoute = router.debugGetState().activeRoute;
@@ -248,7 +254,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to auth with generic kind query parameter', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth?kind=google');
       const activeRoute = router.debugGetState().activeRoute;
@@ -258,7 +264,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to auth with multiple query parameters', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth?kind=email&redirect=/home');
       const activeRoute = router.debugGetState().activeRoute;
@@ -270,7 +276,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
   describe('Modal navigation', () => {
     test('navigate to auth modal', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth');
       const activeRoute = router.debugGetState().activeRoute;
@@ -279,7 +285,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to promo modal with wildcard', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/catalog?modal=promo');
       const activeRoute = router.debugGetState().activeRoute;
@@ -288,7 +294,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to promo modal from any path', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/settings');
       router.navigate('/settings?modal=promo');
@@ -301,7 +307,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
     test('navigate between tabs', () => {
       const { tabBar, homeStack, catalogStack, ordersStack, settingsStack } =
         buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const homeStackId = homeStack.getId();
       const catalogStackId = catalogStack.getId();
@@ -329,7 +335,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate deep within catalog tab, then switch tabs', () => {
       const { tabBar, catalogStack, settingsStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
       const settingsStackId = settingsStack.getId();
@@ -351,7 +357,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('switch to home tab after switching to another tab with same root path', () => {
       const { rootStack, homeStack, catalogStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       const homeStackId = homeStack.getId();
       const catalogStackId = catalogStack.getId();
@@ -380,7 +386,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('switch to home tab after navigating to orders tab and back', () => {
       const { rootStack, homeStack, ordersStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       const homeStackId = homeStack.getId();
       const ordersStackId = ordersStack.getId();
@@ -409,7 +415,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('switch to home tab after initial render on catalog tab', () => {
       const { rootStack, homeStack, catalogStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       const homeStackId = homeStack.getId();
       const catalogStackId = catalogStack.getId();
@@ -442,7 +448,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
   describe('Complex navigation sequences', () => {
     test('navigate through catalog stack with multiple products', () => {
       const { tabBar, catalogStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -481,7 +487,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
         title: 'Catalog',
       });
 
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -501,7 +507,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate through orders with different dates', () => {
       const { tabBar, ordersStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const ordersStackId = ordersStack.getId();
 
@@ -521,7 +527,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to same path should not duplicate', () => {
       const { tabBar, catalogStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -532,7 +538,7 @@ describe('Navigation Contract Tests - Navigate Scenarios', () => {
 
     test('navigate to same path with same params should not duplicate', () => {
       const { tabBar, catalogStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -547,7 +553,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
   describe('Basic goBack', () => {
     test('goBack from simple navigation', () => {
       const { tabBar, catalogStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -564,7 +570,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
     test('goBack from root should not go below root', () => {
       const { tabBar, homeStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const homeStackId = homeStack.getId();
       const initialLength = getStackHistoryLength(router, homeStackId);
@@ -575,7 +581,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
     test('goBack multiple times', () => {
       const { tabBar, catalogStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -599,7 +605,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
   describe('goBack with path parameters', () => {
     test('goBack from product detail to catalog', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/catalog');
       router.navigate('/catalog/products/123');
@@ -612,7 +618,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
     test('goBack from orders detail to orders list', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/orders');
       router.navigate('/orders/2024/12');
@@ -633,7 +639,10 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
           header: { title: 'Details' },
         });
 
-      const router = new Router({ root: rootStackWithUser });
+      const router = new Router({
+        roots: { main: rootStackWithUser },
+        root: 'main',
+      });
 
       router.navigate('/users/42');
       router.navigate('/users/42/details');
@@ -649,7 +658,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
   describe('goBack with query parameters', () => {
     test('goBack from auth modal with query to auth root', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth');
       router.navigate('/auth?kind=email');
@@ -663,7 +672,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
     test('goBack through multiple auth modals', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth');
       router.navigate('/auth?kind=email');
@@ -742,7 +751,11 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
         }
       } as any;
 
-      const router = new Router({ root: rootStack, debug: true });
+      const router = new Router({
+        roots: { main: rootStack },
+        root: 'main',
+        debug: true,
+      });
 
       const catalogStackId = catalogStack.getId();
       const rootStackId = rootStack.getId();
@@ -834,7 +847,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
     //     }
     //   } as any;
 
-    //   const router = new Router({ root: rootStack, debug: true });
+    //   const router = new Router({ roots: { main: rootStack }, root: 'main', debug: true  });
 
     //   const homeStackId = homeStack.getId();
     //   const catalogStackId = catalogStack.getId();
@@ -866,7 +879,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
     // test('goBack from promo modal', () => {
     //   const { rootStack, catalogStack } = buildTestStacks();
-    //   const router = new Router({ root: rootStack });
+    //   const router = new Router({ roots: { main: rootStack }, root: 'main'  });
 
     //   const catalogStackId = catalogStack.getId();
     //   const rootStackId = rootStack.getId();
@@ -901,7 +914,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
     // test('goBack from auth modal to previous screen', () => {
     //   const { rootStack } = buildTestStacks();
-    //   const router = new Router({ root: rootStack });
+    //   const router = new Router({ roots: { main: rootStack }, root: 'main'  });
 
     //   router.navigate('/catalog');
     //   router.navigate('/auth');
@@ -915,7 +928,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
   // describe('goBack in tab context', () => {
   //   test('goBack within active tab stack', () => {
   //     const { tabBar, catalogStack, homeStack } = buildTestStacks();
-  //     const router = new Router({ root: tabBar });
+  //     const router = new Router({ roots: { main: tabBar }, root: 'main'  });
 
   //     const catalogStackId = catalogStack.getId();
   //     const homeStackId = homeStack.getId();
@@ -935,7 +948,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
   //   test('goBack when switching tabs preserves stacks', () => {
   //     const { tabBar, catalogStack, ordersStack } = buildTestStacks();
-  //     const router = new Router({ root: tabBar, debug: true });
+  //     const router = new Router({ roots: { main: tabBar }, root: 'main', debug: true  });
 
   //     const catalogStackId = catalogStack.getId();
   //     const ordersStackId = ordersStack.getId();
@@ -971,7 +984,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
   // describe('Complex goBack scenarios', () => {
   //   test('goBack through mixed navigation (tabs, params, modals)', () => {
   //     const { rootStack, catalogStack } = buildTestStacks();
-  //     const router = new Router({ root: rootStack });
+  //     const router = new Router({ roots: { main: rootStack }, root: 'main'  });
 
   //     const catalogStackId = catalogStack.getId();
   //     const rootStackId = rootStack.getId();
@@ -1013,7 +1026,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
   //         header: { title: 'Details' },
   //       });
 
-  //     const router = new Router({ root: rootStackWithUser });
+  //     const router = new Router({ roots: { main: rootStackWithUser }, root: 'main'  });
 
   //     router.navigate('/users/42');
   //     router.navigate('/users/42/details');
@@ -1029,7 +1042,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 
   //   test('goBack with replace operations', () => {
   //     const { tabBar, catalogStack } = buildTestStacks();
-  //     const router = new Router({ root: tabBar });
+  //     const router = new Router({ roots: { main: tabBar }, root: 'main'  });
 
   //     const catalogStackId = catalogStack.getId();
 
@@ -1051,7 +1064,7 @@ describe('Navigation Contract Tests - GoBack Scenarios', () => {
 describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
   // test('navigate forward, goBack, navigate forward again', () => {
   //   const { tabBar, catalogStack } = buildTestStacks();
-  //   const router = new Router({ root: tabBar });
+  //   const router = new Router({ roots: { main: tabBar }, root: 'main'  });
   //   const catalogStackId = catalogStack.getId();
   //   router.navigate('/catalog');
   //   router.navigate('/catalog/products/1');
@@ -1064,7 +1077,7 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
   // });
   // test('navigate to different tabs, goBack preserves state', () => {
   //   const { tabBar, catalogStack, ordersStack } = buildTestStacks();
-  //   const router = new Router({ root: tabBar });
+  //   const router = new Router({ roots: { main: tabBar }, root: 'main'  });
   //   const catalogStackId = catalogStack.getId();
   //   const ordersStackId = ordersStack.getId();
   //   router.navigate('/catalog');
@@ -1099,7 +1112,7 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
   // });
   // test('navigate with query, goBack, navigate with different query', () => {
   //   const { rootStack } = buildTestStacks();
-  //   const router = new Router({ root: rootStack });
+  //   const router = new Router({ roots: { main: rootStack }, root: 'main'  });
   //   router.navigate('/auth?kind=email');
   //   expect(getActiveRouteQuery(router)?.kind).toBe('email');
   //   router.goBack();
@@ -1110,7 +1123,7 @@ describe('Navigation Contract Tests - Navigate and GoBack Combinations', () => {
   // });
   // test('complex flow: tabs -> deep navigation -> modal -> goBack chain', () => {
   //   const { rootStack, catalogStack } = buildTestStacks();
-  //   const router = new Router({ root: rootStack });
+  //   const router = new Router({ roots: { main: rootStack }, root: 'main'  });
   //   const catalogStackId = catalogStack.getId();
   //   const rootStackId = rootStack.getId();
   //   expect(getActiveRoutePath(router)).toBe('/');
@@ -1150,7 +1163,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
   describe('Key preservation when updating query parameters', () => {
     test('key is preserved when updating query parameters on same route', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth');
       const firstHistory = router.debugGetState().history;
@@ -1166,7 +1179,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
     test('key is preserved when updating multiple query parameters', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth?kind=email');
       const firstHistory = router.debugGetState().history;
@@ -1181,7 +1194,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
     test('key is preserved when changing query parameter value', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth?kind=email');
       const firstHistory = router.debugGetState().history;
@@ -1198,7 +1211,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
   describe('Key preservation when navigating to same path', () => {
     test('key is preserved when navigating to same path', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/catalog');
       const firstHistory = router.debugGetState().history;
@@ -1214,7 +1227,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
     test('key is preserved when navigating to same path with same params', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/catalog/products/123');
       const firstHistory = router.debugGetState().history;
@@ -1232,7 +1245,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
   describe('Key preservation with replace operation', () => {
     test('key is preserved when using replace on same route', () => {
       const { tabBar } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       router.navigate('/catalog');
       router.navigate('/catalog/products/1');
@@ -1251,7 +1264,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
   describe('Key preservation when switching tabs', () => {
     test('key is preserved when switching back to previous tab', () => {
       const { tabBar, catalogStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -1274,7 +1287,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
     test('key is preserved when navigating to existing route in different tab', () => {
       const { tabBar, catalogStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -1297,7 +1310,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
   describe('Key creation for new routes', () => {
     // test('new key is created when navigating to different route', () => {
     //   const { tabBar } = buildTestStacks();
-    //   const router = new Router({ root: tabBar });
+    //   const router = new Router({ roots: { main: tabBar }, root: 'main'  });
     //   router.navigate('/catalog');
     //   const firstHistory = router.debugGetState().history;
     //   const firstKey = firstHistory[firstHistory.length - 1]?.key;
@@ -1309,7 +1322,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
     // });
     // test('new key is created when navigating to route with different params', () => {
     //   const { tabBar } = buildTestStacks();
-    //   const router = new Router({ root: tabBar });
+    //   const router = new Router({ roots: { main: tabBar }, root: 'main'  });
     //   router.navigate('/catalog/products/123');
     //   const firstHistory = router.debugGetState().history;
     //   const firstKey = firstHistory[firstHistory.length - 1]?.key;
@@ -1324,7 +1337,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
   // describe('Key preservation with goBack', () => {
   //   test('keys are preserved when going back', () => {
   //     const { tabBar, catalogStack } = buildTestStacks();
-  //     const router = new Router({ root: tabBar });
+  //     const router = new Router({ roots: { main: tabBar }, root: 'main'  });
 
   //     const catalogStackId = catalogStack.getId();
 
@@ -1348,7 +1361,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
   describe('Key preservation with modals', () => {
     // test('key is preserved when opening and closing modal', () => {
     //   const { rootStack } = buildTestStacks();
-    //   const router = new Router({ root: rootStack });
+    //   const router = new Router({ roots: { main: rootStack }, root: 'main'  });
 
     //   router.navigate('/catalog');
     //   const historyBefore = router.debugGetState().history;
@@ -1369,7 +1382,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
     test('key is preserved when updating modal query parameters', () => {
       const { rootStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       router.navigate('/auth');
       router.navigate('/auth?kind=email');
@@ -1387,7 +1400,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
   describe('Key preservation in complex scenarios', () => {
     test('keys are preserved in complex navigation flow', () => {
       const { rootStack, catalogStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -1428,7 +1441,7 @@ describe('Navigation Contract Tests - Key Preservation', () => {
 
     // test('keys are preserved when using replace in middle of stack', () => {
     //   const { tabBar, catalogStack } = buildTestStacks();
-    //   const router = new Router({ root: tabBar });
+    //   const router = new Router({ roots: { main: tabBar }, root: 'main'  });
 
     //   const catalogStackId = catalogStack.getId();
 
@@ -1466,7 +1479,7 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
     // test('history is flat array containing items from multiple stacks', () => {
     //   const { tabBar, homeStack, catalogStack, ordersStack } =
     //     buildTestStacks();
-    //   const router = new Router({ root: tabBar });
+    //   const router = new Router({ roots: { main: tabBar }, root: 'main'  });
 
     //   const homeStackId = homeStack.getId();
     //   const catalogStackId = catalogStack.getId();
@@ -1507,7 +1520,7 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
 
     test('full history contains all navigation items in order', () => {
       const { tabBar, catalogStack } = buildTestStacks();
-      const router = new Router({ root: tabBar });
+      const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
       const catalogStackId = catalogStack.getId();
 
@@ -1530,7 +1543,7 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
 
     // test('history preserves order of navigation across stacks', () => {
     //   const { tabBar, homeStack, catalogStack } = buildTestStacks();
-    //   const router = new Router({ root: tabBar });
+    //   const router = new Router({ roots: { main: tabBar }, root: 'main'  });
 
     //   const homeStackId = homeStack.getId();
     //   const catalogStackId = catalogStack.getId();
@@ -1567,7 +1580,7 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
     // test('navigating in one stack does not affect other stacks', () => {
     //   const { tabBar, homeStack, catalogStack, ordersStack } =
     //     buildTestStacks();
-    //   const router = new Router({ root: tabBar });
+    //   const router = new Router({ roots: { main: tabBar }, root: 'main'  });
     //   const homeStackId = homeStack.getId();
     //   const catalogStackId = catalogStack.getId();
     //   const ordersStackId = ordersStack.getId();
@@ -1587,7 +1600,7 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
     // });
     // test('goBack only affects active stack, preserves others', () => {
     //   const { tabBar, catalogStack, ordersStack } = buildTestStacks();
-    //   const router = new Router({ root: tabBar });
+    //   const router = new Router({ roots: { main: tabBar }, root: 'main'  });
     //   const catalogStackId = catalogStack.getId();
     //   const ordersStackId = ordersStack.getId();
     //   router.navigate('/catalog');
@@ -1609,7 +1622,7 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
   describe('Tree-like route structure vs flat history', () => {
     test('nested stacks create tree structure but history remains flat', () => {
       const { rootStack, catalogStack } = buildTestStacks();
-      const router = new Router({ root: rootStack });
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
 
       const rootStackId = rootStack.getId();
       const catalogStackId = catalogStack.getId();
@@ -1639,7 +1652,7 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
 
     // test('modals from root stack can appear over nested stacks', () => {
     //   const { rootStack, catalogStack } = buildTestStacks();
-    //   const router = new Router({ root: rootStack });
+    //   const router = new Router({ roots: { main: rootStack }, root: 'main'  });
 
     //   const rootStackId = rootStack.getId();
     //   const catalogStackId = catalogStack.getId();

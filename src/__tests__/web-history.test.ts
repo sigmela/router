@@ -151,7 +151,7 @@ describe('Web History integration', () => {
       .addScreen('/product/catalog', Screen)
       .addScreen('/product/catalog/:productId', Screen);
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     const state = router.debugGetState();
     expect(state.history.length).toBe(3);
@@ -168,7 +168,7 @@ describe('Web History integration', () => {
       .addScreen('/product/catalog', Screen)
       .addScreen('/product/catalog/:productId', Screen);
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     expect(router.debugGetState().history.length).toBe(1);
 
@@ -208,7 +208,7 @@ describe('Web History integration', () => {
       .addTab({ key: 'catalog', stack: catalog, title: 'Catalog' })
       .addTab({ key: 'profile', stack: profile, title: 'Profile' });
 
-    const router = new Router({ root: tabBar });
+    const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
     router.replace('/catalog');
     expect(router.debugGetState().activeRoute?.path).toBe('/catalog');
@@ -252,7 +252,7 @@ describe('Web History integration', () => {
       .addTab({ key: 'mail', stack: mail, title: 'Mail' })
       .addTab({ key: 'catalog', stack: catalog, title: 'Catalog' });
 
-    const router = new Router({ root: tabBar });
+    const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
     // Switching tabs should reset Router history to the root route of that tab.
     router.reset('/catalog');
@@ -275,7 +275,7 @@ describe('Web History integration', () => {
       .addTab({ key: 'catalog', stack: catalog, title: 'Catalog' })
       .addTab({ key: 'profile', stack: profile, title: 'Profile' });
 
-    const router = new Router({ root: tabBar });
+    const router = new Router({ roots: { main: tabBar }, root: 'main' });
 
     router.replace('/catalog');
 
@@ -304,7 +304,7 @@ describe('Web History integration', () => {
       .addScreen('/product/catalog', Screen)
       .addScreen('/product/catalog/:productId', Screen);
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     expect(router.debugGetState().history.length).toBe(1);
     expect(shim.getIndex()).toBeLessThanOrEqual(2);
@@ -358,7 +358,7 @@ describe('Web History integration', () => {
       .addScreen('/product/catalog', Screen)
       .addScreen('/product/catalog/:productId', Screen);
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     router.navigate('/product/catalog');
     router.navigate('/product/catalog/1');
@@ -384,7 +384,7 @@ describe('Web History integration', () => {
       .addScreen('/product/catalog', Screen)
       .addScreen('/product/catalog/:productId', Screen);
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     router.navigate('/product/catalog');
     router.navigate('/product/catalog/1');
@@ -405,7 +405,7 @@ describe('Web History integration', () => {
       .addScreen('/catalog', Screen)
       .addModal('*?modal=promo', Screen);
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     expect(router.debugGetState().activeRoute?.path).toBe('/catalog');
     expect(router.debugGetState().activeRoute?.query?.modal).toBe('promo');
@@ -427,7 +427,7 @@ describe('Web History integration', () => {
       .addScreen('/product/catalog', Screen)
       .addScreen('/product/catalog/:productId', Screen);
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     router.navigate('/product/catalog');
     expect(router.debugGetState().history.length).toBe(2);
@@ -453,7 +453,7 @@ describe('Web History integration', () => {
       .addScreen('/product', Screen)
       .addScreen('/product/catalog', Screen);
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     router.navigate('/product/catalog');
     expect(router.debugGetState().history.length).toBe(2);
@@ -495,7 +495,7 @@ describe('Web History integration', () => {
     });
 
     const root = new NavigationStack().addScreen('/mail', splitView);
-    const router = new Router({ root });
+    const router = new Router({ roots: { main: root }, root: 'main' });
 
     const state = router.debugGetState();
     expect(state.activeRoute?.path).toBe('/mail/123');
@@ -524,7 +524,7 @@ describe('Web History integration', () => {
     });
 
     const root = new NavigationStack().addScreen('/mail', splitView);
-    const router = new Router({ root });
+    const router = new Router({ roots: { main: root }, root: 'main' });
 
     expect(router.debugGetState().activeRoute?.path).toBe('/mail/123');
 
@@ -543,7 +543,7 @@ describe('Web History integration', () => {
       .addScreen('/product', Screen)
       .addScreen('/product/catalog', Screen, { syncWithUrl: false });
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     // Navigate with syncWithUrl=false should keep location as-is, but store router path in history state.
     router.navigate('/product/catalog');
@@ -573,7 +573,7 @@ describe('Web History integration', () => {
       // route expects any query, we care about Router dedupe on replace
       .addScreen('/catalog?tag=:tag', Screen);
 
-    const router = new Router({ root: stack });
+    const router = new Router({ roots: { main: stack }, root: 'main' });
 
     router.navigate('/catalog?tag=a&tag=b');
     const before = router.debugGetState().history.length;

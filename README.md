@@ -72,7 +72,7 @@ const rootStack = new NavigationStack()
   .addScreen('/', HomeScreen, { header: { title: 'Home' } })
   .addScreen('/details/:id', DetailsScreen, { header: { title: 'Details' } });
 
-const router = new Router({ root: rootStack });
+const router = new Router({ roots: { app: rootStack }, root: 'app' });
 
 export default function App() {
   return <Navigation router={router} />;
@@ -94,7 +94,7 @@ const tabBar = new TabBar({ initialIndex: 0 })
   .addTab({ key: 'home', stack: homeStack, title: 'Home' })
   .addTab({ key: 'catalog', stack: catalogStack, title: 'Catalog' });
 
-const router = new Router({ root: tabBar });
+const router = new Router({ roots: { app: tabBar }, root: 'app' });
 
 export default function App() {
   return <Navigation router={router} />;
@@ -158,7 +158,8 @@ The `Router` holds navigation state and performs path matching.
 
 ```ts
 const router = new Router({
-  root, // NavigationNode (NavigationStack, TabBar, SplitView, ...)
+  roots: { app: root }, // NavigationNode (NavigationStack, TabBar, SplitView, ...)
+  root: 'app',
   screenOptions, // optional defaults
   debug, // optional
 });
@@ -169,7 +170,7 @@ Navigation:
 - `router.replace(path, dedupe?)` — replace top of the active stack
 - `router.goBack()` — pop top of the active stack
 - `router.reset(path)` — **web-only**: rebuild Router state as if app loaded at `path`
-- `router.setRoot(nextRoot, { transition? })` — swap root at runtime
+- `router.setRoot(rootKey, { transition? })` — swap root at runtime (`rootKey` from `config.roots`)
 
 State/subscriptions:
 - `router.getState()` → `{ history: HistoryItem[] }`

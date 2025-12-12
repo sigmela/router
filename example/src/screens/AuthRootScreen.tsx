@@ -1,16 +1,15 @@
 import { Button, StyleSheet, Text, View } from 'react-native';
-// import { tabBar } from '../navigation/tabBar';
-// import { useRouter } from '@sigmela/router';
+import { useRouter } from '@sigmela/router';
 
 export const AuthRootScreen = () => {
-  // const router = useRouter();
+  const router = useRouter();
   return (
     <View style={styles.screen}>
       <Text style={styles.title}>Please sign in</Text>
       <Button
         title="Login"
         onPress={() => {
-          // router.setRoot(tabBar, { transition: 'fade' });
+          router.setRoot('app', { transition: 'fade' });
         }}
       />
     </View>

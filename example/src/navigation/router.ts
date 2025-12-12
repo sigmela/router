@@ -1,7 +1,12 @@
 import { Router } from '@sigmela/router';
-import { getRootStack } from './stacks';
+import { authStack, getRootStack } from './stacks';
 
 export const router = new Router({
-  root: getRootStack(),
+  roots: {
+    app: getRootStack(),
+    auth: authStack,
+  },
+  // Demo: start from auth root, then switch to app on login.
+  root: 'auth',
   debug: true,
 });

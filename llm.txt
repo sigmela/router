@@ -49,7 +49,8 @@ const stack = new NavigationStack({ header: { largeTitle: true } })
 Central navigation controller.
 ```ts
 const router = new Router({
-  root: navigationNode,
+  roots: { app: navigationNode },
+  root: 'app',
   screenOptions?: {},
   debug?: boolean
 });
@@ -59,7 +60,7 @@ const router = new Router({
 - `router.replace(path, dedupe?)` - replace current; with `dedupe=true` it avoids duplicates (may update top item, popTo an existing one, or no-op if already at target).
 - `router.goBack()` - pop stack
 - `router.reset(path)` - **web-only**: rebuild state from path
-- `router.setRoot(nextRoot, { transition? })` - swap root runtime
+- `router.setRoot(rootKey, { transition? })` - swap root runtime (`rootKey` from `config.roots`)
 **State methods:**
 - `router.getState()` - full history
 - `router.getActiveRoute()` - current route
@@ -99,7 +100,7 @@ const stack = new NavigationStack()
   .addScreen('/', HomeScreen, { header: { title: 'Home' } })
   .addScreen('/details/:id', DetailsScreen, { header: { title: 'Details' } });
 
-const router = new Router({ root: stack });
+const router = new Router({ roots: { app: stack }, root: 'app' });
 
 function App() {
   return <Navigation router={router} />;
@@ -116,7 +117,7 @@ const tabBar = new TabBar({ initialIndex: 0 })
   .addTab({ key: 'home', stack: homeStack, title: 'Home' })
   .addTab({ key: 'catalog', stack: catalogStack, title: 'Catalog' });
 
-const router = new Router({ root: tabBar });
+const router = new Router({ roots: { app: tabBar }, root: 'app' });
 ```
 ### Pattern 3: Tabs Inside Root Stack (Recommended)
 Allows global modals while keeping tab navigation.
@@ -133,7 +134,7 @@ const rootStack = new NavigationStack()
   .addModal('/auth', AuthScreen)
   .addModal('*?modal=promo', PromoModal);
 
-const router = new Router({ root: rootStack });
+const router = new Router({ roots: { app: rootStack }, root: 'app' });
 ```
 ### Pattern 4: Split View with Mail-like Layout
 ```tsx

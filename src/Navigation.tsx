@@ -54,7 +54,8 @@ export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
 
   return (
     <RouterContext.Provider value={router}>
-      <ScreenStack style={styles.flex}>
+      {/* Remount on root changes so the incoming root behaves like initial (no enter animation). */}
+      <ScreenStack key={rootId ?? 'root'} style={styles.flex}>
         {rootItems.map((item) => (
           <ScreenStackItem
             key={`root-${item.key}`}
