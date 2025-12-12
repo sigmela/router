@@ -13,28 +13,28 @@
   font-size: 24px;
   overflow: hidden;
   display: none;
-  /* z-index задаётся inline в ScreenStack.web.tsx */
+  /* z-index is set inline in ScreenStack.web.tsx */
 
-  /* Базовый transition для открытия экрана */
+  /* Base transition for opening screen */
   transition:
     transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
     filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* Внутренний контейнер обычного экрана */
+/* Inner container for regular screen */
 .stack-screen-container {
   display: flex;
   flex: 1;
   height: 100%;
 }
 
-/* Внутренний контейнер модалки (НЕ flex: 1, чтобы не растягиваться на всю ширину) */
+/* Inner container for modal (NOT flex: 1, to avoid stretching to full width) */
 .stack-modal-container {
   display: flex;
   height: 100%;
 }
 
-/* Overlay внутри ScreenStackItem — всегда full-screen, только opacity-анимация */
+/* Overlay inside ScreenStackItem — always full-screen, only opacity animation */
 .stack-modal-overlay {
   position: absolute;
   inset: 0;
@@ -45,15 +45,15 @@
   will-change: opacity;
 }
 
-/* Показываем overlay только для modal-like презентаций.
-   ВАЖНО: используем direct child (>) чтобы не схлопывать overlay из вложенных стеков,
-   когда modal ScreenStackItem находится внутри push ScreenStackItem-контейнера. */
+/* Show overlay only for modal-like presentations.
+   IMPORTANT: use direct child (>) to avoid collapsing overlay from nested stacks,
+   when modal ScreenStackItem is inside push ScreenStackItem container. */
 .screen-stack-item:not(.modal):not(.contained-modal):not(.fullscreen-modal):not(.formsheet):not(.pagesheet):not(.sheet)
   > .stack-modal-overlay {
   display: none;
 }
 
-/* Keyframes для появления overlay */
+/* Keyframes for overlay appearance */
 @keyframes modal-overlay-enter {
   from {
     opacity: 0;
@@ -63,7 +63,7 @@
   }
 }
 
-/* Keyframes для исчезновения overlay */
+/* Keyframes for overlay disappearance */
 @keyframes modal-overlay-exit {
   from {
     opacity: 0.5;
@@ -73,7 +73,7 @@
   }
 }
 
-/* Overlay в начальном состоянии — прозрачный */
+/* Overlay in initial state — transparent */
 .screen-stack-item.modal.transition-preEnter > .stack-modal-overlay,
 .screen-stack-item.contained-modal.transition-preEnter > .stack-modal-overlay,
 .screen-stack-item.fullscreen-modal.transition-preEnter > .stack-modal-overlay,
@@ -85,7 +85,7 @@
   pointer-events: none;
 }
 
-/* Overlay при входе — запускаем анимацию */
+/* Overlay on enter — start animation */
 .screen-stack-item.modal.transition-entering > .stack-modal-overlay,
 .screen-stack-item.modal.phase-active.transition-preEnter > .stack-modal-overlay,
 .screen-stack-item.contained-modal.transition-entering > .stack-modal-overlay,
@@ -103,7 +103,7 @@
   animation: modal-overlay-enter 300ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
-/* Для modal-like в активных / вошедших состояниях — полностью видимый */
+/* For modal-like in active / entered states — fully visible */
 .screen-stack-item.modal.phase-active > .stack-modal-overlay,
 .screen-stack-item.modal.transition-entered > .stack-modal-overlay,
 .screen-stack-item.contained-modal.phase-active > .stack-modal-overlay,
@@ -121,7 +121,7 @@
   pointer-events: auto;
 }
 
-/* Overlay при закрытии modal-like — анимация исчезновения */
+/* Overlay on modal-like close — disappearance animation */
 .screen-stack-item.modal.phase-exiting > .stack-modal-overlay,
 .screen-stack-item.modal.transition-exiting > .stack-modal-overlay,
 .screen-stack-item.contained-modal.phase-exiting > .stack-modal-overlay,
@@ -139,19 +139,19 @@
   animation: modal-overlay-exit 300ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
-/* Overlay для transparent-modal — прозрачный */
+/* Overlay for transparent-modal — transparent */
 .screen-stack-item.transparent-modal > .stack-modal-overlay {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-/* Overlay для contained-transparent-modal — прозрачный */
+/* Overlay for contained-transparent-modal — transparent */
 .screen-stack-item.contained-transparent-modal > .stack-modal-overlay {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-/* Контейнер контента modal-like всегда над overlay */
+/* Modal-like content container always above overlay */
 .screen-stack-item.modal .stack-modal-container,
 .screen-stack-item.contained-modal .stack-modal-container,
 .screen-stack-item.fullscreen-modal .stack-modal-container,
@@ -162,7 +162,7 @@
   z-index: 2;
 }
 
-/* Показываем активные / входящие элементы */
+/* Show active / entering elements */
 .screen-stack > .screen-stack-item.phase-active,
 .screen-stack > .screen-stack-item.transition-entered,
 .screen-stack > .screen-stack-item.transition-entering,
@@ -170,21 +170,21 @@
   display: flex;
 }
 
-/* Базовое состояние для активных элементов после входа */
-/* Переопределяется через классы анимации (push-enter, pop-enter и т.д.) */
+/* Base state for active elements after entry */
+/* Overridden via animation classes (push-enter, pop-enter, etc.) */
 .screen-stack > .screen-stack-item.phase-active.transition-entered:not(.push-enter):not(.pop-enter):not(.modal):not(.sheet) {
   transform: translateX(0);
   filter: none;
 }
 
-/* Фоновые (inactive) — видимы, но без интеракций */
+/* Background (inactive) — visible, but without interactions */
 .screen-stack > .screen-stack-item.phase-inactive {
   display: flex;
-  pointer-events: none; /* Не перехватываем клики */
+  pointer-events: none; /* Don't intercept clicks */
 }
 
-/* Выходящие элементы тоже показываем во время анимации */
-/* Важно: также показываем элементы с pop-exit, даже если они еще в transition-entered */
+/* Exiting elements are also shown during animation */
+/* Important: also show elements with pop-exit, even if they are still in transition-entered */
 .screen-stack > .screen-stack-item.phase-exiting,
 .screen-stack > .screen-stack-item.transition-exiting,
 .screen-stack > .screen-stack-item.transition-preExit,
@@ -192,32 +192,32 @@
   display: flex;
 }
 
-/* Полностью вышедшие — скрываем */
+/* Fully exited — hide */
 .screen-stack > .screen-stack-item.transition-exited,
 .screen-stack > .screen-stack-item.transition-unmounted {
   display: none;
 }
 
-/* ==================== МОДАЛКИ: базовая нейтрализация transform ==================== */
+/* ==================== MODALS: base transform neutralization ==================== */
 
-/* ВАЖНО: модальные элементы не должны двигаться как обычные экраны */
+/* IMPORTANT: modal elements should not move like regular screens */
 .screen-stack > .screen-stack-item.modal,
 .screen-stack > .screen-stack-item.sheet {
   transform: translate3d(0, 0, 0) !important;
 }
 
-/* ==================== ОБЩИЕ СТИЛИ ПО ТИПУ ЭКРАНА ==================== */
+/* ==================== COMMON STYLES BY SCREEN TYPE ==================== */
 
-/* ==================== PUSH АНИМАЦИИ ==================== */
+/* ==================== PUSH ANIMATIONS ==================== */
 
-/* Forward navigation (push) — открытие экрана 300ms */
+/* Forward navigation (push) — opening screen 300ms */
 .screen-stack-item.push.push-enter {
   transition:
     transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
     filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* PUSH ENTER - обычный экран въезжает справа */
+/* PUSH ENTER - regular screen enters from right */
 .screen-stack-item.push.push-enter.transition-preEnter {
   transform: translateX(100%);
 }
@@ -227,8 +227,8 @@
   transform: translateX(0);
 }
 
-/* PUSH BACKGROUND - фоновый экран сдвигается влево */
-/* Важно: используем !important чтобы перебить общие правила для inactive */
+/* PUSH BACKGROUND - background screen shifts left */
+/* Important: use !important to override general rules for inactive */
 .screen-stack-item.push.push-background {
   transform: translateX(-25%) !important;
   transition:
@@ -236,53 +236,53 @@
     filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* POP BACKGROUND - фоновый экран при pop остается на -25% */
-/* Фоновые элементы при pop получают pop-background вместо none, чтобы сохранить позицию -25% */
+/* POP BACKGROUND - background screen on pop stays at -25% */
+/* Background elements on pop get pop-background instead of none, to preserve -25% position */
 .screen-stack-item.push.pop-background {
   transform: translateX(-25%) !important;
-  /* Не устанавливаем transition, чтобы элемент оставался на месте без анимации */
+  /* Don't set transition, so element stays in place without animation */
   filter: none;
 }
 
-/* Backward navigation (pop) — закрытие экрана 300ms */
-/* ВАЖНО: transition устанавливается на элементе с pop-exit */
+/* Backward navigation (pop) — closing screen 300ms */
+/* IMPORTANT: transition is set on element with pop-exit */
 .screen-stack-item.push.pop-exit {
   transition:
     transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
     filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* POP EXIT - верхний экран уезжает вправо */
-/* Ключевое отличие от старой версии: в старой селектор .phase-exiting применялся БЕЗ зависимости от transition-exiting */
-/* Здесь мы делаем то же самое: если элемент имеет pop-exit и phase-exiting, он должен уехать вправо */
+/* POP EXIT - top screen exits to right */
+/* Key difference from old version: in old version selector .phase-exiting was applied WITHOUT dependency on transition-exiting */
+/* Here we do the same: if element has pop-exit and phase-exiting, it should exit to right */
 .screen-stack-item.push.pop-exit.phase-exiting,
 .screen-stack-item.push.pop-exit.transition-exiting {
   transform: translateX(100%);
   filter: none;
 }
 
-/* POP ENTER - экран возвращается в центр из -25% */
-/* Применяется только к активному (top) элементу при pop */
-/* В старой версии: элемент был на -25% (как фоновый), затем при pop становится active и идет в 0 */
-/* Упрощенный подход как в старой версии: phase-active просто становится в 0 */
+/* POP ENTER - screen returns to center from -25% */
+/* Applied only to active (top) element on pop */
+/* In old version: element was at -25% (as background), then on pop becomes active and goes to 0 */
+/* Simplified approach as in old version: phase-active simply becomes 0 */
 .screen-stack-item.push.pop-enter {
   transition:
     transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
     filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* Активный элемент при pop просто в центре (0) - финальное состояние */
-/* Как в старой версии: .phase-active при pop → transform: translateX(0) */
+/* Active element on pop simply in center (0) - final state */
+/* As in old version: .phase-active on pop → transform: translateX(0) */
 .screen-stack-item.push.pop-enter.phase-active,
 .screen-stack-item.push.pop-enter.phase-active.transition-entered {
   transform: translateX(0);
   filter: none;
 }
 
-/* ==================== МОДАЛЬНЫЙ СТЕК: фон не двигаем ==================== */
+/* ==================== MODAL STACK: don't move background ==================== */
 
-/* Если сверху есть модалка — не двигаем предыдущий экран и не затемняем его,
-   за затемнение отвечает overlay. */
+/* If there's a modal on top — don't move previous screen and don't dim it,
+   overlay is responsible for dimming. */
 .screen-stack:has(> .screen-stack-item.modal.phase-active)
   > .screen-stack-item.push.phase-inactive,
 .screen-stack:has(> .screen-stack-item.modal.phase-active)
@@ -293,16 +293,16 @@
 
 /* ==================== MOBILE MODAL (<= 639px) — bottom sheet ==================== */
 @media (max-width: 639px) {
-  /* Внутренний контейнер модалки — bottom sheet на всю ширину со скруглением сверху */
+  /* Inner container for modal — bottom sheet full width with top border radius */
   .screen-stack-item.modal .stack-modal-container {
     width: 100%;
     margin: 0;
     border-radius: 0;
     border-top-left-radius: 38px;
     border-top-right-radius: 38px;
-    align-self: flex-end; /* прижимаем к нижнему краю родителя */
+    align-self: flex-end; /* align to bottom edge of parent */
     overflow: hidden;
-    background: #fff; /* или var(--modal-bg) */
+    background: #fff; /* or var(--modal-bg) */
 
     transform: translateY(0);
     transition:
@@ -310,7 +310,7 @@
       filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  /* MODAL ENTER - модалка входит (снизу вверх) */
+  /* MODAL ENTER - modal enters (bottom to top) */
   .screen-stack-item.modal.modal-enter.transition-preEnter .stack-modal-container {
     transform: translateY(100%);
     filter: none;
@@ -322,7 +322,7 @@
     filter: none;
   }
 
-  /* MODAL EXIT - модалка закрывается (уезжает вниз) */
+  /* MODAL EXIT - modal closes (exits downward) */
   .screen-stack-item.modal.modal-exit.transition-exiting .stack-modal-container {
     transform: translateY(100%);
     filter: none;
@@ -331,7 +331,7 @@
       filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  /* SHEET - sheet стили для мобильной версии */
+  /* SHEET - sheet styles for mobile version */
   .screen-stack-item.sheet .stack-modal-container {
     width: 100%;
     margin: 0;
@@ -348,7 +348,7 @@
       filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  /* SHEET ENTER - sheet входит (снизу вверх) */
+  /* SHEET ENTER - sheet enters (bottom to top) */
   .screen-stack-item.sheet.sheet-enter.transition-preEnter .stack-modal-container {
     transform: translateY(100%);
     filter: none;
@@ -360,7 +360,7 @@
     filter: none;
   }
 
-  /* SHEET EXIT - sheet закрывается */
+  /* SHEET EXIT - sheet closes */
   .screen-stack-item.sheet.sheet-exit.transition-exiting .stack-modal-container {
     transform: translateY(100%);
     filter: none;
@@ -370,18 +370,18 @@
   }
 }
 
-/* ==================== DESKTOP MODAL (>= 640px) — sheet справа ==================== */
+/* ==================== DESKTOP MODAL (>= 640px) — sheet on right ==================== */
 @media (min-width: 640px) {
-  /* Внутренний контейнер модалки — правый sheet 393px, с margin и скруглением */
+  /* Inner container for modal — right sheet 393px, with margin and border radius */
   .screen-stack-item.modal .stack-modal-container {
     width: 393px;
     max-width: calc(100% - 36px);
     height: calc(100% - 36px);
     margin: 18px;
-    margin-left: auto; /* прижимаем к правому краю */
+    margin-left: auto; /* align to right edge */
     border-radius: 16px;
     overflow: hidden;
-    background: #fff; /* или var(--modal-bg) */
+    background: #fff; /* or var(--modal-bg) */
 
     transform: translateX(0);
     transition:
@@ -389,7 +389,7 @@
       filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  /* MODAL ENTER - модалка входит (справа налево) */
+  /* MODAL ENTER - modal enters (right to left) */
   .screen-stack-item.modal.modal-enter.transition-preEnter .stack-modal-container {
     transform: translateX(100%);
     filter: none;
@@ -401,7 +401,7 @@
     filter: none;
   }
 
-  /* MODAL EXIT - модалка закрывается (уезжает вправо) */
+  /* MODAL EXIT - modal closes (exits to right) */
   .screen-stack-item.modal.modal-exit.transition-exiting .stack-modal-container {
     transform: translateX(100%);
     filter: none;
@@ -410,7 +410,7 @@
       filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  /* SHEET ENTER - sheet входит (справа налево) */
+  /* SHEET ENTER - sheet enters (right to left) */
   .screen-stack-item.sheet.sheet-enter.transition-preEnter
     .stack-modal-container {
     transform: translateX(100%);
@@ -425,7 +425,7 @@
     filter: none;
   }
 
-  /* SHEET EXIT - sheet закрывается */
+  /* SHEET EXIT - sheet closes */
   .screen-stack-item.sheet.sheet-exit.transition-exiting
     .stack-modal-container {
     transform: translateX(100%);
@@ -435,7 +435,7 @@
       filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
-  /* Фоновые экраны под модалкой — не двигаем, не затемняем (overlay делает это) */
+  /* Background screens under modal — don't move, don't dim (overlay does this) */
   .screen-stack:has(> .screen-stack-item.modal.phase-active)
     > .screen-stack-item.push.phase-inactive,
   .screen-stack:has(> .screen-stack-item.modal.phase-active)
@@ -445,20 +445,20 @@
   }
 }
 
-/* ==================== INACTIVE SCREENS (общие настройки) ==================== */
+/* ==================== INACTIVE SCREENS (common settings) ==================== */
 
-/* Inactive screens (фоновые элементы стека)
-   Фоновые элементы при pop получают animationType: pop-background и остаются на -25%
-   (кроме случая с модалкой, там переопределяем через :has) */
+/* Inactive screens (background stack elements)
+   Background elements on pop get animationType: pop-background and stay at -25%
+   (except modal case, there we override via :has) */
 .screen-stack > .screen-stack-item.phase-inactive:not(.push-background):not(.pop-background):not(.pop-enter):not(.pop-exit):not(.modal):not(.sheet) {
-  /* Не устанавливаем transform явно - элемент сохранит предыдущую позицию */
+  /* Don't set transform explicitly - element will preserve previous position */
   filter: none;
 }
 
-/* ==================== СПЕЦИАЛЬНЫЕ СЛУЧАИ ==================== */
+/* ==================== SPECIAL CASES ==================== */
 
-/* NO-ANIMATE - без анимации (screenOptions.animated === false) */
-/* ВАЖНО: это правило должно перебивать все остальные правила анимации */
+/* NO-ANIMATE - no animation (screenOptions.animated === false) */
+/* IMPORTANT: this rule should override all other animation rules */
 .screen-stack-item.no-animate,
 .screen-stack-item.no-animate.push-enter,
 .screen-stack-item.no-animate.push-exit,
@@ -471,8 +471,8 @@
   filter: none !important;
 }
 
-/* NONE - без анимации (initial mount) */
-/* ВАЖНО: это правило НЕ должно применяться к pop-background элементам */
+/* NONE - no animation (initial mount) */
+/* IMPORTANT: this rule should NOT be applied to pop-background elements */
 .screen-stack-item.none:not(.pop-background) {
   transform: translate3d(0, 0, 0) !important;
   transition: none !important;
