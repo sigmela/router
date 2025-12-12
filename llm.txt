@@ -1,0 +1,288 @@
+# @sigmela/router - LLM Integration Guide
+Applies to: `@sigmela/router@0.2.0`
+## How to use this guide (for LLMs)
+- Prefer facts from this doc and `src/` over assumptions.
+- When answering “how do I…”, return a minimal runnable snippet (stack + router + Navigation).
+- Call out platform differences (**web** vs **native**) explicitly.
+- If behavior depends on options (e.g. `syncWithUrl`, `dedupe`), state defaults and show an example.
+## Overview
+Modern, lightweight navigation library for React Native and Web with URL-first approach. Navigate by paths, derive params and query automatically.
+## Public API (Exports)
+- `NavigationStack`
+- `Router`
+- `Navigation`
+- `TabBar`
+- `SplitView`
+- `StackRenderer`
+- `createController`
+- Hooks: `useRouter`, `useCurrentRoute`, `useParams`, `useQueryParams`, `useRoute`, `useTabBar`, `useTabBarHeight`
+- Constants: `TAB_BAR_HEIGHT`
+- Types: `TabBarProps`, `SplitViewOptions`, `HistoryItem`, `NavigationAppearance`
+## Installation
+```bash
+yarn add @sigmela/router react-native-screens
+# Optional for sheet presentation
+yarn add @sigmela/native-sheet
+```
+**Web only**: Import CSS once in your app:
+```ts
+import '@sigmela/router/styles.css';
+```
+## Core Architecture
+### 1. NavigationStack
+Defines routes and their presentation modes.
+```tsx
+const stack = new NavigationStack({ header: { largeTitle: true } })
+  .addScreen('/path', Component, { header: { title: 'Title' } })
+  .addModal('/modal', ModalComponent)
+  .addSheet('/sheet', SheetComponent)
+  .addStack('/prefix', nestedStack);
+```
+**Methods:**
+- `addScreen(pathPattern, componentOrNode, options?)` - regular push. `componentOrNode` can be a React component OR a `NavigationNode` (e.g. `TabBar`, `SplitView`, another `NavigationStack` as a screen container).
+- `addModal(pathPattern, component, options?)` - modal presentation
+- `addSheet(pathPattern, component, options?)` - sheet presentation
+- `addStack(prefixOrStack, maybeStack?)` - nest child `NavigationStack`.
+  - `addStack(childStack)` uses empty prefix (`''`)
+  - `addStack('/prefix', childStack)` prefixes all child routes; `/` and trailing `/` are normalized away
+### 2. Router
+Central navigation controller.
+```ts
+const router = new Router({
+  root: navigationNode,
+  screenOptions?: {},
+  debug?: boolean
+});
+```
+**Navigation methods:**
+- `router.navigate(path)` - push new screen
+- `router.replace(path, dedupe?)` - replace current; with `dedupe=true` it avoids duplicates (may update top item, popTo an existing one, or no-op if already at target).
+- `router.goBack()` - pop stack
+- `router.reset(path)` - **web-only**: rebuild state from path
+- `router.setRoot(nextRoot, { transition? })` - swap root runtime
+**State methods:**
+- `router.getState()` - full history
+- `router.getActiveRoute()` - current route
+- `router.subscribe(cb)` - listen to all changes
+- `router.subscribeStack(stackId, cb)` - listen to specific stack
+- `router.getStackHistory(stackId)` - get stack slice
+### 3. TabBar
+Container for tab-based navigation.
+```tsx
+const tabBar = new TabBar({ component: CustomTabBar, initialIndex: 0 })
+  .addTab({ key: 'home', stack: homeStack, title: 'Home', icon: ... })
+  .addTab({ key: 'search', screen: SearchScreen, title: 'Search' });
+```
+**Methods:**
+- `addTab({ key, stack?, screen?, title?, icon?, selectedIcon? })`
+- `onIndexChange(index)` - switch tab
+- `setBadge(index, badge | null)`
+- `setTabBarConfig(partialConfig)`
+**Web behavior**: Built-in web renderer resets Router history on tab switch via `router.reset()`.
+### 4. SplitView
+Master-detail layout for tablets/desktop.
+```tsx
+const splitView = new SplitView({
+  minWidth: 640,
+  primary: masterStack,
+  secondary: detailStack,
+  primaryMaxWidth: 390
+});
+```
+**Behavior:**
+- **Native**: secondary overlays primary when it has screens
+- **Web**: side-by-side at `>= 640px` breakpoint
+## Common Patterns
+### Pattern 1: Simple Stack
+```tsx
+const stack = new NavigationStack()
+  .addScreen('/', HomeScreen, { header: { title: 'Home' } })
+  .addScreen('/details/:id', DetailsScreen, { header: { title: 'Details' } });
+
+const router = new Router({ root: stack });
+
+function App() {
+  return <Navigation router={router} />;
+}
+```
+### Pattern 2: Tabs Only
+```tsx
+const homeStack = new NavigationStack().addScreen('/', HomeScreen);
+const catalogStack = new NavigationStack()
+  .addScreen('/catalog', CatalogScreen)
+  .addScreen('/catalog/products/:productId', ProductScreen);
+
+const tabBar = new TabBar({ initialIndex: 0 })
+  .addTab({ key: 'home', stack: homeStack, title: 'Home' })
+  .addTab({ key: 'catalog', stack: catalogStack, title: 'Catalog' });
+
+const router = new Router({ root: tabBar });
+```
+### Pattern 3: Tabs Inside Root Stack (Recommended)
+Allows global modals while keeping tab navigation.
+```tsx
+const homeStack = new NavigationStack().addScreen('/', HomeScreen);
+const catalogStack = new NavigationStack().addScreen('/catalog', CatalogScreen);
+
+const tabBar = new TabBar()
+  .addTab({ key: 'home', stack: homeStack, title: 'Home' })
+  .addTab({ key: 'catalog', stack: catalogStack, title: 'Catalog' });
+
+const rootStack = new NavigationStack()
+  .addScreen('/', tabBar)
+  .addModal('/auth', AuthScreen)
+  .addModal('*?modal=promo', PromoModal);
+
+const router = new Router({ root: rootStack });
+```
+### Pattern 4: Split View with Mail-like Layout
+```tsx
+const masterStack = new NavigationStack()
+  .addScreen('/', MailListScreen, { header: { title: 'Mail' } });
+
+const detailStack = new NavigationStack()
+  .addScreen('/:threadId', ThreadScreen, { header: { title: 'Thread' } })
+  .addScreen('/:threadId/info', ThreadInfoScreen)
+  .addModal('/:threadId/modal', ThreadModalScreen);
+
+const splitView = new SplitView({
+  minWidth: 640,
+  primary: masterStack,
+  secondary: detailStack,
+  primaryMaxWidth: 390
+});
+
+const mailStack = new NavigationStack()
+  .addScreen('/mail', splitView, { header: { hidden: true } });
+```
+## Controllers (Async/Guarded Navigation)
+Delay or conditionally prevent navigation.
+```tsx
+import { createController } from '@sigmela/router';
+
+const UserDetails = {
+  component: UserDetailsScreen,
+  controller: createController<{ userId: string }, { tab?: string }>(
+    async ({ params, query }, present) => {
+      const ok = await checkAuth();
+      if (!ok) {
+        router.replace('/login', true);
+        return;
+      }
+
+      const user = await fetchUser(params.userId);
+      present({ user, tab: query.tab });
+    }
+  )
+};
+
+stack.addScreen('/users/:userId', UserDetails);
+```
+**Key**: Only call `present()` when ready. If not called, navigation won't happen.
+## Hooks
+### useRouter()
+Access router instance.
+```tsx
+const router = useRouter();
+router.navigate('/path');
+```
+### useCurrentRoute()
+Subscribe to active route.
+```tsx
+const route = useCurrentRoute();
+// { routeId, stackId?, tabIndex?, path?, params?, query? } | null
+```
+### useParams<T>() / useQueryParams<T>()
+Get current screen's params/query.
+```tsx
+const { id } = useParams<{ id: string }>();
+const { from } = useQueryParams<{ from?: string }>();
+```
+### useRoute()
+Full route context for current screen.
+```tsx
+const route = useRoute();
+// { presentation, params?, query?, pattern?, path? }
+```
+### useTabBar()
+Access nearest TabBar (only inside tab screens).
+```tsx
+const tabBar = useTabBar();
+tabBar.onIndexChange(1);
+```
+## Web Integration
+### History API Sync
+- `router.navigate()` → `history.pushState()`
+- `router.replace()` → `history.replaceState()`
+- Browser back/forward → `popstate` → Router updates
+**Important**: `router.goBack()` does NOT call `history.back()`. It pops Router state and uses `replaceState` to update URL.
+### syncWithUrl: false
+Route option (web-only) to keep visible URL unchanged while storing real path in `history.state.__srPath`.
+Example:
+```tsx
+stack.addModal('/promo', PromoModal, { syncWithUrl: false });
+```
+Meaning: navigation still happens, but the address bar may stay the same (useful for “internal” screens/overlays that shouldn’t change the visible URL).
+## Path Patterns
+### Dynamic segments
+- `/users/:userId` - matches `/users/42`, params: `{ userId: '42' }`
+- `/catalog/products/:productId` - matches `/catalog/products/abc123`
+### Query parameters
+- `/details/42?from=home` - params: `{ id: '42' }`, query: `{ from: 'home' }`
+### Wildcards
+- `*?modal=promo` - matches any path with `?modal=promo` query
+### Query-based routes
+- `/auth?kind=email` - specific query value
+- `/auth?kind=:kind` - dynamic query param
+## Screen Options
+```tsx
+{
+  header: {
+    title: string,
+    hidden?: boolean,
+    largeTitle?: boolean,
+    // ... other header options
+  },
+  stackPresentation?: 'push' | 'modal' | 'sheet',
+  syncWithUrl?: boolean, // web-only
+}
+```
+## Best Practices
+1. **Always define root structure first**: Decide if tabs are root or inside root stack
+2. **Use controllers for auth guards**: Don't push authenticated screens without verification
+3. **Web CSS is required**: Import `@sigmela/router/styles.css` once
+4. **Tab structure**: For global modals, wrap TabBar in root NavigationStack
+5. **Split view headers**: Set `header: { hidden: true }` on split view container, let child stacks render headers
+6. **Path patterns**: Use descriptive patterns like `/catalog/products/:productId` instead of `/p/:id`
+7. **Modal vs Sheet**: Use `addModal()` for forms/auth, `addSheet()` for contextual actions
+## Example App Structure
+```
+rootStack (NavigationStack)
+  ├─ / → tabBar (TabBar)
+  │   ├─ home → homeStack (NavigationStack)
+  │   ├─ mail → mailStack (NavigationStack) → splitView (SplitView)
+  │   ├─ catalog → catalogStack (NavigationStack)
+  │   ├─ orders → ordersStack (NavigationStack)
+  │   └─ settings → settingsStack (NavigationStack)
+  ├─ /auth → AuthScreen (modal)
+  ├─ /auth?kind=email → EmailAuthModal (modal)
+  └─ *?modal=promo → PromoModal (wildcard modal)
+```
+## Troubleshooting
+- **Screen not rendering**: Check path pattern matches navigation path exactly
+- **Params undefined**: Ensure path pattern has `:paramName` segment
+- **Web URL not updating**: Verify you’re in web environment and route options don’t set `syncWithUrl: false`
+- **Tab switch not working**: Use `tabBar.onIndexChange()`, not router navigation
+- **Split view not showing secondary**: Ensure secondary stack has at least one screen pushed
+## Gotchas / Anti-patterns
+- **Tabs switching**: To *navigate to a specific screen inside a tab*, use `router.navigate('/some/path')` (it will activate the matching tab). To *just switch tabs without navigation*, use `tabBar.onIndexChange(index)`.
+- **`replace(..., true)` semantics**: `dedupe` can “popTo” an existing item in the same stack, or no-op when already at the same route+params+path+query; don’t assume it always overwrites history.
+- **`syncWithUrl: false`**: Visible URL can diverge from Router state; avoid for screens you want deep-linkable/bookmarkable.
+- **Controllers**: If a controller never calls `present()`, the screen will never appear (by design).
+## Source references (for grounding)
+- `src/index.ts` (public exports)
+- `src/Router.ts` (navigate/replace/reset/history sync, `syncWithUrl`, `dedupe`)
+- `src/NavigationStack.ts` (route building, `addStack` signature)
+- `src/TabBar/TabBar.ts` (tab switching, route containment)
+- `src/SplitView/SplitView.ts` (split behavior + secondary allowRootPop)
+- `src/RouterContext.tsx` (hooks + route contexts)
