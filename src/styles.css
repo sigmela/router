@@ -17,8 +17,8 @@
 
   /* Базовый transition для открытия экрана */
   transition:
-    transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
-    filter 300ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* Внутренний контейнер обычного экрана */
@@ -100,7 +100,7 @@
 .screen-stack-item.sheet.phase-active.transition-preEnter > .stack-modal-overlay {
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
-  animation: modal-overlay-enter 300ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+  animation: modal-overlay-enter 300ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 /* Для modal-like в активных / вошедших состояниях — полностью видимый */
@@ -136,7 +136,7 @@
 .screen-stack-item.sheet.transition-exiting > .stack-modal-overlay {
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
-  animation: modal-overlay-exit 250ms cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+  animation: modal-overlay-exit 300ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 /* Overlay для transparent-modal — прозрачный */
@@ -213,8 +213,8 @@
 /* Forward navigation (push) — открытие экрана 300ms */
 .screen-stack-item.push.push-enter {
   transition:
-    transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
-    filter 300ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* PUSH ENTER - обычный экран въезжает справа */
@@ -232,8 +232,8 @@
 .screen-stack-item.push.push-background {
   transform: translateX(-25%) !important;
   transition:
-    transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
-    filter 300ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* POP BACKGROUND - фоновый экран при pop остается на -25% */
@@ -244,12 +244,12 @@
   filter: none;
 }
 
-/* Backward navigation (pop) — закрытие экрана 250ms */
+/* Backward navigation (pop) — закрытие экрана 300ms */
 /* ВАЖНО: transition устанавливается на элементе с pop-exit */
 .screen-stack-item.push.pop-exit {
   transition:
-    transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
-    filter 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* POP EXIT - верхний экран уезжает вправо */
@@ -267,8 +267,8 @@
 /* Упрощенный подход как в старой версии: phase-active просто становится в 0 */
 .screen-stack-item.push.pop-enter {
   transition:
-    transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
-    filter 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* Активный элемент при pop просто в центре (0) - финальное состояние */
@@ -293,19 +293,21 @@
 
 /* ==================== MOBILE MODAL (<= 639px) — bottom sheet ==================== */
 @media (max-width: 639px) {
-  /* Внутренний контейнер модалки — bottom sheet на всю ширину без скругления */
+  /* Внутренний контейнер модалки — bottom sheet на всю ширину со скруглением сверху */
   .screen-stack-item.modal .stack-modal-container {
     width: 100%;
     margin: 0;
     border-radius: 0;
+    border-top-left-radius: 38px;
+    border-top-right-radius: 38px;
     align-self: flex-end; /* прижимаем к нижнему краю родителя */
     overflow: hidden;
     background: #fff; /* или var(--modal-bg) */
 
     transform: translateY(0);
     transition:
-      transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
-      filter 300ms cubic-bezier(0.4, 0.0, 0.2, 1);
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
   /* MODAL ENTER - модалка входит (снизу вверх) */
@@ -325,8 +327,25 @@
     transform: translateY(100%);
     filter: none;
     transition:
-      transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
-      filter 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  /* SHEET - sheet стили для мобильной версии */
+  .screen-stack-item.sheet .stack-modal-container {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    border-top-left-radius: 38px;
+    border-top-right-radius: 38px;
+    align-self: flex-end;
+    overflow: hidden;
+    background: #fff;
+
+    transform: translateY(0);
+    transition:
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
   /* SHEET ENTER - sheet входит (снизу вверх) */
@@ -346,8 +365,8 @@
     transform: translateY(100%);
     filter: none;
     transition:
-      transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
-      filter 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 }
 
@@ -366,8 +385,8 @@
 
     transform: translateX(0);
     transition:
-      transform 300ms cubic-bezier(0.4, 0.0, 0.2, 1),
-      filter 300ms cubic-bezier(0.4, 0.0, 0.2, 1);
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
   /* MODAL ENTER - модалка входит (справа налево) */
@@ -387,8 +406,8 @@
     transform: translateX(100%);
     filter: none;
     transition:
-      transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
-      filter 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
   /* SHEET ENTER - sheet входит (справа налево) */
@@ -412,8 +431,8 @@
     transform: translateX(100%);
     filter: none;
     transition:
-      transform 250ms cubic-bezier(0.4, 0.0, 0.2, 1),
-      filter 250ms cubic-bezier(0.4, 0.0, 0.2, 1);
+      transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
   /* Фоновые экраны под модалкой — не двигаем, не затемняем (overlay делает это) */
@@ -533,7 +552,7 @@
   position: relative;
   cursor: pointer;
   border-radius: 100px;
-  transition: all 200ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: all 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .tab-item.active {
