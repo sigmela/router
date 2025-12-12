@@ -493,6 +493,20 @@
   padding-bottom: calc(73px + env(safe-area-inset-bottom)); 
 }
 
+.tab-bar {
+  /* CSS variables for theming / behavior */
+  --tabbar-bg: #ffffff;
+  --tabbar-gap: 4px;
+  --tabbar-radius: 9999px;
+  --tabbar-padding: 6px;
+  --tabbar-item-radius: 9999px;
+  --tabbar-height: 56px;
+
+  /* Used by active indicator (set inline in RenderTabBar.web.tsx) */
+  --tabbar-tabs-count: 1;
+  --tabbar-active-index: 0;
+}
+
 .tab-bar-blur-overlay {
   position: fixed;
   bottom: 0;
@@ -516,23 +530,69 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 8px 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding: 10px 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
   background: transparent;
   z-index: 100;
 }
 
 .tab-bar-inner {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  border-radius: var(--tabbar-radius);
+  overflow: hidden;
+  isolation: isolate;
+  width: 100%;
+  max-width: 100%;
+}
+
+.tab-bar-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tab-bar-content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: row;
   align-items: center;
-  background: #FFFFFF;
-  box-shadow: 0 2px 8px #00000014;
-  border-radius: 100px;
-  padding: 4px;
-  gap: 4px;
   width: 100%;
   max-width: 100%;
+  gap: var(--tabbar-gap);
+  padding: var(--tabbar-padding);
+}
+
+.tab-bar-active-indicator {
+  position: absolute;
+  top: var(--tabbar-padding);
+  bottom: var(--tabbar-padding);
+  left: var(--tabbar-padding);
+  border-radius: var(--tabbar-item-radius);
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 180ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.tab-bar[data-tabs-count]:not([data-tabs-count="0"]) .tab-bar-active-indicator {
+  opacity: 1;
+  width: calc(
+    (
+        100% -
+          (var(--tabbar-padding) * 2) -
+          (var(--tabbar-gap) * (var(--tabbar-tabs-count) - 1))
+      ) / var(--tabbar-tabs-count)
+  );
+  transform: translateX(
+    calc((var(--tabbar-active-index) * (100% + var(--tabbar-gap))))
+  );
 }
 
 .tab-item {
@@ -540,37 +600,44 @@
   background: transparent;
   border: 0;
   margin: 0;
-  padding: 8px 16px;
-  height: 49px;
+  padding: 6px 10px;
+  height: var(--tabbar-height);
   color: inherit;
   display: flex;
-  flex: 1;
+  flex: 1 1 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
   position: relative;
   cursor: pointer;
-  border-radius: 100px;
-  transition: all 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  border-radius: var(--tabbar-item-radius);
+  transition:
+    transform 120ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    background-color 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    color 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .tab-item.active {
-  background: #EDEDED;
+  background: transparent;
 }
 
 .tab-item:hover:not(.active) {
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  background: color-mix(in srgb, #0a0a0a 6%, transparent);
 }
 
+.tab-item:active {
+  transform: scale(0.98);
+}
 
 .tab-item:focus {
   outline: none;
 }
 
 .tab-item:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, currentColor 40%, transparent),
+    0 10px 28px rgba(0, 0, 0, 0.12);
 }
 
 .tab-item-icon {
@@ -617,6 +684,41 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
+/* ==================== MOBILE TAB BAR (<= 640px) — iOS-like floating glass pill ==================== */
+@media (max-width: 640px) {
+  .tab-bar-inner {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .tab-bar-glass {
+    /* Fallbacks first (in case color-mix isn't supported) */
+    background-color: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.72);
+    /* Preferred (overrides when supported) */
+    background: color-mix(in srgb, var(--tabbar-bg, #ffffff) 76%, transparent);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border: 0.5px solid color-mix(in srgb, #ffffff 55%, transparent);
+    box-shadow:
+      0 8px 26px rgba(0, 0, 0, 0.18),
+      0 1px 0 rgba(255, 255, 255, 0.4) inset;
+  }
+
+  .tab-bar-active-indicator {
+    background-color: rgba(255, 255, 255, 0.60);
+    background: color-mix(in srgb, #ffffff 62%, transparent);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 8px 20px rgba(0, 0, 0, 0.10);
+  }
+
+  .tab-item:hover:not(.active) {
+    background: color-mix(in srgb, #ffffff 22%, transparent);
+  }
+}
+
 /* ==================== DESKTOP TAB BAR (>= 641px) ==================== */
 @media (min-width: 641px) {
   .tab-stacks-container {
@@ -660,8 +762,24 @@
     border-radius: 0;
     padding: 12px 0 0 0;
     gap: 0;
-    background: #FFFFFF;
+    background: var(--tabbar-bg, #ffffff);
     box-shadow: none;
+  }
+
+  .tab-bar-glass {
+    display: none;
+  }
+
+  .tab-bar-content {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    gap: 0;
+  }
+
+  .tab-bar-active-indicator {
+    display: none;
   }
 
   .tab-item {

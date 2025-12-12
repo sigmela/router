@@ -108,8 +108,24 @@ export const RenderTabBar = memo<RenderTabBarProps>(
 
     const tabBarStyle: CSSProperties | undefined = useMemo(() => {
       const tabBarBg = toColorString(appearance?.tabBar?.backgroundColor);
-      return tabBarBg ? { backgroundColor: tabBarBg } : undefined;
-    }, [appearance?.tabBar?.backgroundColor]);
+      const style: CSSProperties = {
+        ...(tabBarBg
+          ? ({
+              ['--tabbar-bg' as unknown as keyof CSSProperties]: tabBarBg,
+            } as CSSProperties)
+          : null),
+        ...(tabs.length
+          ? ({
+              ['--tabbar-tabs-count' as unknown as keyof CSSProperties]: String(
+                tabs.length
+              ),
+              ['--tabbar-active-index' as unknown as keyof CSSProperties]:
+                String(index),
+            } as CSSProperties)
+          : null),
+      };
+      return Object.keys(style).length ? style : undefined;
+    }, [appearance?.tabBar?.backgroundColor, tabs.length, index]);
 
     const titleBaseStyle: CSSProperties = useMemo(
       () => ({
@@ -146,48 +162,63 @@ export const RenderTabBar = memo<RenderTabBarProps>(
               tabs={tabs}
             />
           ) : (
-            <div className="tab-bar" style={tabBarStyle}>
+            <div
+              className="tab-bar"
+              style={tabBarStyle}
+              data-tabs-count={tabs.length}
+              data-active-index={index}
+            >
               {/* <div className="tab-bar-blur-overlay" /> */}
               <div className="tab-bar-inner">
-                {tabs.map((tab, i) => {
-                  const isActive = i === index;
-                  const iconTint = toColorString(
-                    isActive
-                      ? appearance?.tabBar?.iconColorActive
-                      : appearance?.tabBar?.iconColor
-                  );
-                  const title = appearance?.tabBar?.title;
-                  const labelColor = isActive
-                    ? (toColorString(title?.activeColor) ??
-                      toColorString(title?.color))
-                    : toColorString(title?.color);
-                  const labelStyle: CSSProperties = {
-                    ...titleBaseStyle,
-                    color: labelColor,
-                  };
-                  return (
-                    <button
-                      key={tab.tabKey}
-                      data-index={i}
-                      className={`tab-item${isActive ? ' active' : ''}`}
-                      onClick={() => onTabClick(i)}
-                    >
-                      <div className="tab-item-icon">
-                        {isImageSource(tab.icon) ? (
-                          <TabIcon source={tab.icon} tintColor={iconTint} />
+                <div className="tab-bar-glass" aria-hidden="true" />
+                <div className="tab-bar-content">
+                  <div
+                    className="tab-bar-active-indicator"
+                    aria-hidden="true"
+                  />
+                  {tabs.map((tab, i) => {
+                    const isActive = i === index;
+                    const iconTint = toColorString(
+                      isActive
+                        ? appearance?.tabBar?.iconColorActive
+                        : appearance?.tabBar?.iconColor
+                    );
+                    const title = appearance?.tabBar?.title;
+                    const labelColor = isActive
+                      ? (toColorString(title?.activeColor) ??
+                        toColorString(title?.color))
+                      : toColorString(title?.color);
+                    const labelStyle: CSSProperties = {
+                      ...titleBaseStyle,
+                      color: labelColor,
+                    };
+                    return (
+                      <button
+                        key={tab.tabKey}
+                        type="button"
+                        data-index={i}
+                        data-active={isActive ? 'true' : 'false'}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={`tab-item${isActive ? ' active' : ''}`}
+                        onClick={() => onTabClick(i)}
+                      >
+                        <div className="tab-item-icon">
+                          {isImageSource(tab.icon) ? (
+                            <TabIcon source={tab.icon} tintColor={iconTint} />
+                          ) : null}
+                        </div>
+                        <div className="tab-item-label" style={labelStyle}>
+                          {tab.title}
+                        </div>
+                        {tab.badgeValue ? (
+                          <span className="tab-item-label-badge">
+                            {tab.badgeValue}
+                          </span>
                         ) : null}
-                      </div>
-                      <div className="tab-item-label" style={labelStyle}>
-                        {tab.title}
-                      </div>
-                      {tab.badgeValue ? (
-                        <span className="tab-item-label-badge">
-                          {tab.badgeValue}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
