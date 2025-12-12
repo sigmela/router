@@ -7,6 +7,7 @@ export type SplitViewOptions = {
   minWidth: number;
   primary: NavigationStack;
   secondary: NavigationStack;
+  primaryMaxWidth?: number;
 };
 
 class SecondaryStackWrapper implements NavigationNode {
@@ -60,12 +61,14 @@ export class SplitView implements NavigationNode {
   public readonly primary: NavigationStack;
   public readonly secondary: NavigationStack;
   public readonly minWidth: number;
+  public readonly primaryMaxWidth: number;
 
   constructor(options: SplitViewOptions) {
     this.splitViewId = `splitview-${Math.random().toString(36).slice(2)}`;
     this.primary = options.primary;
     this.secondary = options.secondary;
     this.minWidth = options.minWidth;
+    this.primaryMaxWidth = options.primaryMaxWidth ?? 390;
   }
 
   public getId(): string {

@@ -71,46 +71,15 @@ export const RenderSplitView = memo<RenderSplitViewProps>(
       [splitView]
     );
 
-    const minWidth = splitView.minWidth;
-
-    const styleTag = useMemo(() => {
-      const css = `\
-@media (min-width: ${minWidth}px) {\
-  .${instanceClass} .split-view-container {\
-    display: flex;\
-    flex-direction: row;\
-  }\
-\
-  .${instanceClass} .split-view-primary {\
-    position: relative;\
-    flex: 0 0 auto;\
-    width: 360px;\
-    min-width: 320px;\
-    max-width: 480px;\
-    border-right: 1px solid rgba(0, 0, 0, 0.08);\
-  }\
-\
-  .${instanceClass} .split-view-secondary {\
-    display: flex;\
-    position: relative;\
-    inset: auto;\
-    z-index: auto;\
-    flex: 1 1 auto;\
-  }\
-}\
-`;
-      return <style>{css}</style>;
-    }, [minWidth, instanceClass]);
-
     const containerStyle: CSSProperties | undefined = useMemo(() => {
-      // place for future style hooks
-      return undefined;
-    }, []);
+      return {
+        '--split-view-primary-max-width': `${splitView.primaryMaxWidth}px`,
+      } as CSSProperties;
+    }, [splitView.primaryMaxWidth]);
 
     return (
       <SplitViewContext.Provider value={splitView}>
         <div className={instanceClass}>
-          {styleTag}
           <div className="split-view-container" style={containerStyle}>
             <div className="split-view-primary">
               <StackSliceRenderer
