@@ -19,6 +19,11 @@ export type InternalTabItem = Omit<TabItem, 'icon' | 'selectedIcon'> & {
   icon?: ExtendedIcon;
   selectedIcon?: ExtendedIcon;
   badgeValue?: string;
+  /**
+   * Optional base prefix for this tab's navigation subtree, e.g. '/mail'.
+   * Used by Router registry building via TabBar.getNodeChildren().
+   */
+  tabPrefix?: string;
 };
 
 export type TabBarProps = {
@@ -32,8 +37,29 @@ export type TabBarDescriptor = {
 };
 
 type TabBarConfig = Omit<InternalTabItem, 'tabKey' | 'key'> & {
+  /**
+   * Legacy content type: a stack rendered in the tab.
+   */
   stack?: NavigationStack;
+
+  /**
+   * New content type: any NavigationNode (e.g. SplitView).
+   */
+  node?: NavigationNode;
+
+  /**
+   * Screen component rendered in the tab (no routing).
+   */
   screen?: React.ComponentType<any>;
+
+  /**
+   * Optional base prefix for node/stack routes, e.g. '/mail'.
+   */
+  prefix?: string;
+
+  /**
+   * Custom tab bar component (UI). Kept for compatibility.
+   */
   component?: ComponentType<TabBarProps>;
 };
 
@@ -47,6 +73,7 @@ export class TabBar implements NavigationNode {
   private readonly tabBarId: string;
   public screens: Record<string, React.ComponentType<any>> = {};
   public stacks: Record<string, NavigationStack> = {};
+  public nodes: Record<string, NavigationNode> = {};
   private listeners: Set<() => void> = new Set();
 
   private state: {
@@ -69,6 +96,14 @@ export class TabBar implements NavigationNode {
   }
 
   public addTab(tab: Omit<TabBarConfig, 'tabKey'> & { key: string }): TabBar {
+    const sourcesCount =
+      (tab.stack ? 1 : 0) + (tab.node ? 1 : 0) + (tab.screen ? 1 : 0);
+    if (sourcesCount !== 1) {
+      throw new Error(
+        `TabBar.addTab: exactly one of { stack, node, screen } must be provided (got ${sourcesCount})`
+      );
+    }
+
     const { key, ...rest } = tab;
     const nextIndex = this.state.tabs.length;
     const tabKey = key ?? `tab-${nextIndex}`;
@@ -77,6 +112,7 @@ export class TabBar implements NavigationNode {
       ...this.state.tabs,
       {
         tabKey,
+        tabPrefix: tab.prefix,
         ...rest,
       },
     ];
@@ -85,6 +121,8 @@ export class TabBar implements NavigationNode {
 
     if (tab.stack) {
       this.stacks[tabKey] = tab.stack;
+    } else if (tab.node) {
+      this.nodes[tabKey] = tab.node;
     } else if (tab.screen) {
       this.screens[tabKey] = tab.screen;
     }
@@ -159,8 +197,8 @@ export class TabBar implements NavigationNode {
   public getActiveChildId(): string | undefined {
     const activeTab = this.state.tabs[this.state.index];
     if (!activeTab) return undefined;
-    const stack = this.stacks[activeTab.tabKey];
-    return stack?.getId();
+    const node = this.nodes[activeTab.tabKey] ?? this.stacks[activeTab.tabKey];
+    return node?.getId();
   }
 
   public switchToRoute(routeId: string): void {
@@ -186,11 +224,13 @@ export class TabBar implements NavigationNode {
     const children: NodeChild[] = [];
     for (let idx = 0; idx < this.state.tabs.length; idx++) {
       const tab = this.state.tabs[idx];
-      const stack = tab ? this.stacks[tab.tabKey] : undefined;
-      if (stack) {
+      const node = tab
+        ? (this.nodes[tab.tabKey] ?? this.stacks[tab.tabKey])
+        : undefined;
+      if (node) {
         children.push({
-          prefix: '',
-          node: stack as NavigationNode,
+          prefix: tab?.tabPrefix ?? '',
+          node,
           onMatch: () => this.onIndexChange(idx),
         });
       }
@@ -218,6 +258,11 @@ export class TabBar implements NavigationNode {
     const activeTab = this.state.tabs[this.state.index];
     if (!activeTab) return null;
 
+    const node = this.nodes[activeTab.tabKey];
+    if (node) {
+      return node.seed?.() ?? null;
+    }
+
     const stack = this.stacks[activeTab.tabKey];
     if (!stack) return null;
 
@@ -234,9 +279,11 @@ export class TabBar implements NavigationNode {
   private findTabIndexByRoute(routeId: string): number {
     for (let i = 0; i < this.state.tabs.length; i++) {
       const tab = this.state.tabs[i];
-      const stack = tab && this.stacks[tab.tabKey];
-      if (!stack) continue;
-      const hasRoute = this.nodeHasRoute(stack, routeId);
+      const node = tab
+        ? (this.nodes[tab.tabKey] ?? this.stacks[tab.tabKey])
+        : undefined;
+      if (!node) continue;
+      const hasRoute = this.nodeHasRoute(node, routeId);
       if (hasRoute) {
         return i;
       }

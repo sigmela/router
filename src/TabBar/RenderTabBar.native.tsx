@@ -5,6 +5,7 @@ import { TabBarContext } from './TabBarContext';
 import { NavigationStack } from '../NavigationStack';
 import { useRouter } from '../RouterContext';
 import type { TabBarProps } from './TabBar';
+import type { NavigationNode } from '../navigationNode';
 import {
   type NativeFocusChangeEvent,
   type PlatformIcon,
@@ -26,6 +27,7 @@ import {
   memo,
   useEffect,
   useState,
+  useMemo,
   type ComponentType,
 } from 'react';
 import type { HistoryItem } from '../types';
@@ -204,6 +206,16 @@ const TabStackRenderer = memo<{
 
 TabStackRenderer.displayName = 'TabStackRenderer';
 
+const TabNodeRenderer = memo<{
+  node: NavigationNode;
+  appearance?: NavigationAppearance;
+}>(({ node, appearance }) => {
+  const Renderer = useMemo(() => node.getRenderer(), [node]);
+  return <Renderer appearance={appearance} />;
+});
+
+TabNodeRenderer.displayName = 'TabNodeRenderer';
+
 export const RenderTabBar = memo<RenderTabBarProps>(
   ({ tabBar, appearance = {} }) => {
     const subscribe = useCallback(
@@ -313,6 +325,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                 .map((tab) => {
                   const isActive = tab.tabKey === tabs[index]?.tabKey;
                   const stackForTab = tabBar.stacks[tab.tabKey];
+                  const nodeForTab = tabBar.nodes[tab.tabKey];
                   const ScreenForTab = tabBar.screens[tab.tabKey];
                   return (
                     <View
@@ -323,6 +336,11 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                         <TabStackRenderer
                           appearance={appearance}
                           stack={stackForTab}
+                        />
+                      ) : nodeForTab ? (
+                        <TabNodeRenderer
+                          appearance={appearance}
+                          node={nodeForTab}
                         />
                       ) : ScreenForTab ? (
                         <ScreenForTab />
@@ -357,6 +375,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
             {tabs.map((tab) => {
               const isFocused = tab.tabKey === tabs[index]?.tabKey;
               const stack = tabBar.stacks[tab.tabKey];
+              const node = tabBar.nodes[tab.tabKey];
               const Screen = tabBar.screens[tab.tabKey];
               const icon = getTabIcon(tab);
 
@@ -375,6 +394,8 @@ export const RenderTabBar = memo<RenderTabBarProps>(
                 >
                   {stack ? (
                     <TabStackRenderer appearance={appearance} stack={stack} />
+                  ) : node ? (
+                    <TabNodeRenderer appearance={appearance} node={node} />
                   ) : Screen ? (
                     <Screen />
                   ) : null}

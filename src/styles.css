@@ -489,7 +489,8 @@
   position: relative;
 }
 
-.tab-stacks-container > .screen-stack {
+.tab-stacks-container > .screen-stack,
+.tab-stacks-container > .split-view-container {
   padding-bottom: calc(73px + env(safe-area-inset-bottom)); 
 }
 
@@ -725,7 +726,8 @@
     flex-direction: row;
   }
 
-  .tab-stacks-container > .screen-stack {
+  .tab-stacks-container > .screen-stack,
+  .tab-stacks-container > .split-view-container {
     padding-bottom: 0;
     margin-left: 260px;
     min-width: 0;

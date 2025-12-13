@@ -2,6 +2,7 @@ import { Router } from '../Router';
 import { NavigationStack } from '../NavigationStack';
 import { TabBar } from '../TabBar/TabBar';
 import { createController } from '../createController';
+import { SplitView } from '../SplitView/SplitView';
 import type { ComponentType } from 'react';
 
 const ScreenA: ComponentType<any> = () => null;
@@ -171,6 +172,49 @@ describe('Router slices', () => {
 
     router.goBack();
     expect(tabBar.getState().index).toBe(0);
+  });
+
+  test('tab bar supports node tabs with prefix (SplitView) and activates on deep links', () => {
+    const homeStack = new NavigationStack().addScreen('/', ScreenA);
+
+    const mailMasterStack = new NavigationStack().addScreen('/', ScreenA);
+    const mailDetailStack = new NavigationStack().addScreen(
+      '/:threadId',
+      ScreenB
+    );
+
+    const mailSplitView = new SplitView({
+      minWidth: 640,
+      primary: mailMasterStack,
+      secondary: mailDetailStack,
+    });
+
+    const tabBar = new TabBar()
+      .addTab({ key: 'home', stack: homeStack, title: 'Home' })
+      .addTab({
+        key: 'mail',
+        node: mailSplitView,
+        prefix: '/mail',
+        title: 'Mail',
+      });
+
+    const rootStack = new NavigationStack().addScreen('/', {
+      component: tabBar.getRenderer(),
+      childNode: tabBar,
+    });
+
+    const router = new Router({ roots: { main: rootStack }, root: 'main' });
+
+    expect(tabBar.getState().index).toBe(0);
+
+    router.navigate('/mail');
+    expect(tabBar.getState().index).toBe(1);
+    expect(router.debugGetState().activeRoute?.path).toBe('/mail');
+
+    router.navigate('/mail/123');
+    expect(tabBar.getState().index).toBe(1);
+    expect(router.debugGetState().activeRoute?.path).toBe('/mail/123');
+    expect(router.debugGetState().activeRoute?.params?.threadId).toBe('123');
   });
 
   test('listener errors do not prevent other listeners from running', () => {

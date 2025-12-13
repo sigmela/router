@@ -4,6 +4,7 @@ import { StackRenderer } from '../StackRenderer';
 import { TabBarContext } from './TabBarContext';
 import { useRouter } from '../RouterContext';
 import { NavigationStack } from '../NavigationStack';
+import type { NavigationNode } from '../navigationNode';
 import type { HistoryItem } from '../types';
 import type { TabBarProps } from './TabBar';
 import type { TabBar } from './TabBar';
@@ -60,6 +61,36 @@ const TabStackRenderer = memo<{
 
 TabStackRenderer.displayName = 'TabStackRenderer';
 
+const TabNodeRenderer = memo<{
+  node: NavigationNode;
+  appearance?: NavigationAppearance;
+}>(({ node, appearance }) => {
+  const Renderer = useMemo(() => node.getRenderer(), [node]);
+  return <Renderer appearance={appearance} />;
+});
+
+TabNodeRenderer.displayName = 'TabNodeRenderer';
+
+const joinPrefixAndPath = (
+  prefix: string | undefined,
+  path: string
+): string => {
+  const base = (prefix ?? '').trim();
+  const child = (path || '/').trim();
+  if (!base) return child || '/';
+
+  const baseNorm =
+    base === '/' ? '' : base.endsWith('/') ? base.slice(0, -1) : base;
+
+  if (!child || child === '/') {
+    return baseNorm || '/';
+  }
+  if (child.startsWith('/')) {
+    return `${baseNorm}${child}`;
+  }
+  return `${baseNorm}/${child}`;
+};
+
 export const RenderTabBar = memo<RenderTabBarProps>(
   ({ tabBar, appearance }) => {
     const router = useRouter();
@@ -77,6 +108,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
 
     const focusedTab = tabs[index];
     const stack = focusedTab ? tabBar.stacks[focusedTab.tabKey] : undefined;
+    const node = focusedTab ? tabBar.nodes[focusedTab.tabKey] : undefined;
     const Screen = focusedTab ? tabBar.screens[focusedTab.tabKey] : undefined;
 
     const onTabClick = useCallback(
@@ -84,6 +116,7 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         const targetTab = tabs[nextIndex];
         if (!targetTab) return;
         const targetStack = tabBar.stacks[targetTab.tabKey];
+        const targetNode = tabBar.nodes[targetTab.tabKey];
 
         if (targetStack) {
           // Keep TabBar UI in sync immediately.
@@ -97,6 +130,18 @@ export const RenderTabBar = memo<RenderTabBarProps>(
             router.reset(firstRoutePath);
             return;
           }
+        } else if (targetNode) {
+          // Keep TabBar UI in sync immediately.
+          if (nextIndex !== index) {
+            tabBar.onIndexChange(nextIndex);
+          }
+
+          const seedPath = targetNode.seed?.()?.path;
+          const fallbackFirstPath = targetNode.getNodeRoutes()?.[0]?.path;
+          const path = seedPath ?? fallbackFirstPath ?? '/';
+          const fullPath = joinPrefixAndPath(targetTab.tabPrefix, path);
+          router.reset(fullPath);
+          return;
         }
 
         if (nextIndex !== index) {
@@ -151,6 +196,8 @@ export const RenderTabBar = memo<RenderTabBarProps>(
         <div className="tab-stacks-container">
           {stack ? (
             <TabStackRenderer appearance={appearance} stack={stack} />
+          ) : node ? (
+            <TabNodeRenderer appearance={appearance} node={node} />
           ) : Screen ? (
             <Screen />
           ) : null}

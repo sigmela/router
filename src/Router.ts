@@ -466,6 +466,14 @@ export class Router {
       return;
     }
 
+    // Ensure the root-level container (e.g. TabBar) is activated for the matched route.
+    // This is important when the matched route belongs to a nested stack inside a composite node
+    // like SplitView: stackActivators won't fire for the tab itself in that case.
+    const rootStackId = this.root?.getId();
+    if (rootStackId) {
+      this.activateContainerForRoute(base.routeId, rootStackId);
+    }
+
     const activator = base.stackId
       ? this.stackActivators.get(base.stackId)
       : undefined;

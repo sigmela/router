@@ -61,15 +61,6 @@ export const mailSplitView = new SplitView({
   secondary: mailDetailStack,
 });
 
-export const mailStack = new NavigationStack().addScreen(
-  '/mail',
-  mailSplitView,
-  {
-    // Hide container header: child stacks render their own headers (native)
-    header: { hidden: true },
-  }
-);
-
 // Used in ProfileScreen.tsx
 export const authStack = new NavigationStack()
   .addModal('/auth', AuthRootScreen, {
@@ -108,7 +99,8 @@ export function getRootStack() {
     })
     .addTab({
       key: 'mail',
-      stack: mailStack,
+      node: mailSplitView,
+      prefix: '/mail',
       title: 'Mail',
       icon: require('../../assets/icons/ic-more-h-circle-24.png'),
     })
