@@ -75,7 +75,7 @@ const tabBar = new TabBar({ component: CustomTabBar, initialIndex: 0 })
   .addTab({ key: 'search', screen: SearchScreen, title: 'Search' });
 ```
 **Methods:**
-- `addTab({ key, stack?, screen?, title?, icon?, selectedIcon? })`
+- `addTab({ key, stack?, node?, screen?, prefix?, title?, icon?, selectedIcon? })`
 - `onIndexChange(index)` - switch tab
 - `setBadge(index, badge | null)`
 - `setTabBarConfig(partialConfig)`
@@ -153,8 +153,10 @@ const splitView = new SplitView({
   primaryMaxWidth: 390
 });
 
-const mailStack = new NavigationStack()
-  .addScreen('/mail', splitView, { header: { hidden: true } });
+// Mount SplitView directly as a tab, under '/mail' base path.
+const tabBar = new TabBar()
+  .addTab({ key: 'mail', node: splitView, prefix: '/mail', title: 'Mail' })
+  .addTab({ key: 'settings', stack: settingsStack, title: 'Settings' });
 ```
 ## Controllers (Async/Guarded Navigation)
 Delay or conditionally prevent navigation.
@@ -261,7 +263,7 @@ Meaning: navigation still happens, but the address bar may stay the same (useful
 rootStack (NavigationStack)
   ├─ / → tabBar (TabBar)
   │   ├─ home → homeStack (NavigationStack)
-  │   ├─ mail → mailStack (NavigationStack) → splitView (SplitView)
+  │   ├─ mail → splitView (SplitView) [prefix: /mail]
   │   ├─ catalog → catalogStack (NavigationStack)
   │   ├─ orders → ordersStack (NavigationStack)
   │   └─ settings → settingsStack (NavigationStack)

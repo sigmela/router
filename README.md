@@ -193,11 +193,15 @@ const tabBar = new TabBar({ component: CustomTabBar, initialIndex: 0 })
 ```
 
 Key methods:
-- `addTab({ key, stack?, screen?, title?, icon?, selectedIcon?, ... })`
+- `addTab({ key, stack?, node?, screen?, prefix?, title?, icon?, selectedIcon?, ... })`
 - `onIndexChange(index)` — switch active tab
 - `setBadge(index, badge | null)`
 - `setTabBarConfig(partialConfig)`
 - `getState()` and `subscribe(cb)`
+
+Notes:
+- Exactly one of `stack`, `node`, `screen` must be provided.
+- Use `prefix` to mount a tab's routes under a base path (e.g. `/mail`).
 
 Web behavior note:
 - The built-in **web** tab bar renderer resets Router history on tab switch (to keep URL and Router state consistent) using `router.reset(firstRoutePath)`.
@@ -207,22 +211,25 @@ Web behavior note:
 `SplitView` renders **two stacks**: `primary` and `secondary`.
 
 - On **native**, `secondary` overlays `primary` when it has at least one screen in its history.
-- On **web**, the layout becomes side-by-side at a fixed breakpoint (currently `>= 640px` in CSS).
+- On **web**, the layout becomes side-by-side at a fixed breakpoint (`minWidth`, default `640px`).
 
 ```tsx
-import { NavigationStack, SplitView } from '@sigmela/router';
+import { NavigationStack, SplitView, TabBar } from '@sigmela/router';
 
 const master = new NavigationStack().addScreen('/', ThreadsScreen);
 const detail = new NavigationStack().addScreen('/:threadId', ThreadScreen);
 
 const splitView = new SplitView({
-  minWidth: 640, // currently not used by the web renderer; kept for API compatibility
+  minWidth: 640,
   primary: master,
   secondary: detail,
   primaryMaxWidth: 390,
 });
 
-const root = new NavigationStack().addScreen('/mail', splitView);
+// Mount SplitView directly as a tab (no wrapper stack needed).
+const tabBar = new TabBar()
+  .addTab({ key: 'mail', node: splitView, prefix: '/mail', title: 'Mail' })
+  .addTab({ key: 'settings', stack: settingsStack, title: 'Settings' });
 ```
 
 ## Controllers
