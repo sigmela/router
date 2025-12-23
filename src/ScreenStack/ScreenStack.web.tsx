@@ -8,6 +8,8 @@ import {
   Children,
   isValidElement,
   Fragment,
+  useCallback,
+  useContext,
 } from 'react';
 import type { ScreenStackItemProps } from '../ScreenStackItem/ScreenStackItem.types';
 import type { ScreenStackItemPhase } from '../ScreenStackItem/ScreenStackItem.types';
@@ -21,6 +23,7 @@ import {
   getPresentationTypeClass,
   computeAnimationType,
 } from './animationHelpers';
+import { RouterContext } from '../RouterContext';
 
 type ScreenStackProps = {
   children: ReactNode;
@@ -30,9 +33,6 @@ type ScreenStackProps = {
 
 type Direction = 'forward' | 'back';
 
-const devLog = (msg: string, data?: any) => {
-  console.log(msg, data !== undefined ? JSON.stringify(data) : '');
-};
 
 const isScreenStackItemElement = (
   child: ReactNode
@@ -103,6 +103,16 @@ const computeDirection = (prev: string[], current: string[]): Direction => {
 
 export const ScreenStack = memo<ScreenStackProps>((props) => {
   const { children, transitionTime = 250, animated = true } = props;
+
+  const router = useContext(RouterContext);
+  const debugEnabled = router?.isDebugEnabled() ?? false;
+  const devLog = useCallback(
+    (msg: string, data?: any) => {
+      if (!debugEnabled) return;
+      console.log(msg, data !== undefined ? JSON.stringify(data) : '');
+    },
+    [debugEnabled]
+  );
 
   devLog('[ScreenStack] Render', {
     transitionTime,

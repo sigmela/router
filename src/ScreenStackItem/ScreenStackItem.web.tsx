@@ -1,16 +1,23 @@
 import type { ScreenStackItemProps } from './ScreenStackItem.types';
 import { RouteLocalContext, useRouter } from '../RouterContext';
 import { isModalLikePresentation } from '../types';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useScreenStackItemsContext } from '../ScreenStack/ScreenStackContext';
-
-const devLog = (_: string, __?: any) => {};
 
 export const ScreenStackItem = memo(
   ({ item, appearance, style }: ScreenStackItemProps) => {
     const itemsContext = useScreenStackItemsContext();
     const router = useRouter();
+
+    const debugEnabled = router.isDebugEnabled();
+    const devLog = useCallback(
+      (msg: string, data?: any) => {
+        if (!debugEnabled) return;
+        console.log(msg, data !== undefined ? JSON.stringify(data) : '');
+      },
+      [debugEnabled]
+    );
     const key = item.key;
 
     const itemState = itemsContext.items[key];

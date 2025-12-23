@@ -103,6 +103,10 @@ export class Router {
     this.recomputeActiveRoute();
   }
 
+  public isDebugEnabled(): boolean {
+    return this.debugEnabled;
+  }
+
   private log(message: string, data?: any): void {
     if (this.debugEnabled) {
       if (data !== undefined) {
