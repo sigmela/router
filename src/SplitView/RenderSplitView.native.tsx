@@ -1,104 +1,101 @@
 import type { NavigationAppearance, HistoryItem } from '../types';
-import type { NavigationStack } from '../NavigationStack';
 import type { SplitView } from './SplitView';
-import { StackRenderer } from '../StackRenderer';
+import { ScreenStackItem } from '../ScreenStackItem';
+import { ScreenStack } from '../ScreenStack';
 import { SplitViewContext } from './SplitViewContext';
 import { useRouter } from '../RouterContext';
-import { memo, useCallback, useSyncExternalStore } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { memo, useCallback, useSyncExternalStore, useMemo } from 'react';
+import { StyleSheet } from 'react-native';
 
 export interface RenderSplitViewProps {
   splitView: SplitView;
   appearance?: NavigationAppearance;
 }
 
-const StackSliceRenderer = memo<{
-  stack: NavigationStack;
-  appearance?: NavigationAppearance;
-  fallbackToFirstRoute?: boolean;
-}>(({ stack, appearance, fallbackToFirstRoute }) => {
-  const router = useRouter();
-  const stackId = stack.getId();
-
-  const subscribe = useCallback(
-    (cb: () => void) => router.subscribeStack(stackId, cb),
-    [router, stackId]
-  );
-  const get = useCallback(
-    () => router.getStackHistory(stackId),
-    [router, stackId]
-  );
-
-  const history: HistoryItem[] = useSyncExternalStore(subscribe, get, get);
-
-  let historyToRender = history;
-  if (fallbackToFirstRoute && historyToRender.length === 0) {
-    const first = stack.getFirstRoute();
-    if (first) {
-      const activePath = router.getActiveRoute()?.path;
-      historyToRender = [
-        {
-          key: `splitview-seed-${stackId}`,
-          routeId: first.routeId,
-          component: first.component,
-          options: first.options,
-          stackId,
-          pattern: first.path,
-          path: activePath ?? first.path,
-        },
-      ];
-    }
-  }
-
-  return (
-    <StackRenderer
-      appearance={appearance}
-      stack={stack}
-      history={historyToRender}
-    />
-  );
-});
-
-StackSliceRenderer.displayName = 'SplitViewStackSliceRendererNative';
-
+/**
+ * On native (iPhone), SplitView renders primary and secondary screens
+ * in a SINGLE ScreenStack to get native push/pop animations.
+ *
+ * The combined history is: [...primaryHistory, ...secondaryHistory]
+ * This way, navigating from primary to secondary is a native push.
+ */
 export const RenderSplitView = memo<RenderSplitViewProps>(
   ({ splitView, appearance }) => {
     const router = useRouter();
+
+    // Subscribe to primary stack
+    const primaryId = splitView.primary.getId();
+    const subscribePrimary = useCallback(
+      (cb: () => void) => router.subscribeStack(primaryId, cb),
+      [router, primaryId]
+    );
+    const getPrimary = useCallback(
+      () => router.getStackHistory(primaryId),
+      [router, primaryId]
+    );
+    const primaryHistory = useSyncExternalStore(
+      subscribePrimary,
+      getPrimary,
+      getPrimary
+    );
+
+    // Subscribe to secondary stack
     const secondaryId = splitView.secondary.getId();
-    const subscribe = useCallback(
+    const subscribeSecondary = useCallback(
       (cb: () => void) => router.subscribeStack(secondaryId, cb),
       [router, secondaryId]
     );
-    const get = useCallback(
+    const getSecondary = useCallback(
       () => router.getStackHistory(secondaryId),
       [router, secondaryId]
     );
-    const secondaryHistory = useSyncExternalStore(subscribe, get, get);
-    const hasSecondary = secondaryHistory.length > 0;
+    const secondaryHistory = useSyncExternalStore(
+      subscribeSecondary,
+      getSecondary,
+      getSecondary
+    );
 
+    // Fallback: if primary is empty, seed with first route
+    const primaryHistoryToRender = useMemo(() => {
+      if (primaryHistory.length > 0) {
+        return primaryHistory;
+      }
+      const first = splitView.primary.getFirstRoute();
+      if (!first) return [];
+      const activePath = router.getActiveRoute()?.path;
+      return [
+        {
+          key: `splitview-seed-${primaryId}`,
+          routeId: first.routeId,
+          component: first.component,
+          options: first.options,
+          stackId: primaryId,
+          pattern: first.path,
+          path: activePath ?? first.path,
+        },
+      ] as HistoryItem[];
+    }, [primaryHistory, splitView.primary, primaryId, router]);
+
+    // Combine histories: primary screens first, then secondary screens on top
+    // This gives native push animation when navigating from primary to secondary
+    const combinedHistory = useMemo(() => {
+      return [...primaryHistoryToRender, ...secondaryHistory];
+    }, [primaryHistoryToRender, secondaryHistory]);
+
+    // Use primary stack ID for the combined ScreenStack
+    // (secondary items will animate as if pushed onto this stack)
     return (
       <SplitViewContext.Provider value={splitView}>
-        <View style={styles.container}>
-          <View
-            style={styles.primary}
-            pointerEvents={hasSecondary ? 'none' : 'auto'}
-          >
-            <StackSliceRenderer
+        <ScreenStack style={styles.container}>
+          {combinedHistory.map((item) => (
+            <ScreenStackItem
+              key={`splitview-${item.key}`}
               appearance={appearance}
-              stack={splitView.primary}
-              fallbackToFirstRoute
+              stackId={item.stackId}
+              item={item}
             />
-          </View>
-
-          {hasSecondary ? (
-            <View style={styles.secondary}>
-              <StackSliceRenderer
-                appearance={appearance}
-                stack={splitView.secondary}
-              />
-            </View>
-          ) : null}
-        </View>
+          ))}
+        </ScreenStack>
       </SplitViewContext.Provider>
     );
   }
@@ -106,9 +103,5 @@ export const RenderSplitView = memo<RenderSplitViewProps>(
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  primary: { flex: 1 },
-  secondary: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 2,
-  },
 });
+
