@@ -8,6 +8,8 @@ import {
   Children,
   isValidElement,
   Fragment,
+  useCallback,
+  useContext,
 } from 'react';
 import type { ScreenStackItemProps } from '../ScreenStackItem/ScreenStackItem.types';
 import type { ScreenStackItemPhase } from '../ScreenStackItem/ScreenStackItem.types';
@@ -21,6 +23,7 @@ import {
   getPresentationTypeClass,
   computeAnimationType,
 } from './animationHelpers';
+import { RouterContext } from '../RouterContext';
 
 type ScreenStackProps = {
   children: ReactNode;
@@ -29,8 +32,6 @@ type ScreenStackProps = {
 };
 
 type Direction = 'forward' | 'back';
-
-const devLog = (_: string, __?: any) => {};
 
 const isScreenStackItemElement = (
   child: ReactNode
@@ -102,6 +103,16 @@ const computeDirection = (prev: string[], current: string[]): Direction => {
 export const ScreenStack = memo<ScreenStackProps>((props) => {
   const { children, transitionTime = 250, animated = true } = props;
 
+  const router = useContext(RouterContext);
+  const debugEnabled = router?.isDebugEnabled() ?? false;
+  const devLog = useCallback(
+    (msg: string, data?: any) => {
+      if (!debugEnabled) return;
+      console.log(msg, data !== undefined ? JSON.stringify(data) : '');
+    },
+    [debugEnabled]
+  );
+
   devLog('[ScreenStack] Render', {
     transitionTime,
     animated,
@@ -139,7 +150,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     });
 
     return stackItems;
-  }, [children]);
+  }, [children, devLog]);
 
   const routeKeys = useMemo(() => {
     const keys = stackChildren.map((child) => {
@@ -148,7 +159,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     });
     devLog('[ScreenStack] routeKeys', keys);
     return keys;
-  }, [stackChildren]);
+  }, [devLog, stackChildren]);
 
   const childMap = useMemo(() => {
     const map = new Map(childMapRef.current);
@@ -167,7 +178,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     });
 
     return map;
-  }, [stackChildren]);
+  }, [devLog, stackChildren]);
 
   const { stateMap, toggle, setItem, deleteItem } = useTransitionMap<string>({
     timeout: transitionTime,
@@ -239,7 +250,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     });
 
     return result;
-  }, [routeKeys, stateMapEntries]);
+  }, [devLog, routeKeys, stateMapEntries]);
 
   const containerClassName = useMemo(() => {
     return 'screen-stack';
@@ -328,6 +339,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     stateMapEntries,
     stateMap,
     animateFirstScreenAfterEmpty,
+    devLog,
   ]);
 
   useLayoutEffect(() => {
@@ -361,7 +373,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     }
 
     devLog('[ScreenStack] === CLEANUP EFFECT END ===');
-  }, [routeKeys, stateMapEntries, deleteItem]);
+  }, [routeKeys, stateMapEntries, deleteItem, devLog]);
 
   useEffect(() => {
     if (!isInitialMountRef.current) return;
@@ -382,7 +394,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
       isInitialMountRef.current = false;
       devLog('[ScreenStack] Initial mount completed');
     }
-  }, [stateMapEntries, routeKeys.length, animateFirstScreenAfterEmpty]);
+  }, [stateMapEntries, routeKeys.length, animateFirstScreenAfterEmpty, devLog]);
 
   // Clear suppression key once it is no longer the top screen (so it can animate normally as
   // a background when new screens are pushed).

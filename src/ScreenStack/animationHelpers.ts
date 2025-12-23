@@ -1,4 +1,5 @@
 import type { StackPresentationTypes } from '../types';
+import { isModalLikePresentation } from '../types';
 import type {
   PresentationTypeClass,
   AnimationType,
@@ -12,6 +13,8 @@ export function getPresentationTypeClass(
       return 'push';
     case 'modal':
       return 'modal';
+    case 'modalRight':
+      return 'modal-right';
     case 'transparentModal':
       return 'transparent-modal';
     case 'containedModal':
@@ -64,17 +67,7 @@ export function computeAnimationType(
   }
 
   const isEntering = isInStack && isTop;
-
-  const isModalLike = [
-    'modal',
-    'transparentModal',
-    'containedModal',
-    'containedTransparentModal',
-    'fullScreenModal',
-    'formSheet',
-    'pageSheet',
-    'sheet',
-  ].includes(presentation);
+  const isModalLike = isModalLikePresentation(presentation);
 
   if (isModalLike) {
     if (!isInStack) {
@@ -92,7 +85,13 @@ export function computeAnimationType(
       ) as AnimationType;
     }
 
-    return 'none';
+    // Modal-like screen that's NOT top (background) - animate like push
+    // This happens when navigating inside a modal stack
+    if (direction === 'forward') {
+      return 'push-background';
+    } else {
+      return 'pop-background';
+    }
   }
 
   if (!isInStack) {

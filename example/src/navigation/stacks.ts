@@ -16,6 +16,8 @@ import { SmsAuthModal } from '../screens/SmsAuthModal';
 import { GenericAuthModal } from '../screens/GenericAuthModal';
 import { PromoModal } from '../screens/PromoModal';
 import { AuthScreen } from '../screens/AuthScreen';
+import { EmailVerifyInputScreen } from '../screens/EmailVerifyInputScreen';
+import { EmailVerifySentScreen } from '../screens/EmailVerifySentScreen';
 import { TabBar } from '@sigmela/router';
 
 export const homeStack = new NavigationStack().addScreen('/', HomeScreen, {
@@ -89,6 +91,26 @@ export const userStack = new NavigationStack()
     header: { title: 'Details' },
   });
 
+/**
+ * Email Verification Modal Stack
+ *
+ * This demonstrates using a NavigationStack inside a modal.
+ * The stack contains multiple screens with full navigation support:
+ * - goBack() navigates between screens inside the modal
+ * - dismiss() closes the entire modal from any depth
+ *
+ * Paths are RELATIVE to the modal's base path ('/verify'):
+ * - '/' becomes '/verify'
+ * - '/sent' becomes '/verify/sent'
+ */
+export const emailVerifyModalStack = new NavigationStack()
+  .addScreen('/', EmailVerifyInputScreen, {
+    header: { title: 'Verify Email', hidden: true },
+  })
+  .addScreen('/sent', EmailVerifySentScreen, {
+    header: { title: 'Email Sent', hidden: true },
+  });
+
 export function getRootStack() {
   const tabBar = new TabBar({ component: undefined })
     .addTab({
@@ -136,7 +158,10 @@ export function getRootStack() {
       header: { title: 'SMS login' },
     })
     .addModal('/auth?kind=:kind', GenericAuthModal)
-    .addModal('*?modal=promo', PromoModal);
+    .addModal('*?modal=promo', PromoModal)
+    // Email Verification Modal with NavigationStack
+    // Opens a full navigation stack inside a modal
+    .addModal('/verify', emailVerifyModalStack);
 
   return rootStack;
 }

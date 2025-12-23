@@ -1,15 +1,23 @@
 import type { ScreenStackItemProps } from './ScreenStackItem.types';
 import { RouteLocalContext, useRouter } from '../RouterContext';
-import { memo, useMemo } from 'react';
+import { isModalLikePresentation } from '../types';
+import { memo, useMemo, useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useScreenStackItemsContext } from '../ScreenStack/ScreenStackContext';
-
-const devLog = (_: string, __?: any) => {};
 
 export const ScreenStackItem = memo(
   ({ item, appearance, style }: ScreenStackItemProps) => {
     const itemsContext = useScreenStackItemsContext();
     const router = useRouter();
+
+    const debugEnabled = router.isDebugEnabled();
+    const devLog = useCallback(
+      (msg: string, data?: any) => {
+        if (!debugEnabled) return;
+        console.log(msg, data !== undefined ? JSON.stringify(data) : '');
+      },
+      [debugEnabled]
+    );
     const key = item.key;
 
     const itemState = itemsContext.items[key];
@@ -19,17 +27,7 @@ export const ScreenStackItem = memo(
     const transitionStatus = itemState?.transitionStatus;
     const zIndex = itemState?.zIndex ?? 0;
     const presentation = item.options?.stackPresentation ?? 'push';
-
-    const isModalLike = [
-      'modal',
-      'transparentModal',
-      'containedModal',
-      'containedTransparentModal',
-      'fullScreenModal',
-      'formSheet',
-      'pageSheet',
-      'sheet',
-    ].includes(presentation);
+    const isModalLike = isModalLikePresentation(presentation);
 
     const className = useMemo(() => {
       const classes = ['screen-stack-item'];
@@ -66,6 +64,7 @@ export const ScreenStackItem = memo(
       animationType,
       transitionStatus,
       phase,
+      devLog,
       item.key,
       item.path,
     ]);
@@ -78,6 +77,15 @@ export const ScreenStackItem = memo(
       }),
       [style, zIndex]
     );
+
+    const modalContainerStyle = useMemo(() => {
+      if (!isModalLike || !item.options?.maxWidth) {
+        return undefined;
+      }
+      return {
+        maxWidth: `${item.options.maxWidth}px`,
+      };
+    }, [isModalLike, item.options?.maxWidth]);
 
     const value = {
       presentation,
@@ -93,11 +101,10 @@ export const ScreenStackItem = memo(
 
     return (
       <div style={mergedStyle} className={className}>
-        {}
         {isModalLike && (
           <div
             className="stack-modal-overlay"
-            onClick={() => router.goBack()}
+            onClick={() => router.dismiss()}
           />
         )}
 
@@ -105,6 +112,7 @@ export const ScreenStackItem = memo(
           className={
             isModalLike ? 'stack-modal-container' : 'stack-screen-container'
           }
+          style={modalContainerStyle}
         >
           {appearance?.screen ? (
             <View style={[appearance?.screen, styles.flex]}>

@@ -40,8 +40,8 @@ const stack = new NavigationStack({ header: { largeTitle: true } })
 ```
 **Methods:**
 - `addScreen(pathPattern, componentOrNode, options?)` - regular push. `componentOrNode` can be a React component OR a `NavigationNode` (e.g. `TabBar`, `SplitView`, another `NavigationStack` as a screen container).
-- `addModal(pathPattern, component, options?)` - modal presentation
-- `addSheet(pathPattern, component, options?)` - sheet presentation
+- `addModal(pathPattern, componentOrStack, options?)` - modal presentation. Can accept a `NavigationStack` for multi-screen modal flows.
+- `addSheet(pathPattern, componentOrStack, options?)` - sheet presentation. Can accept a `NavigationStack` for multi-screen sheet flows.
 - `addStack(prefixOrStack, maybeStack?)` - nest child `NavigationStack`.
   - `addStack(childStack)` uses empty prefix (`''`)
   - `addStack('/prefix', childStack)` prefixes all child routes; `/` and trailing `/` are normalized away
@@ -59,6 +59,7 @@ const router = new Router({
 - `router.navigate(path)` - push new screen
 - `router.replace(path, dedupe?)` - replace current; with `dedupe=true` it avoids duplicates (may update top item, popTo an existing one, or no-op if already at target).
 - `router.goBack()` - pop stack
+- `router.dismiss()` - close the nearest modal/sheet (including all screens in a modal stack)
 - `router.reset(path)` - **web-only**: rebuild state from path
 - `router.setRoot(rootKey, { transition? })` - swap root runtime (`rootKey` from `config.roots`)
 **State methods:**
@@ -158,6 +159,48 @@ const tabBar = new TabBar()
   .addTab({ key: 'mail', node: splitView, prefix: '/mail', title: 'Mail' })
   .addTab({ key: 'settings', stack: settingsStack, title: 'Settings' });
 ```
+### Pattern 5: Modal Stack (Multi-screen Modal Flow)
+Pass a `NavigationStack` to `addModal()` for multi-screen flows inside a modal.
+```tsx
+// Define a multi-step flow
+const verifyStack = new NavigationStack()
+  .addScreen('/verify', EmailInputScreen)
+  .addScreen('/verify/sent', EmailSentScreen);
+
+// Mount entire stack as a modal
+const rootStack = new NavigationStack()
+  .addScreen('/', HomeScreen)
+  .addModal('/verify', verifyStack);
+
+const router = new Router({ roots: { app: rootStack }, root: 'app' });
+```
+**Inside the modal screens:**
+```tsx
+function EmailInputScreen() {
+  const router = useRouter();
+  return (
+    <>
+      <Button title="Next" onPress={() => router.navigate('/verify/sent')} />
+      <Button title="Close" onPress={() => router.dismiss()} />
+    </>
+  );
+}
+
+function EmailSentScreen() {
+  const router = useRouter();
+  return (
+    <>
+      <Button title="Back" onPress={() => router.goBack()} />
+      <Button title="Done" onPress={() => router.dismiss()} />
+    </>
+  );
+}
+```
+**Key behaviors:**
+- `router.navigate()` pushes within the modal stack
+- `router.goBack()` pops within the modal stack  
+- `router.dismiss()` closes the entire modal from any depth
+- Works recursively (stacks can be nested to any depth)
 ## Controllers (Async/Guarded Navigation)
 Delay or conditionally prevent navigation.
 ```tsx
@@ -269,19 +312,26 @@ rootStack (NavigationStack)
   │   └─ settings → settingsStack (NavigationStack)
   ├─ /auth → AuthScreen (modal)
   ├─ /auth?kind=email → EmailAuthModal (modal)
+  ├─ /verify → verifyStack (modal stack)
+  │   ├─ /verify → EmailInputScreen
+  │   └─ /verify/sent → EmailSentScreen
   └─ *?modal=promo → PromoModal (wildcard modal)
 ```
 ## Troubleshooting
 - **Screen not rendering**: Check path pattern matches navigation path exactly
 - **Params undefined**: Ensure path pattern has `:paramName` segment
-- **Web URL not updating**: Verify you’re in web environment and route options don’t set `syncWithUrl: false`
+- **Web URL not updating**: Verify you're in web environment and route options don't set `syncWithUrl: false`
 - **Tab switch not working**: Use `tabBar.onIndexChange()`, not router navigation
 - **Split view not showing secondary**: Ensure secondary stack has at least one screen pushed
+- **Modal stack screen opens outside modal**: Ensure inner routes share the same path prefix as the modal (e.g., `/verify` and `/verify/sent`)
+- **dismiss() not working**: Only works when a modal/sheet is currently open in history
 ## Gotchas / Anti-patterns
 - **Tabs switching**: To *navigate to a specific screen inside a tab*, use `router.navigate('/some/path')` (it will activate the matching tab). To *just switch tabs without navigation*, use `tabBar.onIndexChange(index)`.
-- **`replace(..., true)` semantics**: `dedupe` can “popTo” an existing item in the same stack, or no-op when already at the same route+params+path+query; don’t assume it always overwrites history.
+- **`replace(..., true)` semantics**: `dedupe` can "popTo" an existing item in the same stack, or no-op when already at the same route+params+path+query; don't assume it always overwrites history.
 - **`syncWithUrl: false`**: Visible URL can diverge from Router state; avoid for screens you want deep-linkable/bookmarkable.
 - **Controllers**: If a controller never calls `present()`, the screen will never appear (by design).
+- **Modal stack path prefixes**: Inner screens of a modal stack must share the modal's path prefix. E.g., if modal opens at `/verify`, inner screens should be `/verify/step2`, not `/step2`.
+- **`goBack()` vs `dismiss()`**: Inside a modal stack, `goBack()` navigates within the modal; `dismiss()` closes the entire modal regardless of depth.
 ## Source references (for grounding)
 - `src/index.ts` (public exports)
 - `src/Router.ts` (navigate/replace/reset/history sync, `syncWithUrl`, `dedupe`)

@@ -148,9 +148,59 @@ const stack = new NavigationStack({ header: { largeTitle: true } })
 
 Key methods:
 - `addScreen(pathPattern, componentOrNode, options?)`
-- `addModal(pathPattern, component, options?)` (shorthand for `stackPresentation: 'modal'`)
-- `addSheet(pathPattern, component, options?)` (shorthand for `stackPresentation: 'sheet'`)
+- `addModal(pathPattern, componentOrStack, options?)` (shorthand for `stackPresentation: 'modal'`)
+- `addSheet(pathPattern, componentOrStack, options?)` (shorthand for `stackPresentation: 'sheet'`)
 - `addStack(prefixOrStack, maybeStack?)` — compose nested stacks under a prefix
+
+### Modal Stacks (Stack in Stack)
+
+You can pass an entire `NavigationStack` to `addModal()` or `addSheet()` to create a multi-screen flow inside a modal:
+
+```tsx
+// Define a flow with multiple screens
+const emailVerifyStack = new NavigationStack()
+  .addScreen('/verify', EmailInputScreen)
+  .addScreen('/verify/sent', EmailSentScreen);
+
+// Mount the entire stack as a modal
+const rootStack = new NavigationStack()
+  .addScreen('/', HomeScreen)
+  .addModal('/verify', emailVerifyStack);
+```
+
+**How it works:**
+- Navigating to `/verify` opens the modal with `EmailInputScreen`
+- Inside the modal, `router.navigate('/verify/sent')` pushes `EmailSentScreen` within the same modal
+- `router.goBack()` navigates back inside the modal stack
+- `router.dismiss()` closes the entire modal from any depth
+
+**Example screen with navigation inside modal:**
+
+```tsx
+function EmailInputScreen() {
+  const router = useRouter();
+  
+  return (
+    <View>
+      <Button title="Next" onPress={() => router.navigate('/verify/sent')} />
+      <Button title="Close" onPress={() => router.dismiss()} />
+    </View>
+  );
+}
+
+function EmailSentScreen() {
+  const router = useRouter();
+  
+  return (
+    <View>
+      <Button title="Back" onPress={() => router.goBack()} />
+      <Button title="Done" onPress={() => router.dismiss()} />
+    </View>
+  );
+}
+```
+
+This pattern works recursively — you can nest stacks inside stacks to any depth.
 
 ### `Router`
 
@@ -169,6 +219,7 @@ Navigation:
 - `router.navigate(path)` — push
 - `router.replace(path, dedupe?)` — replace top of the active stack
 - `router.goBack()` — pop top of the active stack
+- `router.dismiss()` — close the nearest modal or sheet (including all screens in a modal stack)
 - `router.reset(path)` — **web-only**: rebuild Router state as if app loaded at `path`
 - `router.setRoot(rootKey, { transition? })` — swap root at runtime (`rootKey` from `config.roots`)
 
@@ -179,8 +230,6 @@ State/subscriptions:
 - `router.subscribeStack(stackId, cb)` — notify when a particular stack slice changes
 - `router.subscribeRoot(cb)` — notify when root is replaced via `setRoot`
 - `router.getStackHistory(stackId)` — slice of history for a stack
-
-> Note: `router.getGlobalStackId()` exists but currently returns `undefined`.
 
 ### `TabBar`
 

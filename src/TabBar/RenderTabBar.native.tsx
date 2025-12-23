@@ -218,6 +218,7 @@ TabNodeRenderer.displayName = 'TabNodeRenderer';
 
 export const RenderTabBar = memo<RenderTabBarProps>(
   ({ tabBar, appearance = {} }) => {
+    const router = useRouter();
     const subscribe = useCallback(
       (cb: () => void) => tabBar.subscribe(cb),
       [tabBar]
@@ -246,16 +247,96 @@ export const RenderTabBar = memo<RenderTabBarProps>(
       (event: NativeSyntheticEvent<NativeFocusChangeEvent>) => {
         const tabKey = event.nativeEvent.tabKey;
         const tabIndex = tabs.findIndex((route) => route.tabKey === tabKey);
-        tabBar.onIndexChange(tabIndex);
+        if (tabIndex === -1) return;
+
+        const targetTab = tabs[tabIndex];
+        if (!targetTab) return;
+
+        const targetStack = tabBar.stacks[targetTab.tabKey];
+        const targetNode = tabBar.nodes[targetTab.tabKey];
+
+        // Update TabBar UI state
+        if (tabIndex !== index) {
+          tabBar.onIndexChange(tabIndex);
+        }
+
+        // Navigate to the target stack's first route if needed
+        if (targetStack) {
+          const stackId = targetStack.getId();
+          const stackHistory = router.getStackHistory(stackId);
+          // Only navigate if stack is empty (first visit)
+          if (stackHistory.length === 0) {
+            const firstRoute = targetStack.getFirstRoute();
+            if (firstRoute?.path) {
+              router.navigate(firstRoute.path);
+            }
+          }
+        } else if (targetNode) {
+          // For nodes like SplitView, check if we need to seed it
+          const nodeId = targetNode.getId?.();
+          if (nodeId) {
+            const nodeHistory = router.getStackHistory(nodeId);
+            if (nodeHistory.length === 0) {
+              const seed = targetNode.seed?.();
+              if (seed?.path) {
+                const prefix = targetTab.tabPrefix ?? '';
+                const fullPath =
+                  prefix && !seed.path.startsWith(prefix)
+                    ? `${prefix}${seed.path.startsWith('/') ? '' : '/'}${seed.path}`
+                    : seed.path;
+                router.navigate(fullPath);
+              }
+            }
+          }
+        }
       },
-      [tabs, tabBar]
+      [tabs, tabBar, index, router]
     );
 
     const onTabPress = useCallback(
       (nextIndex: number) => {
-        tabBar.onIndexChange(nextIndex);
+        const targetTab = tabs[nextIndex];
+        if (!targetTab) return;
+
+        const targetStack = tabBar.stacks[targetTab.tabKey];
+        const targetNode = tabBar.nodes[targetTab.tabKey];
+
+        // Update TabBar UI state
+        if (nextIndex !== index) {
+          tabBar.onIndexChange(nextIndex);
+        }
+
+        // Navigate to the target stack's first route if needed
+        if (targetStack) {
+          const stackId = targetStack.getId();
+          const stackHistory = router.getStackHistory(stackId);
+          // Only navigate if stack is empty (first visit)
+          if (stackHistory.length === 0) {
+            const firstRoute = targetStack.getFirstRoute();
+            if (firstRoute?.path) {
+              router.navigate(firstRoute.path);
+            }
+          }
+        } else if (targetNode) {
+          // For nodes like SplitView, check if we need to seed it
+          const nodeId = targetNode.getId?.();
+          if (nodeId) {
+            const nodeHistory = router.getStackHistory(nodeId);
+            if (nodeHistory.length === 0) {
+              const seed = targetNode.seed?.();
+              if (seed?.path) {
+                const prefix = targetTab.tabPrefix ?? '';
+                const fullPath =
+                  prefix && !seed.path.startsWith(prefix)
+                    ? `${prefix}${seed.path.startsWith('/') ? '' : '/'}${seed.path}`
+                    : seed.path;
+                router.navigate(fullPath);
+              }
+            }
+          }
+        }
       },
-      [tabBar]
+      [tabs, tabBar, index, router]
     );
 
     const containerProps = {

@@ -69,6 +69,21 @@ export const HomeScreen = () => {
               />
             </View>
           </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Modal Stack Example</Text>
+            <Text style={styles.sectionDescription}>
+              Opens a NavigationStack inside a modal. You can navigate between
+              screens inside the modal using goBack(), and close the entire
+              modal with dismiss().
+            </Text>
+            <View style={styles.buttonRow}>
+              <Button
+                title="Verify Email (Modal Stack)"
+                onPress={() => router.navigate('/verify')}
+              />
+            </View>
+          </View>
         </View>
 
         {Array.from({ length: 100 }).map((_, index) => (
@@ -105,6 +120,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 10,
     width: '100%',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+    lineHeight: 20,
   },
   buttonRow: {
     flexDirection: 'row',

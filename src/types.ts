@@ -10,6 +10,7 @@ import type {
 export type StackPresentationTypes =
   | 'push'
   | 'modal'
+  | 'modalRight'
   | 'transparentModal'
   | 'containedModal'
   | 'containedTransparentModal'
@@ -17,6 +18,33 @@ export type StackPresentationTypes =
   | 'formSheet'
   | 'pageSheet'
   | 'sheet';
+
+/**
+ * Presentations that behave like modals (overlay on top of content).
+ */
+export const MODAL_LIKE_PRESENTATIONS: ReadonlySet<StackPresentationTypes> =
+  new Set([
+    'modal',
+    'modalRight',
+    'transparentModal',
+    'containedModal',
+    'containedTransparentModal',
+    'fullScreenModal',
+    'formSheet',
+    'pageSheet',
+    'sheet',
+  ]);
+
+/**
+ * Check if a presentation type is modal-like (renders as overlay).
+ */
+export function isModalLikePresentation(
+  presentation: StackPresentationTypes | undefined
+): boolean {
+  return (
+    presentation !== undefined && MODAL_LIKE_PRESENTATIONS.has(presentation)
+  );
+}
 
 export type TabItem = Omit<BottomTabsScreenProps, 'isFocused' | 'children'>;
 
@@ -53,6 +81,12 @@ export type ScreenOptions = Partial<
    * Useful for secondary stacks in split-view / overlays.
    */
   allowRootPop?: boolean;
+
+  /**
+   * Maximum width for modal presentation on web (in pixels).
+   * Only applies to modal-like presentations on web platform.
+   */
+  maxWidth?: number;
 };
 
 export type HistoryItem = {

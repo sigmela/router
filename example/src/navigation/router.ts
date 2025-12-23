@@ -6,7 +6,7 @@ export const router = new Router({
     app: getRootStack(),
     auth: authStack,
   },
-  // Demo: start from auth root, then switch to app on login.
-  root: 'auth',
+  // Start from app root (main navigation with tabs)
+  root: 'app',
   debug: true,
 });
