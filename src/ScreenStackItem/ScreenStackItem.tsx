@@ -11,6 +11,11 @@ import { memo } from 'react';
 export const ScreenStackItem = memo<ScreenStackItemProps>(
   ({ item, stackId, stackAnimation, appearance }) => {
     const { header, stackPresentation, ...screenProps } = item.options || {};
+
+    // On native, modalRight behaves as regular modal
+    const nativePresentation =
+      stackPresentation === 'modalRight' ? 'modal' : stackPresentation;
+
     const route = {
       presentation: stackPresentation ?? 'push',
       params: item.params,
@@ -57,7 +62,7 @@ export const ScreenStackItem = memo<ScreenStackItemProps>(
         style={StyleSheet.absoluteFill}
         contentStyle={appearance?.screen}
         headerConfig={headerConfig}
-        stackPresentation={stackPresentation as StackPresentationTypes}
+        stackPresentation={nativePresentation as StackPresentationTypes}
         stackAnimation={stackAnimation ?? item.options?.stackAnimation}
       >
         <RouteLocalContext.Provider value={route}>

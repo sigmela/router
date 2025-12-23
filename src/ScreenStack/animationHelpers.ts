@@ -13,6 +13,8 @@ export function getPresentationTypeClass(
       return 'push';
     case 'modal':
       return 'modal';
+    case 'modalRight':
+      return 'modal-right';
     case 'transparentModal':
       return 'transparent-modal';
     case 'containedModal':

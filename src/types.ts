@@ -10,6 +10,7 @@ import type {
 export type StackPresentationTypes =
   | 'push'
   | 'modal'
+  | 'modalRight'
   | 'transparentModal'
   | 'containedModal'
   | 'containedTransparentModal'
@@ -23,6 +24,7 @@ export type StackPresentationTypes =
  */
 export const MODAL_LIKE_PRESENTATIONS: ReadonlySet<StackPresentationTypes> = new Set([
   'modal',
+  'modalRight',
   'transparentModal',
   'containedModal',
   'containedTransparentModal',

@@ -5,6 +5,7 @@ import type { TransitionStatus } from 'react-transition-state';
 export type PresentationTypeClass =
   | 'push'
   | 'modal'
+  | 'modal-right'
   | 'transparent-modal'
   | 'contained-modal'
   | 'contained-transparent-modal'
@@ -22,6 +23,8 @@ export type AnimationType =
   | 'pop-background'
   | 'modal-enter'
   | 'modal-exit'
+  | 'modal-right-enter'
+  | 'modal-right-exit'
   | 'transparent-modal-enter'
   | 'transparent-modal-exit'
   | 'contained-modal-enter'
