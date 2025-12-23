@@ -182,6 +182,94 @@ export class Router {
     this.popFromActiveStack();
   };
 
+  /**
+   * Closes the nearest modal or sheet, regardless of navigation depth inside it.
+   * Useful when a NavigationStack is rendered inside a modal and you want to
+   * close the entire modal from any screen within it.
+   */
+  public dismiss = (): void => {
+    const modalPresentations = new Set([
+      'modal',
+      'transparentModal',
+      'containedModal',
+      'containedTransparentModal',
+      'fullScreenModal',
+      'formSheet',
+      'pageSheet',
+      'sheet',
+    ]);
+
+    // Find the nearest modal/sheet item in history (searching from end)
+    let modalItem: HistoryItem | null = null;
+    for (let i = this.state.history.length - 1; i >= 0; i--) {
+      const item = this.state.history[i];
+      if (
+        item &&
+        item.options?.stackPresentation &&
+        modalPresentations.has(item.options.stackPresentation)
+      ) {
+        modalItem = item;
+        break;
+      }
+    }
+
+    if (!modalItem) {
+      this.log('dismiss: no modal found in history');
+      return;
+    }
+
+    this.log('dismiss: closing modal', {
+      key: modalItem.key,
+      routeId: modalItem.routeId,
+      stackId: modalItem.stackId,
+      presentation: modalItem.options?.stackPresentation,
+    });
+
+    // Handle sheet dismisser if registered
+    if (modalItem.options?.stackPresentation === 'sheet') {
+      const dismisser = this.sheetDismissers.get(modalItem.key);
+      if (dismisser) {
+        this.unregisterSheetDismisser(modalItem.key);
+        dismisser();
+        return;
+      }
+    }
+
+    // Check if modal has a childNode (NavigationStack added via addModal)
+    const compiled = this.registry.find((r) => r.routeId === modalItem.routeId);
+    const childNode = compiled?.childNode;
+
+    if (childNode) {
+      // Modal stack: remove all items from child stack AND the modal wrapper item
+      const childStackId = childNode.getId();
+
+      this.log('dismiss: closing modal stack', {
+        childStackId,
+        modalKey: modalItem.key,
+      });
+
+      const newHistory = this.state.history.filter(
+        (item) => item.stackId !== childStackId && item.key !== modalItem.key
+      );
+
+      this.setState({ history: newHistory });
+
+      // Clear child stack's history cache
+      this.stackHistories.delete(childStackId);
+    } else {
+      // Simple modal: just pop the modal item
+      this.applyHistoryChange('pop', modalItem);
+    }
+
+    this.recomputeActiveRoute();
+    this.emit(this.listeners);
+
+    // Sync URL on web
+    if (this.isWebEnv()) {
+      this.syncUrlAfterInternalPop(modalItem);
+    }
+  };
+
   public getState = () => {
     return this.state;
   };
@@ -203,6 +291,14 @@ export class Router {
       return current;
     }
     return this.stackHistories.get(stackId) ?? EMPTY_ARRAY;
+  };
+
+  /**
+   * Returns all history items in navigation order.
+   * Useful for rendering all screens including modal stacks.
+   */
+  public getFullHistory = (): HistoryItem[] => {
+    return this.state.history;
   };
 
   public subscribeStack = (stackId: string, cb: Listener): (() => void) => {
@@ -656,6 +752,11 @@ export class Router {
           passProps
         );
         this.applyHistoryChange(action, newItem);
+
+        // Seed child node if present
+        if (base.childNode) {
+          this.addChildNodeSeedsToHistory(base.routeId);
+        }
       };
 
       base.controller(controllerInput, present);
@@ -664,6 +765,12 @@ export class Router {
 
     const newItem = this.createHistoryItem(base, params, query, pathname);
     this.applyHistoryChange(action, newItem);
+
+    // If the matched route has a childNode (e.g., NavigationStack added via addModal),
+    // seed the child stack's history so StackRenderer has items to render.
+    if (base.childNode) {
+      this.addChildNodeSeedsToHistory(base.routeId);
+    }
   }
 
   private createHistoryItem(
@@ -1151,7 +1258,11 @@ export class Router {
   private buildRegistry(): void {
     this.registry.length = 0;
 
-    const addFromNode = (node: NavigationNode, basePath: string) => {
+    const addFromNode = (
+      node: NavigationNode,
+      basePath: string,
+      inheritedOptions?: ScreenOptions
+    ) => {
       const normalizedBasePath = this.normalizeBasePath(basePath);
       const baseSpecificity =
         this.computeBasePathSpecificity(normalizedBasePath);
@@ -1163,7 +1274,16 @@ export class Router {
         this.stackById.set(stackId, node);
       }
 
+      let isFirstRoute = true;
       for (const r of routes) {
+        // Merge options: first route inherits parent options (e.g., for nested stacks)
+        const mergedOptions =
+          isFirstRoute && inheritedOptions
+            ? { ...inheritedOptions, ...r.options }
+            : r.options;
+
+        // Always register the route.
+        // If it has a childNode, r.component is already childNode.getRenderer() (set by extractComponent).
         const compiled: CompiledRoute = {
           routeId: r.routeId,
           path: this.combinePathWithBase(r.path, normalizedBasePath),
@@ -1185,7 +1305,7 @@ export class Router {
           },
           component: r.component,
           controller: r.controller,
-          options: r.options,
+          options: mergedOptions,
           stackId,
           childNode: r.childNode,
         };
@@ -1205,12 +1325,17 @@ export class Router {
           isWildcardPath: compiled.isWildcardPath,
           baseSpecificity: compiled.baseSpecificity,
           stackId,
+          hasChildNode: !!compiled.childNode,
         });
 
+        isFirstRoute = false;
+
+        // Also register routes from childNode (for navigation inside the nested stack)
         if (r.childNode) {
           const nextBaseForChild = r.isWildcardPath
             ? normalizedBasePath
             : this.joinPaths(normalizedBasePath, r.pathnamePattern);
+          // Child routes don't inherit parent options - they use their own
           addFromNode(r.childNode, nextBaseForChild);
         }
       }
@@ -1544,12 +1669,34 @@ export class Router {
         spec += 1000;
       }
 
+      // Routes with childNode AND modal/sheet presentation are "wrapper" routes
+      // that should take priority over the child stack's own routes when both match.
+      // This ensures addModal('/path', NavigationStack) renders the wrapper modal
+      // and not the child stack's first screen directly.
+      const isModalPresentation =
+        r.options?.stackPresentation &&
+        [
+          'modal',
+          'transparentModal',
+          'containedModal',
+          'containedTransparentModal',
+          'fullScreenModal',
+          'formSheet',
+          'pageSheet',
+          'sheet',
+        ].includes(r.options.stackPresentation);
+
+      if (r.childNode && isModalPresentation) {
+        spec += 1;
+      }
+
       this.log('matchBaseRoute candidate', {
         routeId: r.routeId,
         path: r.path,
         baseSpecificity: r.baseSpecificity,
         adjustedSpecificity: spec,
         hasQueryPattern,
+        hasChildNode: !!r.childNode,
         stackId: r.stackId,
       });
 

@@ -30,7 +30,9 @@ type ScreenStackProps = {
 
 type Direction = 'forward' | 'back';
 
-const devLog = (_: string, __?: any) => {};
+const devLog = (msg: string, data?: any) => {
+  console.log(msg, data !== undefined ? JSON.stringify(data) : '');
+};
 
 const isScreenStackItemElement = (
   child: ReactNode

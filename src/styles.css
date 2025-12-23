@@ -229,7 +229,11 @@
 
 /* PUSH BACKGROUND - background screen shifts left */
 /* Important: use !important to override general rules for inactive */
-.screen-stack-item.push.push-background {
+.screen-stack-item.push.push-background,
+.screen-stack-item.modal.push-background,
+.screen-stack-item.sheet.push-background,
+.screen-stack-item.formsheet.push-background,
+.screen-stack-item.pagesheet.push-background {
   transform: translateX(-25%) !important;
   transition:
     transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
@@ -238,7 +242,11 @@
 
 /* POP BACKGROUND - background screen on pop stays at -25% */
 /* Background elements on pop get pop-background instead of none, to preserve -25% position */
-.screen-stack-item.push.pop-background {
+.screen-stack-item.push.pop-background,
+.screen-stack-item.modal.pop-background,
+.screen-stack-item.sheet.pop-background,
+.screen-stack-item.formsheet.pop-background,
+.screen-stack-item.pagesheet.pop-background {
   transform: translateX(-25%) !important;
   /* Don't set transition, so element stays in place without animation */
   filter: none;

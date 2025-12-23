@@ -1,4 +1,4 @@
-import type { NavigationAppearance } from './types';
+import type { NavigationAppearance, HistoryItem } from './types';
 import { ScreenStackItem } from './ScreenStackItem';
 import { RouterContext } from './RouterContext';
 import { ScreenStack } from './ScreenStack';
@@ -17,7 +17,7 @@ interface NavigationProps {
   appearance?: NavigationAppearance;
 }
 
-const EMPTY_HISTORY: any[] = [];
+const EMPTY_HISTORY: HistoryItem[] = [];
 
 function useStackHistory(router: Router, stackId?: string) {
   const subscribe = useCallback(
@@ -33,6 +33,14 @@ function useStackHistory(router: Router, stackId?: string) {
   return useSyncExternalStore(subscribe, get, get);
 }
 
+/**
+ * Navigation component renders the root and global stacks.
+ *
+ * Modal stacks (NavigationStack added via addModal) are rendered as regular ScreenStackItems
+ * with their component being the StackRenderer that subscribes to its own stack history.
+ * This creates a clean recursive structure: stacks render their items, nested stacks
+ * (via childNode) render their own items through StackRenderer.
+ */
 export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
   const [root, setRoot] = useState(() => ({
     rootId: router.getRootStackId(),

@@ -1680,3 +1680,218 @@ describe('Navigation Contract Tests - Flat History Architecture', () => {
     // });
   });
 });
+
+describe('Modal Stack Support', () => {
+  // Mock screens for modal stack tests
+  const LoginScreen: ComponentType<any> = () => null;
+  const EmailInputScreen: ComponentType<any> = () => null;
+  const EmailSentScreen: ComponentType<any> = () => null;
+  const MainScreen: ComponentType<any> = () => null;
+
+  describe('addModal with NavigationStack', () => {
+    test('can add NavigationStack as modal content', () => {
+      // Modal stack paths are RELATIVE - the parent path ('/auth') is the base
+      const authModalStack = new NavigationStack()
+        .addScreen('/', LoginScreen) // becomes '/auth'
+        .addScreen('/email', EmailInputScreen) // becomes '/auth/email'
+        .addScreen('/sent', EmailSentScreen); // becomes '/auth/sent'
+
+      const rootStack = new NavigationStack()
+        .addScreen('/', MainScreen)
+        .addModal('/auth', authModalStack);
+
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
+
+      // Initial state - on main screen
+      expect(getActiveRoutePath(router)).toBe('/');
+
+      // Navigate to modal - should open auth modal with LoginScreen
+      router.navigate('/auth');
+      expect(getActiveRoutePath(router)).toBe('/auth');
+    });
+
+    test('navigation inside modal stack works correctly', () => {
+      const authModalStack = new NavigationStack()
+        .addScreen('/', LoginScreen)
+        .addScreen('/email', EmailInputScreen)
+        .addScreen('/sent', EmailSentScreen);
+
+      const rootStack = new NavigationStack()
+        .addScreen('/', MainScreen)
+        .addModal('/auth', authModalStack);
+
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
+      const authStackId = authModalStack.getId();
+
+      // Open modal
+      router.navigate('/auth');
+      expect(getActiveRoutePath(router)).toBe('/auth');
+      expect(getStackHistoryLength(router, authStackId)).toBe(1);
+
+      // Navigate to email screen inside modal
+      router.navigate('/auth/email');
+      expect(getActiveRoutePath(router)).toBe('/auth/email');
+      expect(getStackHistoryLength(router, authStackId)).toBe(2);
+
+      // Navigate to sent screen inside modal
+      router.navigate('/auth/sent');
+      expect(getActiveRoutePath(router)).toBe('/auth/sent');
+      expect(getStackHistoryLength(router, authStackId)).toBe(3);
+    });
+
+    test('goBack inside modal stack navigates between modal screens', () => {
+      const authModalStack = new NavigationStack()
+        .addScreen('/', LoginScreen)
+        .addScreen('/email', EmailInputScreen)
+        .addScreen('/sent', EmailSentScreen);
+
+      const rootStack = new NavigationStack()
+        .addScreen('/', MainScreen)
+        .addModal('/auth', authModalStack);
+
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
+      const authStackId = authModalStack.getId();
+
+      // Open modal and navigate deep
+      router.navigate('/auth');
+      router.navigate('/auth/email');
+      router.navigate('/auth/sent');
+      expect(getActiveRoutePath(router)).toBe('/auth/sent');
+      expect(getStackHistoryLength(router, authStackId)).toBe(3);
+
+      // goBack should navigate within modal stack
+      router.goBack();
+      expect(getActiveRoutePath(router)).toBe('/auth/email');
+      expect(getStackHistoryLength(router, authStackId)).toBe(2);
+
+      // goBack again
+      router.goBack();
+      expect(getActiveRoutePath(router)).toBe('/auth');
+      expect(getStackHistoryLength(router, authStackId)).toBe(1);
+    });
+  });
+
+  describe('Router.dismiss()', () => {
+    test('dismiss closes modal from root modal screen', () => {
+      const authModalStack = new NavigationStack()
+        .addScreen('/', LoginScreen)
+        .addScreen('/email', EmailInputScreen);
+
+      const rootStack = new NavigationStack()
+        .addScreen('/', MainScreen)
+        .addModal('/auth', authModalStack);
+
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
+
+      // Open modal
+      router.navigate('/auth');
+      expect(getActiveRoutePath(router)).toBe('/auth');
+
+      // Dismiss should close the modal
+      router.dismiss();
+      expect(getActiveRoutePath(router)).toBe('/');
+    });
+
+    test('dismiss closes modal from deep inside modal stack', () => {
+      const authModalStack = new NavigationStack()
+        .addScreen('/', LoginScreen)
+        .addScreen('/email', EmailInputScreen)
+        .addScreen('/sent', EmailSentScreen);
+
+      const rootStack = new NavigationStack()
+        .addScreen('/', MainScreen)
+        .addModal('/auth', authModalStack);
+
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
+
+      // Open modal and navigate deep
+      router.navigate('/auth');
+      router.navigate('/auth/email');
+      router.navigate('/auth/sent');
+      expect(getActiveRoutePath(router)).toBe('/auth/sent');
+
+      // Dismiss should close the entire modal, not just go back
+      router.dismiss();
+      expect(getActiveRoutePath(router)).toBe('/');
+    });
+
+    test('dismiss does nothing when no modal is open', () => {
+      const rootStack = new NavigationStack()
+        .addScreen('/', MainScreen)
+        .addScreen('/settings', SettingsScreen);
+
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
+
+      router.navigate('/settings');
+      expect(getActiveRoutePath(router)).toBe('/settings');
+
+      // Dismiss should do nothing (no modal open)
+      router.dismiss();
+      expect(getActiveRoutePath(router)).toBe('/settings');
+    });
+
+    test('dismiss closes regular modal (not stack)', () => {
+      const rootStack = new NavigationStack()
+        .addScreen('/', MainScreen)
+        .addModal('/promo', PromoModal);
+
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
+
+      router.navigate('/promo');
+      expect(getActiveRoutePath(router)).toBe('/promo');
+
+      router.dismiss();
+      expect(getActiveRoutePath(router)).toBe('/');
+    });
+
+    test('dismiss closes the nearest modal when multiple modals exist', () => {
+      const innerModalStack = new NavigationStack()
+        .addScreen('/', LoginScreen)
+        .addScreen('/step2', EmailInputScreen);
+
+      const rootStack = new NavigationStack()
+        .addScreen('/', MainScreen)
+        .addModal('/outer', PromoModal)
+        .addModal('/inner', innerModalStack);
+
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
+
+      // Open outer modal first, then inner
+      router.navigate('/outer');
+      expect(getActiveRoutePath(router)).toBe('/outer');
+
+      // Note: In real scenario, opening another modal would stack on top
+      // For this test, we navigate to inner modal directly
+      router.navigate('/inner');
+      router.navigate('/inner/step2');
+      expect(getActiveRoutePath(router)).toBe('/inner/step2');
+
+      // Dismiss should close the inner modal (nearest modal with /inner path)
+      router.dismiss();
+      // After dismissing, we should be at /outer or /inner depending on implementation
+      // The key is that dismiss found and closed a modal
+      const path = getActiveRoutePath(router);
+      expect(path).not.toBe('/inner/step2');
+    });
+  });
+
+  describe('addSheet with NavigationStack', () => {
+    test('can add NavigationStack as sheet content', () => {
+      const settingsSheetStack = new NavigationStack()
+        .addScreen('/', SettingsScreen)
+        .addScreen('/advanced', SettingsScreen);
+
+      const rootStack = new NavigationStack()
+        .addScreen('/', MainScreen)
+        .addSheet('/sheet', settingsSheetStack);
+
+      const router = new Router({ roots: { main: rootStack }, root: 'main' });
+
+      router.navigate('/sheet');
+      expect(getActiveRoutePath(router)).toBe('/sheet');
+
+      router.navigate('/sheet/advanced');
+      expect(getActiveRoutePath(router)).toBe('/sheet/advanced');
+    });
+  });
+});

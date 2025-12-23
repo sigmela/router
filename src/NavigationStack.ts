@@ -2,6 +2,7 @@ import type { ScreenOptions, QueryPattern, QueryToken } from './types';
 import { nanoid } from 'nanoid/non-secure';
 import { match as pathMatchFactory } from 'path-to-regexp';
 import qs from 'query-string';
+import React from 'react';
 import {
   type ComponentWithController,
   type MixedComponent,
@@ -120,7 +121,7 @@ export class NavigationStack implements NavigationNode {
 
   public addModal(
     path: string,
-    mixedComponent: MixedComponent,
+    mixedComponent: MixedComponent | NavigationNode,
     options?: ScreenOptions
   ): NavigationStack {
     return this.addScreen(path, mixedComponent, {
@@ -131,7 +132,7 @@ export class NavigationStack implements NavigationNode {
 
   public addSheet(
     path: string,
-    mixedComponent: MixedComponent,
+    mixedComponent: MixedComponent | NavigationNode,
     options?: ScreenOptions
   ): NavigationStack {
     return this.addScreen(path, mixedComponent, {
@@ -190,7 +191,15 @@ export class NavigationStack implements NavigationNode {
   }
 
   public getRenderer(): React.ComponentType<any> {
-    return () => null;
+    const stackInstance = this;
+    return function NavigationStackRenderer(props: { appearance?: any }) {
+      // Lazy require to avoid circular dependency (StackRenderer imports NavigationStack)
+      const { StackRenderer } = require('./StackRenderer');
+      return React.createElement(StackRenderer, {
+        stack: stackInstance,
+        appearance: props.appearance,
+      });
+    };
   }
 
   public seed?(): {

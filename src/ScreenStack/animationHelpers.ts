@@ -92,7 +92,13 @@ export function computeAnimationType(
       ) as AnimationType;
     }
 
-    return 'none';
+    // Modal-like screen that's NOT top (background) - animate like push
+    // This happens when navigating inside a modal stack
+    if (direction === 'forward') {
+      return 'push-background';
+    } else {
+      return 'pop-background';
+    }
   }
 
   if (!isInStack) {
