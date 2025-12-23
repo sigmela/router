@@ -1659,7 +1659,10 @@ export class Router {
       // that should take priority over the child stack's own routes when both match.
       // This ensures addModal('/path', NavigationStack) renders the wrapper modal
       // and not the child stack's first screen directly.
-      if (r.childNode && isModalLikePresentation(r.options?.stackPresentation)) {
+      if (
+        r.childNode &&
+        isModalLikePresentation(r.options?.stackPresentation)
+      ) {
         spec += 1;
       }
 

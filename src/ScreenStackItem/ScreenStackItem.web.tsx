@@ -64,6 +64,7 @@ export const ScreenStackItem = memo(
       animationType,
       transitionStatus,
       phase,
+      devLog,
       item.key,
       item.path,
     ]);

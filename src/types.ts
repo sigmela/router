@@ -22,17 +22,18 @@ export type StackPresentationTypes =
 /**
  * Presentations that behave like modals (overlay on top of content).
  */
-export const MODAL_LIKE_PRESENTATIONS: ReadonlySet<StackPresentationTypes> = new Set([
-  'modal',
-  'modalRight',
-  'transparentModal',
-  'containedModal',
-  'containedTransparentModal',
-  'fullScreenModal',
-  'formSheet',
-  'pageSheet',
-  'sheet',
-]);
+export const MODAL_LIKE_PRESENTATIONS: ReadonlySet<StackPresentationTypes> =
+  new Set([
+    'modal',
+    'modalRight',
+    'transparentModal',
+    'containedModal',
+    'containedTransparentModal',
+    'fullScreenModal',
+    'formSheet',
+    'pageSheet',
+    'sheet',
+  ]);
 
 /**
  * Check if a presentation type is modal-like (renders as overlay).
@@ -40,7 +41,9 @@ export const MODAL_LIKE_PRESENTATIONS: ReadonlySet<StackPresentationTypes> = new
 export function isModalLikePresentation(
   presentation: StackPresentationTypes | undefined
 ): boolean {
-  return presentation !== undefined && MODAL_LIKE_PRESENTATIONS.has(presentation);
+  return (
+    presentation !== undefined && MODAL_LIKE_PRESENTATIONS.has(presentation)
+  );
 }
 
 export type TabItem = Omit<BottomTabsScreenProps, 'isFocused' | 'children'>;

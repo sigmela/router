@@ -191,6 +191,7 @@ export class NavigationStack implements NavigationNode {
   }
 
   public getRenderer(): React.ComponentType<any> {
+    // eslint-disable-next-line consistent-this
     const stackInstance = this;
     return function NavigationStackRenderer(props: { appearance?: any }) {
       // Lazy require to avoid circular dependency (StackRenderer imports NavigationStack)

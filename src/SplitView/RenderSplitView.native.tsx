@@ -104,4 +104,3 @@ export const RenderSplitView = memo<RenderSplitViewProps>(
 const styles = StyleSheet.create({
   container: { flex: 1 },
 });
-
