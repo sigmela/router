@@ -396,14 +396,14 @@
 
 /* ==================== DESKTOP MODAL (>= 640px) — centered card ==================== */
 @media (min-width: 640px) {
-  /* Inner container for modal — centered card 600x500px */
+  /* Inner container for modal — centered card 600px width, 75% height */
   .screen-stack-item.modal .stack-modal-container {
     width: 600px;
     max-width: calc(100% - 48px);
-    height: 500px;
+    height: 75vh;
     max-height: calc(100% - 48px);
     margin: auto; /* center in parent */
-    border-radius: 16px;
+    border-radius: 38px;
     overflow: hidden;
     background: #fff;
 
