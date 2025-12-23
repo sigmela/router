@@ -78,6 +78,12 @@ export type ScreenOptions = Partial<
    * Useful for secondary stacks in split-view / overlays.
    */
   allowRootPop?: boolean;
+
+  /**
+   * Maximum width for modal presentation on web (in pixels).
+   * Only applies to modal-like presentations on web platform.
+   */
+  maxWidth?: number;
 };
 
 export type HistoryItem = {

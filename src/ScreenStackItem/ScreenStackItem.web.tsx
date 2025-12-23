@@ -77,6 +77,15 @@ export const ScreenStackItem = memo(
       [style, zIndex]
     );
 
+    const modalContainerStyle = useMemo(() => {
+      if (!isModalLike || !item.options?.maxWidth) {
+        return undefined;
+      }
+      return {
+        maxWidth: `${item.options.maxWidth}px`,
+      };
+    }, [isModalLike, item.options?.maxWidth]);
+
     const value = {
       presentation,
       params: item.params,
@@ -102,6 +111,7 @@ export const ScreenStackItem = memo(
           className={
             isModalLike ? 'stack-modal-container' : 'stack-screen-container'
           }
+          style={modalContainerStyle}
         >
           {appearance?.screen ? (
             <View style={[appearance?.screen, styles.flex]}>
