@@ -18,6 +18,29 @@ export type StackPresentationTypes =
   | 'pageSheet'
   | 'sheet';
 
+/**
+ * Presentations that behave like modals (overlay on top of content).
+ */
+export const MODAL_LIKE_PRESENTATIONS: ReadonlySet<StackPresentationTypes> = new Set([
+  'modal',
+  'transparentModal',
+  'containedModal',
+  'containedTransparentModal',
+  'fullScreenModal',
+  'formSheet',
+  'pageSheet',
+  'sheet',
+]);
+
+/**
+ * Check if a presentation type is modal-like (renders as overlay).
+ */
+export function isModalLikePresentation(
+  presentation: StackPresentationTypes | undefined
+): boolean {
+  return presentation !== undefined && MODAL_LIKE_PRESENTATIONS.has(presentation);
+}
+
 export type TabItem = Omit<BottomTabsScreenProps, 'isFocused' | 'children'>;
 
 export type NavigationState<Route extends TabItem> = {

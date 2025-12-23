@@ -9,6 +9,7 @@ import type {
   ActiveRoute,
   QueryPattern,
 } from './types';
+import { isModalLikePresentation } from './types';
 
 type Listener = () => void;
 
@@ -188,26 +189,11 @@ export class Router {
    * close the entire modal from any screen within it.
    */
   public dismiss = (): void => {
-    const modalPresentations = new Set([
-      'modal',
-      'transparentModal',
-      'containedModal',
-      'containedTransparentModal',
-      'fullScreenModal',
-      'formSheet',
-      'pageSheet',
-      'sheet',
-    ]);
-
     // Find the nearest modal/sheet item in history (searching from end)
     let modalItem: HistoryItem | null = null;
     for (let i = this.state.history.length - 1; i >= 0; i--) {
       const item = this.state.history[i];
-      if (
-        item &&
-        item.options?.stackPresentation &&
-        modalPresentations.has(item.options.stackPresentation)
-      ) {
+      if (item && isModalLikePresentation(item.options?.stackPresentation)) {
         modalItem = item;
         break;
       }
@@ -1669,20 +1655,7 @@ export class Router {
       // that should take priority over the child stack's own routes when both match.
       // This ensures addModal('/path', NavigationStack) renders the wrapper modal
       // and not the child stack's first screen directly.
-      const isModalPresentation =
-        r.options?.stackPresentation &&
-        [
-          'modal',
-          'transparentModal',
-          'containedModal',
-          'containedTransparentModal',
-          'fullScreenModal',
-          'formSheet',
-          'pageSheet',
-          'sheet',
-        ].includes(r.options.stackPresentation);
-
-      if (r.childNode && isModalPresentation) {
+      if (r.childNode && isModalLikePresentation(r.options?.stackPresentation)) {
         spec += 1;
       }
 

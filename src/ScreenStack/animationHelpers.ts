@@ -1,4 +1,5 @@
 import type { StackPresentationTypes } from '../types';
+import { isModalLikePresentation } from '../types';
 import type {
   PresentationTypeClass,
   AnimationType,
@@ -64,17 +65,7 @@ export function computeAnimationType(
   }
 
   const isEntering = isInStack && isTop;
-
-  const isModalLike = [
-    'modal',
-    'transparentModal',
-    'containedModal',
-    'containedTransparentModal',
-    'fullScreenModal',
-    'formSheet',
-    'pageSheet',
-    'sheet',
-  ].includes(presentation);
+  const isModalLike = isModalLikePresentation(presentation);
 
   if (isModalLike) {
     if (!isInStack) {

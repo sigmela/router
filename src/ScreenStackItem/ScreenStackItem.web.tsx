@@ -1,5 +1,6 @@
 import type { ScreenStackItemProps } from './ScreenStackItem.types';
 import { RouteLocalContext, useRouter } from '../RouterContext';
+import { isModalLikePresentation } from '../types';
 import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useScreenStackItemsContext } from '../ScreenStack/ScreenStackContext';
@@ -19,17 +20,7 @@ export const ScreenStackItem = memo(
     const transitionStatus = itemState?.transitionStatus;
     const zIndex = itemState?.zIndex ?? 0;
     const presentation = item.options?.stackPresentation ?? 'push';
-
-    const isModalLike = [
-      'modal',
-      'transparentModal',
-      'containedModal',
-      'containedTransparentModal',
-      'fullScreenModal',
-      'formSheet',
-      'pageSheet',
-      'sheet',
-    ].includes(presentation);
+    const isModalLike = isModalLikePresentation(presentation);
 
     const className = useMemo(() => {
       const classes = ['screen-stack-item'];
@@ -93,7 +84,6 @@ export const ScreenStackItem = memo(
 
     return (
       <div style={mergedStyle} className={className}>
-        {}
         {isModalLike && (
           <div
             className="stack-modal-overlay"
