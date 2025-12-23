@@ -97,7 +97,7 @@ export const ScreenStackItem = memo(
         {isModalLike && (
           <div
             className="stack-modal-overlay"
-            onClick={() => router.goBack()}
+            onClick={() => router.dismiss()}
           />
         )}
 

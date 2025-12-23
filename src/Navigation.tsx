@@ -56,9 +56,7 @@ export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
 
   const { rootId } = root;
   const rootTransition = router.getRootTransition();
-  const globalId = router.getGlobalStackId();
   const rootItems = useStackHistory(router, rootId);
-  const globalItems = useStackHistory(router, globalId);
 
   return (
     <RouterContext.Provider value={router}>
@@ -71,14 +69,6 @@ export const Navigation = memo<NavigationProps>(({ router, appearance }) => {
             item={item}
             stackAnimation={rootTransition}
             appearance={appearance}
-          />
-        ))}
-        {globalItems.map((item) => (
-          <ScreenStackItem
-            key={`global-${item.key}`}
-            appearance={appearance}
-            stackId={globalId}
-            item={item}
           />
         ))}
       </ScreenStack>

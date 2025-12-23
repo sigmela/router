@@ -321,10 +321,6 @@ export class Router {
     return this.root?.getId();
   }
 
-  public getGlobalStackId(): string | undefined {
-    return undefined;
-  }
-
   public subscribeRoot(listener: Listener): () => void {
     this.rootListeners.add(listener);
     return () => this.rootListeners.delete(listener);
