@@ -72,38 +72,24 @@
 
 /* Overlay on enter — fade in via transition */
 .screen-stack-item.modal.transition-entering > .stack-modal-overlay,
-.screen-stack-item.modal.phase-active.transition-preEnter > .stack-modal-overlay,
 .screen-stack-item.modal-right.transition-entering > .stack-modal-overlay,
-.screen-stack-item.modal-right.phase-active.transition-preEnter > .stack-modal-overlay,
 .screen-stack-item.contained-modal.transition-entering > .stack-modal-overlay,
-.screen-stack-item.contained-modal.phase-active.transition-preEnter > .stack-modal-overlay,
 .screen-stack-item.fullscreen-modal.transition-entering > .stack-modal-overlay,
-.screen-stack-item.fullscreen-modal.phase-active.transition-preEnter > .stack-modal-overlay,
 .screen-stack-item.formsheet.transition-entering > .stack-modal-overlay,
-.screen-stack-item.formsheet.phase-active.transition-preEnter > .stack-modal-overlay,
 .screen-stack-item.pagesheet.transition-entering > .stack-modal-overlay,
-.screen-stack-item.pagesheet.phase-active.transition-preEnter > .stack-modal-overlay,
-.screen-stack-item.sheet.transition-entering > .stack-modal-overlay,
-.screen-stack-item.sheet.phase-active.transition-preEnter > .stack-modal-overlay {
+.screen-stack-item.sheet.transition-entering > .stack-modal-overlay {
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
   opacity: 0.5;
 }
 
 /* For modal-like in active / entered states — fully visible */
-.screen-stack-item.modal.phase-active > .stack-modal-overlay,
 .screen-stack-item.modal.transition-entered > .stack-modal-overlay,
-.screen-stack-item.modal-right.phase-active > .stack-modal-overlay,
 .screen-stack-item.modal-right.transition-entered > .stack-modal-overlay,
-.screen-stack-item.contained-modal.phase-active > .stack-modal-overlay,
 .screen-stack-item.contained-modal.transition-entered > .stack-modal-overlay,
-.screen-stack-item.fullscreen-modal.phase-active > .stack-modal-overlay,
 .screen-stack-item.fullscreen-modal.transition-entered > .stack-modal-overlay,
-.screen-stack-item.formsheet.phase-active > .stack-modal-overlay,
 .screen-stack-item.formsheet.transition-entered > .stack-modal-overlay,
-.screen-stack-item.pagesheet.phase-active > .stack-modal-overlay,
 .screen-stack-item.pagesheet.transition-entered > .stack-modal-overlay,
-.screen-stack-item.sheet.phase-active > .stack-modal-overlay,
 .screen-stack-item.sheet.transition-entered > .stack-modal-overlay {
   opacity: 0.5;
   background: rgba(0, 0, 0, 0.5);
