@@ -17,8 +17,10 @@
 
   /* Base transition for opening screen */
   transition:
-    transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    filter 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    transform var(--stack-transition-time, 300ms)
+      cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter var(--stack-transition-time, 300ms)
+      cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* Inner container for regular screen */
@@ -43,6 +45,8 @@
   pointer-events: none;
   z-index: 1;
   will-change: opacity;
+  transition: opacity var(--stack-transition-time, 300ms)
+    cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 /* Show overlay only for modal-like presentations.
@@ -51,26 +55,6 @@
 .screen-stack-item:not(.modal):not(.modal-right):not(.contained-modal):not(.fullscreen-modal):not(.formsheet):not(.pagesheet):not(.sheet)
   > .stack-modal-overlay {
   display: none;
-}
-
-/* Keyframes for overlay appearance */
-@keyframes modal-overlay-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 0.5;
-  }
-}
-
-/* Keyframes for overlay disappearance */
-@keyframes modal-overlay-exit {
-  from {
-    opacity: 0.5;
-  }
-  to {
-    opacity: 0;
-  }
 }
 
 /* Overlay in initial state — transparent */
@@ -86,7 +70,7 @@
   pointer-events: none;
 }
 
-/* Overlay on enter — start animation */
+/* Overlay on enter — fade in via transition */
 .screen-stack-item.modal.transition-entering > .stack-modal-overlay,
 .screen-stack-item.modal.phase-active.transition-preEnter > .stack-modal-overlay,
 .screen-stack-item.modal-right.transition-entering > .stack-modal-overlay,
@@ -103,7 +87,7 @@
 .screen-stack-item.sheet.phase-active.transition-preEnter > .stack-modal-overlay {
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
-  animation: modal-overlay-enter 300ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  opacity: 0.5;
 }
 
 /* For modal-like in active / entered states — fully visible */
@@ -126,7 +110,7 @@
   pointer-events: auto;
 }
 
-/* Overlay on modal-like close — disappearance animation */
+/* Overlay on modal-like close — fade out via transition */
 .screen-stack-item.modal.phase-exiting > .stack-modal-overlay,
 .screen-stack-item.modal.transition-exiting > .stack-modal-overlay,
 .screen-stack-item.modal-right.phase-exiting > .stack-modal-overlay,
@@ -143,7 +127,7 @@
 .screen-stack-item.sheet.transition-exiting > .stack-modal-overlay {
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;
-  animation: modal-overlay-exit 300ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  opacity: 0;
 }
 
 /* Overlay for transparent-modal — transparent */

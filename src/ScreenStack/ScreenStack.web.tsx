@@ -1,4 +1,4 @@
-import type { ReactElement, Key, ReactNode } from 'react';
+import type { ReactElement, Key, ReactNode, CSSProperties } from 'react';
 import {
   memo,
   useRef,
@@ -683,6 +683,11 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
         <div
           ref={containerRef}
           className={containerClassName + (animating ? ' animating' : '')}
+          style={
+            {
+              '--stack-transition-time': `${transitionTime}ms`,
+            } as CSSProperties
+          }
         >
           {keysToRender.map((key) => {
             const transitionState = stateMap.get(key);
