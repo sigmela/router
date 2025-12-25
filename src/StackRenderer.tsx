@@ -1,21 +1,19 @@
 import type { HistoryItem, NavigationAppearance } from './types';
 import { memo, useCallback, useSyncExternalStore } from 'react';
 import { ScreenStackItem } from './ScreenStackItem';
-import { NavigationStack } from './NavigationStack';
 import { ScreenStack } from './ScreenStack';
 import { useRouter } from './RouterContext';
 import { StyleSheet } from 'react-native';
 
 export interface StackRendererProps {
-  stack: NavigationStack;
+  stackId: string;
   appearance?: NavigationAppearance;
   history?: HistoryItem[];
 }
 
 export const StackRenderer = memo<StackRendererProps>(
-  ({ stack, appearance, history }) => {
+  ({ stackId, appearance, history }) => {
     const router = useRouter();
-    const stackId = stack.getId();
 
     const subscribe = useCallback(
       (cb: () => void) => router.subscribeStack(stackId, cb),

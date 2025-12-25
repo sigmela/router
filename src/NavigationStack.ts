@@ -8,6 +8,7 @@ import {
   type MixedComponent,
 } from './createController';
 import type { NavigationNode, NodeRoute, NodeChild } from './navigationNode';
+import { StackRenderer } from './StackRenderer';
 
 type BuiltRoute = NodeRoute;
 
@@ -193,11 +194,10 @@ export class NavigationStack implements NavigationNode {
   public getRenderer(): React.ComponentType<any> {
     // eslint-disable-next-line consistent-this
     const stackInstance = this;
+    const stackId = stackInstance.getId();
     return function NavigationStackRenderer(props: { appearance?: any }) {
-      // Lazy require to avoid circular dependency (StackRenderer imports NavigationStack)
-      const { StackRenderer } = require('./StackRenderer');
       return React.createElement(StackRenderer, {
-        stack: stackInstance,
+        stackId: stackId,
         appearance: props.appearance,
       });
     };

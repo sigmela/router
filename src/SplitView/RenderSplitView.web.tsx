@@ -66,7 +66,7 @@ const StackSliceRenderer = memo<{
   return (
     <StackRenderer
       appearance={appearance}
-      stack={stack}
+      stackId={stackId}
       history={historyToRender}
     />
   );

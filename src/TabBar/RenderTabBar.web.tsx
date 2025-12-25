@@ -55,7 +55,11 @@ const TabStackRenderer = memo<{
   const history: HistoryItem[] = useSyncExternalStore(subscribe, get, get);
 
   return (
-    <StackRenderer appearance={appearance} stack={stack} history={history} />
+    <StackRenderer
+      appearance={appearance}
+      stackId={stackId}
+      history={history}
+    />
   );
 });
 
