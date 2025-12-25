@@ -53,6 +53,7 @@ export class Router {
   private readonly routerScreenOptions: ScreenOptions | undefined;
   private readonly debugEnabled: boolean = false;
   private sheetDismissers = new Map<string, () => void>();
+  private dismissedStackIds = new Set<string>();
 
   private stackListeners = new Map<string, Set<Listener>>();
   private stackById = new Map<string, NavigationNode>();
@@ -105,6 +106,20 @@ export class Router {
 
   public isDebugEnabled(): boolean {
     return this.debugEnabled;
+  }
+
+  public isStackBeingDismissed(stackId?: string): boolean {
+    if (!stackId) return false;
+    return this.dismissedStackIds.has(stackId);
+  }
+
+  public clearStackDismissed(stackId?: string): void {
+    if (!stackId) return;
+    this.dismissedStackIds.delete(stackId);
+  }
+
+  private markStackDismissed(stackId: string): void {
+    this.dismissedStackIds.add(stackId);
   }
 
   private log(message: string, data?: any): void {
@@ -237,6 +252,8 @@ export class Router {
         childStackId,
         modalKey: modalItem.key,
       });
+
+      this.markStackDismissed(childStackId);
 
       const newHistory = this.state.history.filter(
         (item) => item.stackId !== childStackId && item.key !== modalItem.key

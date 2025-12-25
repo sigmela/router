@@ -24,6 +24,7 @@ import {
   computeAnimationType,
 } from './animationHelpers';
 import { RouterContext } from '../RouterContext';
+import { isModalLikePresentation } from '../types';
 
 type ScreenStackProps = {
   children: ReactNode;
@@ -129,6 +130,8 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   const isBulkRemovalRef = useRef(false);
 
   const prevKeysRef = useRef<string[]>([]);
+  const lastStackIdRef = useRef<string | null>(null);
+  const dismissInProgressRef = useRef(false);
 
   const lastDirectionRef = useRef<Direction>('forward');
 
@@ -153,6 +156,22 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
     return stackItems;
   }, [children, devLog]);
+
+  const currentStackId = useMemo(() => {
+    let found: string | undefined;
+    for (const child of stackChildren) {
+      const childStackId =
+        child.props.stackId ?? child.props.item?.stackId ?? undefined;
+      if (childStackId) {
+        found = childStackId;
+        break;
+      }
+    }
+    if (found) {
+      lastStackIdRef.current = found;
+    }
+    return found ?? lastStackIdRef.current;
+  }, [stackChildren]);
 
   const routeKeys = useMemo(() => {
     const keys = stackChildren.map((child) => {
@@ -217,8 +236,6 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
   const direction: Direction = useMemo(() => {
     const computed = computeDirection(prevKeysForDirection, routeKeys);
-
-    prevKeysRef.current = routeKeys;
     return computed;
   }, [routeKeys, prevKeysForDirection]);
 
@@ -261,17 +278,13 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
   // CRITICAL: Calculate bulk removal BEFORE useMemo for itemsContextValue
   // so the flag is available when computing animation types
-  const removedKeysForBulkDetection = useMemo(() => {
-    const routeKeySet = new Set(routeKeys);
-    const existingKeySet = new Set<string>();
-    for (const [key] of stateMapEntries) {
-      existingKeySet.add(key);
-    }
-    return [...existingKeySet].filter((key) => !routeKeySet.has(key));
-  }, [routeKeys, stateMapEntries]);
+  // Use prevKeysForDirection (captured before direction useMemo) to detect removals
+  const removedCount = prevKeysForDirection.filter(
+    (key) => !routeKeys.includes(key)
+  ).length;
 
   const isBulkRemoval =
-    removedKeysForBulkDetection.length > 1 ||
+    removedCount > 1 ||
     (routeKeys.length === 0 && prevKeysForDirection.length > 1);
 
   isBulkRemovalRef.current = isBulkRemoval;
@@ -362,6 +375,7 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   }, [
     routeKeys,
     direction,
+    prevKeysForDirection.length,
     setItem,
     toggle,
     stateMapEntries,
@@ -402,6 +416,12 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
     devLog('[ScreenStack] === CLEANUP EFFECT END ===');
   }, [routeKeys, stateMapEntries, deleteItem, devLog]);
+
+  // Update the previous keys after all layout effects so direction calculations
+  // always compare against the last committed stack.
+  useLayoutEffect(() => {
+    prevKeysRef.current = routeKeys;
+  }, [routeKeys]);
 
   useEffect(() => {
     if (!isInitialMountRef.current) return;
@@ -457,6 +477,38 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
   const topKey = routeKeys[routeKeys.length - 1] ?? null;
   const routeKeySet = useMemo(() => new Set(routeKeys), [routeKeys]);
+  const hasExitingItems = useMemo(() => {
+    return stateMapEntries.some(
+      ([key, state]) => state.isMounted && !routeKeySet.has(key)
+    );
+  }, [stateMapEntries, routeKeySet]);
+  const hasExitingModalLike = useMemo(() => {
+    return stateMapEntries.some(([key, state]) => {
+      if (!state.isMounted || routeKeySet.has(key)) return false;
+      const item = childMap.get(key)?.props.item;
+      return isModalLikePresentation(item?.options?.stackPresentation);
+    });
+  }, [childMap, routeKeySet, stateMapEntries]);
+  const animationDirection = hasExitingItems
+    ? lastDirectionRef.current
+    : direction;
+  const stackDismissedByRouter =
+    router?.isStackBeingDismissed?.(currentStackId ?? undefined) ?? false;
+  if (stackDismissedByRouter) {
+    dismissInProgressRef.current = true;
+  }
+  const isStackBeingDismissed = dismissInProgressRef.current;
+  devLog('[ScreenStack] Dismiss state', {
+    stackId: currentStackId,
+    isStackBeingDismissed,
+  });
+
+  useLayoutEffect(() => {
+    if (!isStackBeingDismissed) return;
+    if (hasExitingItems) return;
+    dismissInProgressRef.current = false;
+    router?.clearStackDismissed?.(currentStackId ?? undefined);
+  }, [hasExitingItems, isStackBeingDismissed, currentStackId, router]);
 
   const itemsContextValue = useMemo(() => {
     const items: { [key: string]: any } = {};
@@ -501,12 +553,20 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
         key,
         isInStack,
         isTop,
-        direction,
+        animationDirection,
         presentation,
         isInitialPhase,
         animated,
         isBulkRemovalRef.current
       );
+
+      if (hasExitingModalLike && isTop && isInStack) {
+        animationType = 'none';
+      }
+
+      if (isStackBeingDismissed && !isInStack) {
+        animationType = 'no-animate';
+      }
 
       // SplitView-secondary-only: suppress enter animation for the first screen after empty.
       if (
@@ -557,12 +617,20 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
             key,
             isInStack,
             isTop,
-            direction,
+            animationDirection,
             presentation,
             isInitialPhase,
             animated,
             isBulkRemovalRef.current
           );
+
+      if (hasExitingModalLike && isTop && isInStack) {
+        animationType = 'none';
+      }
+
+      if (isStackBeingDismissed && !isInStack) {
+        animationType = 'no-animate';
+      }
 
       if (
         !animateFirstScreenAfterEmpty &&
@@ -591,8 +659,11 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     topKey,
     isInitialPhase,
     routeKeys,
+    animationDirection,
     direction,
     animateFirstScreenAfterEmpty,
+    isStackBeingDismissed,
+    hasExitingModalLike,
   ]);
 
   const animating = useMemo(() => {
