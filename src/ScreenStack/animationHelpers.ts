@@ -56,7 +56,8 @@ export function computeAnimationType(
   direction: 'forward' | 'back',
   presentation: StackPresentationTypes,
   isInitialPhase: boolean,
-  animated: boolean = true
+  animated: boolean = true,
+  isBulkRemoval: boolean = false
 ): AnimationType {
   if (!animated) {
     return 'no-animate';
@@ -64,6 +65,11 @@ export function computeAnimationType(
 
   if (isInitialPhase) {
     return 'none';
+  }
+
+  // When multiple screens are removed at once (bulk removal), don't animate them
+  if (isBulkRemoval && !isInStack) {
+    return 'no-animate';
   }
 
   const isEntering = isInStack && isTop;

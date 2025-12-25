@@ -126,6 +126,8 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
   const suppressEnterAfterEmptyRef = useRef(false);
   const suppressedEnterKeyRef = useRef<string | null>(null);
 
+  const isBulkRemovalRef = useRef(false);
+
   const prevKeysRef = useRef<string[]>([]);
 
   const lastDirectionRef = useRef<Direction>('forward');
@@ -211,13 +213,14 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
 
   const stateMapEntries = Array.from(stateMap.entries());
 
+  const prevKeysForDirection = prevKeysRef.current;
+
   const direction: Direction = useMemo(() => {
-    const prevKeys = prevKeysRef.current;
-    const computed = computeDirection(prevKeys, routeKeys);
+    const computed = computeDirection(prevKeysForDirection, routeKeys);
 
     prevKeysRef.current = routeKeys;
     return computed;
-  }, [routeKeys]);
+  }, [routeKeys, prevKeysForDirection]);
 
   devLog('[ScreenStack] Computed direction', {
     prevKeys: prevKeysRef.current,
@@ -256,6 +259,23 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     return 'screen-stack';
   }, []);
 
+  // CRITICAL: Calculate bulk removal BEFORE useMemo for itemsContextValue
+  // so the flag is available when computing animation types
+  const removedKeysForBulkDetection = useMemo(() => {
+    const routeKeySet = new Set(routeKeys);
+    const existingKeySet = new Set<string>();
+    for (const [key] of stateMapEntries) {
+      existingKeySet.add(key);
+    }
+    return [...existingKeySet].filter((key) => !routeKeySet.has(key));
+  }, [routeKeys, stateMapEntries]);
+
+  const isBulkRemoval =
+    removedKeysForBulkDetection.length > 1 ||
+    (routeKeys.length === 0 && prevKeysForDirection.length > 1);
+
+  isBulkRemovalRef.current = isBulkRemoval;
+
   useLayoutEffect(() => {
     devLog('[ScreenStack] === LIFECYCLE EFFECT START ===', {
       prevKeys: prevKeysRef.current,
@@ -287,6 +307,14 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
     devLog('[ScreenStack] Lifecycle diff', {
       newKeys,
       removedKeys,
+    });
+
+    // Bulk removal was already computed before useMemo (see above)
+    devLog('[ScreenStack] Bulk removal detected', {
+      isBulkRemoval: isBulkRemovalRef.current,
+      removedCount: removedKeys.length,
+      prevLength: prevKeysForDirection.length,
+      currentLength: routeKeys.length,
     });
 
     // If this is the first pushed key after the stack was empty, remember its key so we can
@@ -476,7 +504,8 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
         direction,
         presentation,
         isInitialPhase,
-        animated
+        animated,
+        isBulkRemovalRef.current
       );
 
       // SplitView-secondary-only: suppress enter animation for the first screen after empty.
@@ -531,7 +560,8 @@ export const ScreenStack = memo<ScreenStackProps>((props) => {
             direction,
             presentation,
             isInitialPhase,
-            animated
+            animated,
+            isBulkRemovalRef.current
           );
 
       if (
