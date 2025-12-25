@@ -1,4 +1,9 @@
-import type { ScreenOptions, QueryPattern, QueryToken } from './types';
+import type {
+  ScreenOptions,
+  NavigationStackOptions,
+  QueryPattern,
+  QueryToken,
+} from './types';
 import { nanoid } from 'nanoid/non-secure';
 import { match as pathMatchFactory } from 'path-to-regexp';
 import qs from 'query-string';
@@ -20,25 +25,34 @@ export class NavigationStack implements NavigationNode {
   private readonly children: ChildNode[] = [];
   private readonly defaultOptions: ScreenOptions | undefined;
   private readonly debugEnabled: boolean = false;
+  private readonly provider:
+    | React.ComponentType<{ children: React.ReactNode }>
+    | undefined;
 
   constructor();
   constructor(id: string);
-  constructor(defaultOptions: ScreenOptions);
-  constructor(id: string, defaultOptions: ScreenOptions);
-  constructor(id: string, defaultOptions: ScreenOptions, debug: boolean);
+  constructor(defaultOptions: NavigationStackOptions);
+  constructor(id: string, defaultOptions: NavigationStackOptions);
   constructor(
-    idOrOptions?: string | ScreenOptions,
-    maybeOptions?: ScreenOptions,
+    id: string,
+    defaultOptions: NavigationStackOptions,
+    debug: boolean
+  );
+  constructor(
+    idOrOptions?: string | NavigationStackOptions,
+    maybeOptions?: NavigationStackOptions,
     maybeDebug?: boolean
   ) {
     if (typeof idOrOptions === 'string') {
       this.stackId = idOrOptions ?? `stack-${nanoid()}`;
       this.defaultOptions = maybeOptions;
       this.debugEnabled = maybeDebug ?? false;
+      this.provider = maybeOptions?.provider;
     } else {
       this.stackId = `stack-${nanoid()}`;
       this.defaultOptions = idOrOptions;
       this.debugEnabled = false;
+      this.provider = idOrOptions?.provider;
     }
   }
 
@@ -195,11 +209,19 @@ export class NavigationStack implements NavigationNode {
     // eslint-disable-next-line consistent-this
     const stackInstance = this;
     const stackId = stackInstance.getId();
+    const provider = this.provider;
+
     return function NavigationStackRenderer(props: { appearance?: any }) {
-      return React.createElement(StackRenderer, {
+      const stackElement = React.createElement(StackRenderer, {
         stackId: stackId,
         appearance: props.appearance,
       });
+
+      if (provider) {
+        return React.createElement(provider, null, stackElement);
+      }
+
+      return stackElement;
     };
   }
 

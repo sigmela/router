@@ -45,6 +45,36 @@ const stack = new NavigationStack({ header: { largeTitle: true } })
 - `addStack(prefixOrStack, maybeStack?)` - nest child `NavigationStack`.
   - `addStack(childStack)` uses empty prefix (`''`)
   - `addStack('/prefix', childStack)` prefixes all child routes; `/` and trailing `/` are normalized away
+
+**Provider Context:**
+You can wrap an entire stack's renderer with a React context provider by passing a `provider` option in the constructor:
+```tsx
+const stack = new NavigationStack({
+  header: { largeTitle: true },
+  provider: ThemeProvider
+})
+  .addScreen('/feed', FeedScreen)
+  .addScreen('/feed/:id', FeedItemScreen);
+```
+The `provider` component wraps the entire `StackRenderer`, making context available to all screens in the stack. Useful for:
+- Theme providers (apply theme to all screens)
+- Auth providers (share auth state across screens)
+- Localization (provide i18n context)
+
+**Composing multiple providers:**
+```tsx
+const ComposedProvider = ({ children }) => (
+  <ThemeProvider>
+    <AuthProvider>
+      {children}
+    </AuthProvider>
+  </ThemeProvider>
+);
+
+const stack = new NavigationStack({ provider: ComposedProvider })
+  .addScreen('/', HomeScreen);
+```
+**Important:** Provider should be a stable reference (not inline arrow function) to avoid unnecessary re-renders.
 ### 2. Router
 Central navigation controller.
 ```ts

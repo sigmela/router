@@ -152,6 +152,47 @@ Key methods:
 - `addSheet(pathPattern, componentOrStack, options?)` (shorthand for `stackPresentation: 'sheet'`)
 - `addStack(prefixOrStack, maybeStack?)` — compose nested stacks under a prefix
 
+#### Provider Context
+
+You can wrap an entire stack with a React context provider by passing a `provider` option:
+
+```tsx
+import { ThemeProvider } from './theme';
+
+const stack = new NavigationStack({
+  header: { largeTitle: true },
+  provider: ThemeProvider,
+})
+  .addScreen('/feed', FeedScreen)
+  .addScreen('/feed/:id', FeedItemScreen);
+```
+
+The `provider` component wraps the entire stack renderer, making the context available to all screens in the stack. This is useful for:
+- **Theme providers**: Apply theme context to all screens
+- **Auth providers**: Share authentication state across screens
+- **Localization**: Provide i18n context to the entire stack
+
+**Composing multiple providers:**
+
+If you need multiple providers, create a composed component:
+
+```tsx
+const ComposedProvider = ({ children }) => (
+  <ThemeProvider>
+    <AuthProvider>
+      <I18nProvider>
+        {children}
+      </I18nProvider>
+    </AuthProvider>
+  </ThemeProvider>
+);
+
+const stack = new NavigationStack({ provider: ComposedProvider })
+  .addScreen('/', HomeScreen);
+```
+
+**Important:** The provider should be a stable reference (not an inline arrow function) to avoid unnecessary re-renders.
+
 ### Modal Stacks (Stack in Stack)
 
 You can pass an entire `NavigationStack` to `addModal()` or `addSheet()` to create a multi-screen flow inside a modal:

@@ -89,6 +89,14 @@ export type ScreenOptions = Partial<
   maxWidth?: number;
 };
 
+export type NavigationStackOptions = ScreenOptions & {
+  /**
+   * Optional React component to wrap the entire stack renderer.
+   * Useful for providing context (theme, auth, etc.) to all screens in the stack.
+   */
+  provider?: React.ComponentType<{ children: React.ReactNode }>;
+};
+
 export type HistoryItem = {
   key: string;
   routeId: string;
